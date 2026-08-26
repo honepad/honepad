@@ -40,3 +40,14 @@ def test_workers_python_and_js() -> None:
     assert py.passed == len(load_cases("workers", 3))
     js = run("workers", "javascript", 3, "solution")
     assert js.ok, js.failed
+
+
+def test_go_all_problems() -> None:
+    for problem, level in (
+        ("bank_system", 4),
+        ("in_memory_database", 4),
+        ("file_storage", 4),
+        ("workers", 3),
+    ):
+        report = run(problem, "go", level, "solution")
+        assert report.ok, report.failed
