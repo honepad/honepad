@@ -1,1 +1,14 @@
-[]
+[
+  {
+    "id": "fs-l1-spec",
+    "level": 1,
+    "calls": [
+      {"m": "add_file", "a": ["/dir1/dir2/file.txt", 10], "e": "true"},
+      {"m": "add_file", "a": ["/dir1/dir2/file.txt", 5], "e": "false"},
+      {"m": "get_file_size", "a": ["/dir1/dir2/file.txt"], "e": "10"},
+      {"m": "delete_file", "a": ["/not-existing.file"], "e": ""},
+      {"m": "delete_file", "a": ["/dir1/dir2/file.txt"], "e": "10"},
+      {"m": "get_file_size", "a": ["/not-existing.file"], "e": ""}
+    ]
+  }
+]

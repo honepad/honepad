@@ -134,6 +134,27 @@ DB_METHODS = [
     "restore(timestamp, timestamp_to_restore)",
 ]
 
+FILE_METHODS = [
+    "add_file(name, size)",
+    "get_file_size(name)",
+    "delete_file(name)",
+    "get_n_largest(prefix, n)",
+    "add_user(user_id, capacity)",
+    "add_file_by(user_id, name, size)",
+    "merge_user(user_id1, user_id2)",
+    "backup_user(user_id)",
+    "restore_user(user_id)",
+]
+
+WORKER_METHODS = [
+    "add_worker(worker_id, position, compensation)",
+    "register(worker_id, timestamp)",
+    "get(worker_id)",
+    "top_n_workers(n, position)",
+    "promote(worker_id, new_position, new_compensation, start_timestamp)",
+    "calc_salary(worker_id, start_timestamp, end_timestamp)",
+]
+
 
 def suites_for(lang_id: str, extra_suite: str | None) -> list[str]:
     out = []
@@ -292,6 +313,8 @@ def main() -> None:
         for problem, cls, methods in (
             ("bank_system", "Simulation", BANK_METHODS),
             ("in_memory_database", "InMemoryDatabase", DB_METHODS),
+            ("file_storage", "Simulation", FILE_METHODS),
+            ("workers", "Simulation", WORKER_METHODS),
         ):
             pack = lang_dir / "problems" / problem
             pack.mkdir(parents=True, exist_ok=True)
