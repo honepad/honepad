@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import shutil
 import subprocess
 import tempfile
 from dataclasses import dataclass
@@ -123,6 +124,53 @@ def run_javascript(problem: str, level: int, kind: str = "solution") -> Report:
     return Report(problem, "javascript", level, int(payload.get("passed", 0)), failed)
 
 
+def go_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "go" / "problems" / problem
+    name = "solution.go" if kind == "solution" else "stub.go"
+    return pack / name
+
+
+def run_go(problem: str, level: int, kind: str = "solution") -> Report:
+    src = go_entry(problem, kind)
+    adapter = repo_root() / "langs" / "go" / "adapter.go"
+    cases = load_cases(problem, level)
+    ctor = class_for_problem(problem)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpdir = Path(tmp)
+        shutil.copy(adapter, tmpdir / "adapter.go")
+        shutil.copy(src, tmpdir / src.name)
+        (tmpdir / "ctor.go").write_text(
+            f"package main\nfunc NewTarget() any {{ return New{ctor}() }}\n",
+            encoding="utf-8",
+        )
+        (tmpdir / "go.mod").write_text("module honepadrun\n\ngo 1.22\n", encoding="utf-8")
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(cases, handle)
+            cases_path = handle.name
+        proc = subprocess.run(
+            ["go", "run", ".", cases_path],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+    if not proc.stdout.strip():
+        raise RuntimeError(proc.stderr or "go adapter produced no output")
+    payload = json.loads(proc.stdout.splitlines()[-1])
+    failed = [
+        Fail(
+            row["case"],
+            row["index"],
+            row["method"],
+            [],
+            row["expected"],
+            row["actual"],
+        )
+        for row in payload.get("failed", [])
+    ]
+    return Report(problem, "go", level, int(payload.get("passed", 0)), failed)
+
+
 def run(
     problem: str,
     lang_id: str,
@@ -134,6 +182,8 @@ def run(
         return run_python(problem, level, kind)
     if row["id"] == "javascript":
         return run_javascript(problem, level, kind)
+    if row["id"] == "go":
+        return run_go(problem, level, kind)
     raise NotImplementedError(
         f"runner for {lang_id} is a factory job (adapter={row.get('adapter')})"
     )

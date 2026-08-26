@@ -214,7 +214,7 @@
         "ica"
       ],
       "ci": true,
-      "adapter": "stub"
+      "adapter": "go-run"
     },
     {
       "id": "groovy",
