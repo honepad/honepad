@@ -10,6 +10,12 @@ from typing import Any
 
 from honepad.catalog import language, languages, problems
 from honepad.runner import run
+from honepad.session import (
+    ensure_session,
+    load_session,
+    remaining_s,
+    unlock_next,
+)
 from honepad.traces import load_cases, problem_dir
 
 
@@ -24,7 +30,16 @@ def cmd_langs(_args: argparse.Namespace) -> int:
 
 
 def cmd_start(args: argparse.Namespace) -> int:
-    spec = problem_dir(args.problem) / "spec" / f"level{args.level}.md"
+    session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=args.reset)
+    unlocked = int(session["unlocked"])
+    level = unlocked if args.level is None else args.level
+    if level > unlocked:
+        print(f"LOCKED: level {level} (unlocked={unlocked})")
+        return 1
+    spec = problem_dir(args.problem) / "spec" / f"level{level}.md"
+    if not spec.is_file():
+        print(f"FAIL: missing spec {spec}")
+        return 1
     print(spec.read_text(encoding="utf-8"))
     row = language(args.lang)
     stub = (
@@ -36,11 +51,21 @@ def cmd_start(args: argparse.Namespace) -> int:
         / f"stub.{row['ext']}"
     )
     print(f"\nSTUB: {stub}")
+    left = remaining_s(int(session["started_at"]), int(session["minutes"]))
+    print(f"OK: unlocked={unlocked} remaining_s={left}")
     return 0
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    report = run(args.problem, args.lang, args.level, kind=args.kind)
+    session = load_session()
+    same = session is not None and session.get("problem") == args.problem
+    lang = args.lang or (str(session["lang"]) if same and session is not None else "python3")
+    practice = args.level is None and same and session is not None
+    if args.level is None:
+        level = int(session["unlocked"]) if practice and session is not None else 4
+    else:
+        level = args.level
+    report = run(args.problem, lang, level, kind=args.kind)
     print(f"{report.problem} {report.lang} level<={report.level} passed={report.passed}")
     if report.failed:
         fail = report.failed[0]
@@ -50,14 +75,26 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
         return 1
     print("OK")
+    if practice and session is not None and args.kind == "solution":
+        nxt = unlock_next(session)
+        if nxt is not None:
+            print(f"UNLOCKED: level {nxt}")
     return 0
 
 
 def cmd_timer(args: argparse.Namespace) -> int:
     # Agent-driven: print remaining, do not sleep the session.
-    remaining = args.minutes * 60
-    print(f"WAIT: timer {args.minutes}m remaining_s={remaining}")
-    print(f"OK: started_at={int(time.time())}")
+    session = load_session()
+    if session is not None:
+        minutes = int(session["minutes"])
+        started = int(session["started_at"])
+        left = remaining_s(started, minutes)
+        print(f"WAIT: timer {minutes}m remaining_s={left}")
+        print(f"OK: started_at={started}")
+    else:
+        remaining = args.minutes * 60
+        print(f"WAIT: timer {args.minutes}m remaining_s={remaining}")
+        print(f"OK: started_at={int(time.time())}")
     print("NEXT: re-check remaining_s later; do not sleep inside this process")
     return 0
 
@@ -78,13 +115,15 @@ def build_parser() -> argparse.ArgumentParser:
     start = sub.add_parser("start", help="print a level spec")
     start.add_argument("problem", choices=problems())
     start.add_argument("lang")
-    start.add_argument("--level", type=int, default=1)
+    start.add_argument("--level", type=int, default=None)
+    start.add_argument("--minutes", type=int, default=90)
+    start.add_argument("--reset", action="store_true")
     start.set_defaults(func=cmd_start)
 
     run_p = sub.add_parser("run", help="replay traces")
     run_p.add_argument("problem", choices=problems())
-    run_p.add_argument("--lang", default="python3")
-    run_p.add_argument("--level", type=int, default=4)
+    run_p.add_argument("--lang", default=None)
+    run_p.add_argument("--level", type=int, default=None)
     run_p.add_argument("--kind", choices=("solution", "stub"), default="solution")
     run_p.set_defaults(func=cmd_run)
 
