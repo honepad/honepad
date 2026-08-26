@@ -1,0 +1,174 @@
+[
+  {
+    "id": "l2-empty",
+    "level": 2,
+    "calls": [
+      {
+        "m": "top_spenders",
+        "a": [
+          1,
+          0
+        ],
+        "e": []
+      },
+      {
+        "m": "top_spenders",
+        "a": [
+          2,
+          5
+        ],
+        "e": []
+      }
+    ]
+  },
+  {
+    "id": "l2-single",
+    "level": 2,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "acc1",
+          1000
+        ],
+        "e": 1000
+      },
+      {
+        "m": "create_account",
+        "a": [
+          3,
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "transfer",
+        "a": [
+          4,
+          "acc1",
+          "acc2",
+          500
+        ],
+        "e": 500
+      },
+      {
+        "m": "top_spenders",
+        "a": [
+          5,
+          1
+        ],
+        "e": [
+          "acc1(500)"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "l2-tie",
+    "level": 2,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "create_account",
+        "a": [
+          2,
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "create_account",
+        "a": [
+          3,
+          "acc3"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          4,
+          "acc1",
+          1000
+        ],
+        "e": 1000
+      },
+      {
+        "m": "deposit",
+        "a": [
+          5,
+          "acc2",
+          1500
+        ],
+        "e": 1500
+      },
+      {
+        "m": "deposit",
+        "a": [
+          6,
+          "acc3",
+          1200
+        ],
+        "e": 1200
+      },
+      {
+        "m": "transfer",
+        "a": [
+          8,
+          "acc2",
+          "acc3",
+          500
+        ],
+        "e": 1000
+      },
+      {
+        "m": "transfer",
+        "a": [
+          7,
+          "acc1",
+          "acc2",
+          500
+        ],
+        "e": 500
+      },
+      {
+        "m": "transfer",
+        "a": [
+          9,
+          "acc3",
+          "acc1",
+          300
+        ],
+        "e": 1400
+      },
+      {
+        "m": "top_spenders",
+        "a": [
+          10,
+          3
+        ],
+        "e": [
+          "acc1(500)",
+          "acc2(500)",
+          "acc3(300)"
+        ]
+      }
+    ]
+  }
+]

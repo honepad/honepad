@@ -1,0 +1,12 @@
+{
+  "id": "javascript",
+  "name": "JavaScript",
+  "ext": "js",
+  "naming": "camel",
+  "suites": [
+    "gca",
+    "ica"
+  ],
+  "ci": true,
+  "adapter": "stub"
+}

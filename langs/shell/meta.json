@@ -1,0 +1,11 @@
+{
+  "id": "shell",
+  "name": "Shell",
+  "ext": "sh",
+  "naming": "snake",
+  "suites": [
+    "extra"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "elixir",
+  "name": "Elixir",
+  "ext": "ex",
+  "naming": "snake",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

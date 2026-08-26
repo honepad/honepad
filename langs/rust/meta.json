@@ -1,0 +1,12 @@
+{
+  "id": "rust",
+  "name": "Rust",
+  "ext": "rs",
+  "naming": "snake",
+  "suites": [
+    "gca",
+    "ica"
+  ],
+  "ci": true,
+  "adapter": "stub"
+}

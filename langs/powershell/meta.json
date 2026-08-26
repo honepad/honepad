@@ -1,0 +1,11 @@
+{
+  "id": "powershell",
+  "name": "PowerShell",
+  "ext": "ps1",
+  "naming": "camel",
+  "suites": [
+    "extra"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

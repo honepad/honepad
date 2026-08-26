@@ -1,0 +1,11 @@
+{
+  "id": "dart",
+  "name": "Dart",
+  "ext": "dart",
+  "naming": "camel",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

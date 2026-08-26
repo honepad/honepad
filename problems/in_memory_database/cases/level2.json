@@ -1,0 +1,124 @@
+[
+  {
+    "id": "db-l2-scan",
+    "level": 2,
+    "calls": [
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "name",
+          "Alice"
+        ],
+        "e": ""
+      },
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "age",
+          "30"
+        ],
+        "e": ""
+      },
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "city",
+          "NY"
+        ],
+        "e": ""
+      },
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "abc",
+          "123"
+        ],
+        "e": ""
+      },
+      {
+        "m": "scan",
+        "a": [
+          "user1"
+        ],
+        "e": "abc(123), age(30), city(NY), name(Alice)"
+      },
+      {
+        "m": "scan",
+        "a": [
+          "non_existent"
+        ],
+        "e": ""
+      }
+    ]
+  },
+  {
+    "id": "db-l2-prefix",
+    "level": 2,
+    "calls": [
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "name",
+          "Alice"
+        ],
+        "e": ""
+      },
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "age",
+          "30"
+        ],
+        "e": ""
+      },
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "city",
+          "NY"
+        ],
+        "e": ""
+      },
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "abc",
+          "123"
+        ],
+        "e": ""
+      },
+      {
+        "m": "scan_by_prefix",
+        "a": [
+          "user1",
+          "a"
+        ],
+        "e": "abc(123), age(30)"
+      },
+      {
+        "m": "scan_by_prefix",
+        "a": [
+          "user1",
+          "n"
+        ],
+        "e": "name(Alice)"
+      },
+      {
+        "m": "scan_by_prefix",
+        "a": [
+          "user1",
+          "xyz"
+        ],
+        "e": ""
+      }
+    ]
+  }
+]

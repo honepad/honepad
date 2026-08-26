@@ -1,0 +1,12 @@
+{
+  "id": "go",
+  "name": "Go",
+  "ext": "go",
+  "naming": "camel",
+  "suites": [
+    "gca",
+    "ica"
+  ],
+  "ci": true,
+  "adapter": "stub"
+}

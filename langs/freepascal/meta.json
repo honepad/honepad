@@ -1,0 +1,11 @@
+{
+  "id": "freepascal",
+  "name": "Free Pascal",
+  "ext": "pas",
+  "naming": "camel",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

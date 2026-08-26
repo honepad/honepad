@@ -1,0 +1,12 @@
+{
+  "id": "java",
+  "name": "Java",
+  "ext": "java",
+  "naming": "camel",
+  "suites": [
+    "gca",
+    "ica"
+  ],
+  "ci": true,
+  "adapter": "stub"
+}

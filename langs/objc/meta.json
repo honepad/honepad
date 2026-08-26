@@ -1,0 +1,11 @@
+{
+  "id": "objc",
+  "name": "Objective-C",
+  "ext": "m",
+  "naming": "camel",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

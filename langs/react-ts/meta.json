@@ -1,0 +1,11 @@
+{
+  "id": "react-ts",
+  "name": "React (TypeScript)",
+  "ext": "tsx",
+  "naming": "camel",
+  "suites": [
+    "frontend"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

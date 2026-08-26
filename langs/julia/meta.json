@@ -1,0 +1,11 @@
+{
+  "id": "julia",
+  "name": "Julia",
+  "ext": "jl",
+  "naming": "snake",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

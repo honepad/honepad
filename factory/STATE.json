@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "phase": "implement",
+  "stealth_mode": true,
+  "session_branch": null,
+  "ready_pr": null,
+  "lease": null,
+  "human_gate": null,
+  "ledger_sha": null,
+  "ledger_worktree": null,
+  "last_adversary_head": null,
+  "expand_cursor": 0,
+  "expand_noop_streak": 0,
+  "next_work_source": "implement",
+  "consecutive_noop": 0,
+  "pr_plan_cursor": "pr-2",
+  "clone_path": null,
+  "forbidden_trees": []
+}

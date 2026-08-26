@@ -1,0 +1,12 @@
+{
+  "id": "ruby",
+  "name": "Ruby",
+  "ext": "rb",
+  "naming": "snake",
+  "suites": [
+    "gca",
+    "ica"
+  ],
+  "ci": true,
+  "adapter": "stub"
+}

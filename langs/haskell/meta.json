@@ -1,0 +1,11 @@
+{
+  "id": "haskell",
+  "name": "Haskell",
+  "ext": "hs",
+  "naming": "camel",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

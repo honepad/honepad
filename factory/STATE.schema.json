@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "honepad factory STATE",
+  "type": "object",
+  "required": ["schema_version", "next_work_source", "stealth_mode"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "next_work_source": { "type": "string" },
+    "stealth_mode": { "type": "boolean" },
+    "pr_plan_cursor": { "type": "string" },
+    "human_gate": { "type": ["object", "null"] }
+  }
+}

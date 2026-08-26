@@ -1,0 +1,11 @@
+{
+  "id": "coffeescript",
+  "name": "CoffeeScript",
+  "ext": "coffee",
+  "naming": "camel",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

@@ -1,0 +1,260 @@
+[
+  {
+    "id": "l4-merge-missing-1",
+    "level": 4,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "merge_accounts",
+        "a": [
+          2,
+          "acc1",
+          "acc2"
+        ],
+        "e": false
+      }
+    ]
+  },
+  {
+    "id": "l4-merge-missing-2",
+    "level": 4,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "merge_accounts",
+        "a": [
+          2,
+          "acc1",
+          "acc2"
+        ],
+        "e": false
+      }
+    ]
+  },
+  {
+    "id": "l4-merge-cashback",
+    "level": 4,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "acc1",
+          1000
+        ],
+        "e": 1000
+      },
+      {
+        "m": "pay",
+        "a": [
+          3,
+          "acc1",
+          500
+        ],
+        "e": "payment1"
+      },
+      {
+        "m": "create_account",
+        "a": [
+          4,
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "merge_accounts",
+        "a": [
+          5,
+          "acc2",
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          6,
+          "acc2",
+          "payment1"
+        ],
+        "e": "IN_PROGRESS"
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          86400003,
+          "acc2",
+          "payment1"
+        ],
+        "e": "CASHBACK_RECEIVED"
+      },
+      {
+        "m": "deposit",
+        "a": [
+          86400005,
+          "acc2",
+          0
+        ],
+        "e": 510
+      }
+    ]
+  },
+  {
+    "id": "l4-merge-top",
+    "level": 4,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "acc1",
+          1000
+        ],
+        "e": 1000
+      },
+      {
+        "m": "pay",
+        "a": [
+          3,
+          "acc1",
+          500
+        ],
+        "e": "payment1"
+      },
+      {
+        "m": "create_account",
+        "a": [
+          4,
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          5,
+          "acc2",
+          2000
+        ],
+        "e": 2000
+      },
+      {
+        "m": "pay",
+        "a": [
+          6,
+          "acc2",
+          800
+        ],
+        "e": "payment2"
+      },
+      {
+        "m": "merge_accounts",
+        "a": [
+          7,
+          "acc1",
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "top_spenders",
+        "a": [
+          8,
+          1
+        ],
+        "e": [
+          "acc1(1300)"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "l4-history",
+    "level": 4,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "acc1",
+          1000
+        ],
+        "e": 1000
+      },
+      {
+        "m": "pay",
+        "a": [
+          3,
+          "acc1",
+          300
+        ],
+        "e": "payment1"
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          4,
+          "acc1",
+          3
+        ],
+        "e": 700
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          86400005,
+          "acc1",
+          86400002
+        ],
+        "e": 700
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          86400005,
+          "acc1",
+          86400003
+        ],
+        "e": 706
+      }
+    ]
+  }
+]

@@ -1,0 +1,11 @@
+{
+  "id": "vue-ts",
+  "name": "Vue (TypeScript)",
+  "ext": "ts",
+  "naming": "camel",
+  "suites": [
+    "frontend"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

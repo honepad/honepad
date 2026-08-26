@@ -1,0 +1,11 @@
+{
+  "id": "vb",
+  "name": "Visual Basic",
+  "ext": "vb",
+  "naming": "camel",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

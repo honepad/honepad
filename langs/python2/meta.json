@@ -1,0 +1,12 @@
+{
+  "id": "python2",
+  "name": "Python 2",
+  "ext": "py",
+  "naming": "snake",
+  "suites": [
+    "gca",
+    "ml"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

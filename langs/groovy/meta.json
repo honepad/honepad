@@ -1,0 +1,11 @@
+{
+  "id": "groovy",
+  "name": "Groovy",
+  "ext": "groovy",
+  "naming": "camel",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

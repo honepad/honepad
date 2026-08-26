@@ -1,0 +1,638 @@
+{
+  "problems": [
+    "bank_system",
+    "in_memory_database",
+    "file_storage",
+    "workers"
+  ],
+  "required_ids": [
+    "clojure",
+    "coffeescript",
+    "common-lisp",
+    "c",
+    "cpp",
+    "csharp",
+    "d",
+    "dart",
+    "elixir",
+    "erlang",
+    "freepascal",
+    "fortran",
+    "fsharp",
+    "go",
+    "groovy",
+    "haskell",
+    "java",
+    "javascript",
+    "julia",
+    "kotlin",
+    "lua",
+    "nim",
+    "objc",
+    "ocaml",
+    "octave",
+    "perl",
+    "php",
+    "python2",
+    "python3",
+    "r",
+    "ruby",
+    "rust",
+    "scala",
+    "smalltalk",
+    "swift",
+    "tcl",
+    "typescript",
+    "vb",
+    "angular-ts",
+    "react-js",
+    "react-ts",
+    "vue-js",
+    "vue-ts",
+    "mysql",
+    "postgresql",
+    "mssql",
+    "hack",
+    "mongodb",
+    "bash",
+    "powershell",
+    "shell"
+  ],
+  "languages": [
+    {
+      "id": "clojure",
+      "name": "Clojure",
+      "ext": "clj",
+      "naming": "snake",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "coffeescript",
+      "name": "CoffeeScript",
+      "ext": "coffee",
+      "naming": "camel",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "common-lisp",
+      "name": "Common Lisp",
+      "ext": "lisp",
+      "naming": "snake",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "c",
+      "name": "C",
+      "ext": "c",
+      "naming": "snake",
+      "suites": [
+        "gca"
+      ],
+      "ci": true,
+      "adapter": "stub"
+    },
+    {
+      "id": "cpp",
+      "name": "C++",
+      "ext": "cpp",
+      "naming": "camel",
+      "suites": [
+        "gca",
+        "ica"
+      ],
+      "ci": true,
+      "adapter": "stub"
+    },
+    {
+      "id": "csharp",
+      "name": "C#",
+      "ext": "cs",
+      "naming": "camel",
+      "suites": [
+        "gca",
+        "ica"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "d",
+      "name": "D",
+      "ext": "d",
+      "naming": "camel",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "dart",
+      "name": "Dart",
+      "ext": "dart",
+      "naming": "camel",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "elixir",
+      "name": "Elixir",
+      "ext": "ex",
+      "naming": "snake",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "erlang",
+      "name": "Erlang",
+      "ext": "erl",
+      "naming": "snake",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "freepascal",
+      "name": "Free Pascal",
+      "ext": "pas",
+      "naming": "camel",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "fortran",
+      "name": "Fortran",
+      "ext": "f90",
+      "naming": "snake",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "fsharp",
+      "name": "F#",
+      "ext": "fs",
+      "naming": "camel",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "go",
+      "name": "Go",
+      "ext": "go",
+      "naming": "camel",
+      "suites": [
+        "gca",
+        "ica"
+      ],
+      "ci": true,
+      "adapter": "stub"
+    },
+    {
+      "id": "groovy",
+      "name": "Groovy",
+      "ext": "groovy",
+      "naming": "camel",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "haskell",
+      "name": "Haskell",
+      "ext": "hs",
+      "naming": "camel",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "java",
+      "name": "Java",
+      "ext": "java",
+      "naming": "camel",
+      "suites": [
+        "gca",
+        "ica"
+      ],
+      "ci": true,
+      "adapter": "stub"
+    },
+    {
+      "id": "javascript",
+      "name": "JavaScript",
+      "ext": "js",
+      "naming": "camel",
+      "suites": [
+        "gca",
+        "ica"
+      ],
+      "ci": true,
+      "adapter": "stub"
+    },
+    {
+      "id": "julia",
+      "name": "Julia",
+      "ext": "jl",
+      "naming": "snake",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "kotlin",
+      "name": "Kotlin",
+      "ext": "kt",
+      "naming": "camel",
+      "suites": [
+        "gca",
+        "ica"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "lua",
+      "name": "Lua",
+      "ext": "lua",
+      "naming": "snake",
+      "suites": [
+        "gca"
+      ],
+      "ci": true,
+      "adapter": "stub"
+    },
+    {
+      "id": "nim",
+      "name": "Nim",
+      "ext": "nim",
+      "naming": "camel",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "objc",
+      "name": "Objective-C",
+      "ext": "m",
+      "naming": "camel",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "ocaml",
+      "name": "OCaml",
+      "ext": "ml",
+      "naming": "snake",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "octave",
+      "name": "GNU Octave",
+      "ext": "m",
+      "naming": "snake",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "perl",
+      "name": "Perl",
+      "ext": "pl",
+      "naming": "snake",
+      "suites": [
+        "gca"
+      ],
+      "ci": true,
+      "adapter": "stub"
+    },
+    {
+      "id": "php",
+      "name": "PHP",
+      "ext": "php",
+      "naming": "camel",
+      "suites": [
+        "gca",
+        "ica"
+      ],
+      "ci": true,
+      "adapter": "stub"
+    },
+    {
+      "id": "python2",
+      "name": "Python 2",
+      "ext": "py",
+      "naming": "snake",
+      "suites": [
+        "gca",
+        "ml"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "python3",
+      "name": "Python 3",
+      "ext": "py",
+      "naming": "snake",
+      "suites": [
+        "gca",
+        "ica",
+        "ml"
+      ],
+      "ci": true,
+      "adapter": "python-import"
+    },
+    {
+      "id": "r",
+      "name": "R",
+      "ext": "R",
+      "naming": "snake",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "ruby",
+      "name": "Ruby",
+      "ext": "rb",
+      "naming": "snake",
+      "suites": [
+        "gca",
+        "ica"
+      ],
+      "ci": true,
+      "adapter": "stub"
+    },
+    {
+      "id": "rust",
+      "name": "Rust",
+      "ext": "rs",
+      "naming": "snake",
+      "suites": [
+        "gca",
+        "ica"
+      ],
+      "ci": true,
+      "adapter": "stub"
+    },
+    {
+      "id": "scala",
+      "name": "Scala",
+      "ext": "scala",
+      "naming": "camel",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "smalltalk",
+      "name": "Smalltalk",
+      "ext": "st",
+      "naming": "camel",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "swift",
+      "name": "Swift",
+      "ext": "swift",
+      "naming": "camel",
+      "suites": [
+        "gca",
+        "ica"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "tcl",
+      "name": "Tcl",
+      "ext": "tcl",
+      "naming": "snake",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "typescript",
+      "name": "TypeScript",
+      "ext": "ts",
+      "naming": "camel",
+      "suites": [
+        "gca",
+        "ica"
+      ],
+      "ci": true,
+      "adapter": "stub"
+    },
+    {
+      "id": "vb",
+      "name": "Visual Basic",
+      "ext": "vb",
+      "naming": "camel",
+      "suites": [
+        "gca"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "angular-ts",
+      "name": "Angular (TypeScript)",
+      "ext": "ts",
+      "naming": "camel",
+      "suites": [
+        "frontend"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "react-js",
+      "name": "React (JavaScript)",
+      "ext": "jsx",
+      "naming": "camel",
+      "suites": [
+        "frontend"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "react-ts",
+      "name": "React (TypeScript)",
+      "ext": "tsx",
+      "naming": "camel",
+      "suites": [
+        "frontend"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "vue-js",
+      "name": "Vue (JavaScript)",
+      "ext": "js",
+      "naming": "camel",
+      "suites": [
+        "frontend"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "vue-ts",
+      "name": "Vue (TypeScript)",
+      "ext": "ts",
+      "naming": "camel",
+      "suites": [
+        "frontend"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "mysql",
+      "name": "MySQL",
+      "ext": "sql",
+      "naming": "snake",
+      "suites": [
+        "sql"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "postgresql",
+      "name": "PostgreSQL",
+      "ext": "sql",
+      "naming": "snake",
+      "suites": [
+        "sql"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "mssql",
+      "name": "Microsoft SQL",
+      "ext": "sql",
+      "naming": "snake",
+      "suites": [
+        "sql"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "hack",
+      "name": "Hack",
+      "ext": "hack",
+      "naming": "camel",
+      "suites": [
+        "extra"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "mongodb",
+      "name": "MongoDB",
+      "ext": "js",
+      "naming": "camel",
+      "suites": [
+        "extra"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "bash",
+      "name": "Bash",
+      "ext": "sh",
+      "naming": "snake",
+      "suites": [
+        "extra"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "powershell",
+      "name": "PowerShell",
+      "ext": "ps1",
+      "naming": "camel",
+      "suites": [
+        "extra"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    },
+    {
+      "id": "shell",
+      "name": "Shell",
+      "ext": "sh",
+      "naming": "snake",
+      "suites": [
+        "extra"
+      ],
+      "ci": false,
+      "adapter": "stub"
+    }
+  ]
+}

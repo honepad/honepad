@@ -1,0 +1,212 @@
+[
+  {
+    "id": "l1-create",
+    "level": 1,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "create_account",
+        "a": [
+          2,
+          "acc1"
+        ],
+        "e": false
+      },
+      {
+        "m": "create_account",
+        "a": [
+          3,
+          "acc2"
+        ],
+        "e": true
+      }
+    ]
+  },
+  {
+    "id": "l1-deposit",
+    "level": 1,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "acc1",
+          500
+        ],
+        "e": 500
+      },
+      {
+        "m": "deposit",
+        "a": [
+          3,
+          "acc1",
+          300
+        ],
+        "e": 800
+      },
+      {
+        "m": "deposit",
+        "a": [
+          4,
+          "non_existent",
+          100
+        ],
+        "e": null
+      }
+    ]
+  },
+  {
+    "id": "l1-transfer",
+    "level": 1,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "create_account",
+        "a": [
+          2,
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          3,
+          "acc1",
+          1000
+        ],
+        "e": 1000
+      },
+      {
+        "m": "transfer",
+        "a": [
+          4,
+          "acc1",
+          "acc2",
+          300
+        ],
+        "e": 700
+      },
+      {
+        "m": "transfer",
+        "a": [
+          5,
+          "acc1",
+          "acc2",
+          800
+        ],
+        "e": null
+      },
+      {
+        "m": "transfer",
+        "a": [
+          6,
+          "acc1",
+          "non_existent",
+          100
+        ],
+        "e": null
+      },
+      {
+        "m": "transfer",
+        "a": [
+          7,
+          "acc1",
+          "acc1",
+          100
+        ],
+        "e": null
+      }
+    ]
+  },
+  {
+    "id": "l1-spec",
+    "level": 1,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "account1"
+        ],
+        "e": true
+      },
+      {
+        "m": "create_account",
+        "a": [
+          2,
+          "account1"
+        ],
+        "e": false
+      },
+      {
+        "m": "create_account",
+        "a": [
+          3,
+          "account2"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          4,
+          "non_existent",
+          100
+        ],
+        "e": null
+      },
+      {
+        "m": "deposit",
+        "a": [
+          5,
+          "account1",
+          2700
+        ],
+        "e": 2700
+      },
+      {
+        "m": "transfer",
+        "a": [
+          6,
+          "account1",
+          "account2",
+          2701
+        ],
+        "e": null
+      },
+      {
+        "m": "transfer",
+        "a": [
+          7,
+          "account1",
+          "account2",
+          200
+        ],
+        "e": 2500
+      }
+    ]
+  }
+]

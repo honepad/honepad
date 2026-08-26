@@ -1,0 +1,11 @@
+{
+  "id": "hack",
+  "name": "Hack",
+  "ext": "hack",
+  "naming": "camel",
+  "suites": [
+    "extra"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

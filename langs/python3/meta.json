@@ -1,0 +1,13 @@
+{
+  "id": "python3",
+  "name": "Python 3",
+  "ext": "py",
+  "naming": "snake",
+  "suites": [
+    "gca",
+    "ica",
+    "ml"
+  ],
+  "ci": true,
+  "adapter": "python-import"
+}

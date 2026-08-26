@@ -1,0 +1,12 @@
+{
+  "id": "php",
+  "name": "PHP",
+  "ext": "php",
+  "naming": "camel",
+  "suites": [
+    "gca",
+    "ica"
+  ],
+  "ci": true,
+  "adapter": "stub"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "tcl",
+  "name": "Tcl",
+  "ext": "tcl",
+  "naming": "snake",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

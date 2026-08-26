@@ -1,0 +1,268 @@
+[
+  {
+    "id": "l3-pay-missing",
+    "level": 3,
+    "calls": [
+      {
+        "m": "pay",
+        "a": [
+          1,
+          "non_existent",
+          100
+        ],
+        "e": null
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          2,
+          "non_existent",
+          "payment1"
+        ],
+        "e": null
+      }
+    ]
+  },
+  {
+    "id": "l3-pay-funds",
+    "level": 3,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "acc1",
+          100
+        ],
+        "e": 100
+      },
+      {
+        "m": "pay",
+        "a": [
+          3,
+          "acc1",
+          200
+        ],
+        "e": null
+      }
+    ]
+  },
+  {
+    "id": "l3-pay-ids",
+    "level": 3,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "acc1",
+          1000
+        ],
+        "e": 1000
+      },
+      {
+        "m": "pay",
+        "a": [
+          3,
+          "acc1",
+          500
+        ],
+        "e": "payment1"
+      },
+      {
+        "m": "pay",
+        "a": [
+          4,
+          "acc1",
+          300
+        ],
+        "e": "payment2"
+      },
+      {
+        "m": "create_account",
+        "a": [
+          5,
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          6,
+          "acc2",
+          800
+        ],
+        "e": 800
+      },
+      {
+        "m": "transfer",
+        "a": [
+          7,
+          "acc2",
+          "acc1",
+          200
+        ],
+        "e": 600
+      },
+      {
+        "m": "top_spenders",
+        "a": [
+          8,
+          2
+        ],
+        "e": [
+          "acc1(800)",
+          "acc2(200)"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "l3-status-missing-payment",
+    "level": 3,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          2,
+          "acc1",
+          "payment1"
+        ],
+        "e": null
+      }
+    ]
+  },
+  {
+    "id": "l3-status-wrong-account",
+    "level": 3,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "acc1",
+          1000
+        ],
+        "e": 1000
+      },
+      {
+        "m": "pay",
+        "a": [
+          3,
+          "acc1",
+          500
+        ],
+        "e": "payment1"
+      },
+      {
+        "m": "create_account",
+        "a": [
+          4,
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          5,
+          "acc2",
+          "payment1"
+        ],
+        "e": null
+      }
+    ]
+  },
+  {
+    "id": "l3-cashback",
+    "level": 3,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "acc1",
+          1000
+        ],
+        "e": 1000
+      },
+      {
+        "m": "pay",
+        "a": [
+          3,
+          "acc1",
+          500
+        ],
+        "e": "payment1"
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          4,
+          "acc1",
+          "payment1"
+        ],
+        "e": "IN_PROGRESS"
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          86400003,
+          "acc1",
+          "payment1"
+        ],
+        "e": "CASHBACK_RECEIVED"
+      },
+      {
+        "m": "deposit",
+        "a": [
+          100800000,
+          "acc1",
+          0
+        ],
+        "e": 510
+      }
+    ]
+  }
+]

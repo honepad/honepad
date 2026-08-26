@@ -1,0 +1,12 @@
+{
+  "id": "swift",
+  "name": "Swift",
+  "ext": "swift",
+  "naming": "camel",
+  "suites": [
+    "gca",
+    "ica"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

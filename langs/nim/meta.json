@@ -1,0 +1,11 @@
+{
+  "id": "nim",
+  "name": "Nim",
+  "ext": "nim",
+  "naming": "camel",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

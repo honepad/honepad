@@ -1,0 +1,12 @@
+{
+  "id": "cpp",
+  "name": "C++",
+  "ext": "cpp",
+  "naming": "camel",
+  "suites": [
+    "gca",
+    "ica"
+  ],
+  "ci": true,
+  "adapter": "stub"
+}

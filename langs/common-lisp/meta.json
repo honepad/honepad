@@ -1,0 +1,11 @@
+{
+  "id": "common-lisp",
+  "name": "Common Lisp",
+  "ext": "lisp",
+  "naming": "snake",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

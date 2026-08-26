@@ -1,0 +1,11 @@
+{
+  "id": "octave",
+  "name": "GNU Octave",
+  "ext": "m",
+  "naming": "snake",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

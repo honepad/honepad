@@ -1,0 +1,11 @@
+{
+  "id": "mssql",
+  "name": "Microsoft SQL",
+  "ext": "sql",
+  "naming": "snake",
+  "suites": [
+    "sql"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

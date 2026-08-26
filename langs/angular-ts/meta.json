@@ -1,0 +1,11 @@
+{
+  "id": "angular-ts",
+  "name": "Angular (TypeScript)",
+  "ext": "ts",
+  "naming": "camel",
+  "suites": [
+    "frontend"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

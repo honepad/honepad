@@ -1,0 +1,425 @@
+[
+  {
+    "id": "db-l3-set-at",
+    "level": 3,
+    "calls": [
+      {
+        "m": "set_at",
+        "a": [
+          "user1",
+          "name",
+          "Alice",
+          100
+        ],
+        "e": ""
+      },
+      {
+        "m": "set_at",
+        "a": [
+          "user1",
+          "age",
+          "30",
+          101
+        ],
+        "e": ""
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "name",
+          102
+        ],
+        "e": "Alice"
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "age",
+          103
+        ],
+        "e": "30"
+      }
+    ]
+  },
+  {
+    "id": "db-l3-get-missing",
+    "level": 3,
+    "calls": [
+      {
+        "m": "get_at",
+        "a": [
+          "user2",
+          "name",
+          100
+        ],
+        "e": ""
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "non_existent",
+          101
+        ],
+        "e": ""
+      }
+    ]
+  },
+  {
+    "id": "db-l3-ttl",
+    "level": 3,
+    "calls": [
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "name",
+          "Alice",
+          100,
+          10
+        ],
+        "e": ""
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "name",
+          105
+        ],
+        "e": "Alice"
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "name",
+          110
+        ],
+        "e": ""
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "name",
+          115
+        ],
+        "e": ""
+      }
+    ]
+  },
+  {
+    "id": "db-l3-ttl-overwrite-none",
+    "level": 3,
+    "calls": [
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "name",
+          "Alice",
+          100,
+          10
+        ],
+        "e": ""
+      },
+      {
+        "m": "set_at",
+        "a": [
+          "user1",
+          "name",
+          "Bob",
+          105
+        ],
+        "e": ""
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "name",
+          110
+        ],
+        "e": "Bob"
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "name",
+          140
+        ],
+        "e": "Bob"
+      }
+    ]
+  },
+  {
+    "id": "db-l3-ttl-overwrite",
+    "level": 3,
+    "calls": [
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "name",
+          "Alice",
+          100,
+          10
+        ],
+        "e": ""
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "name",
+          105
+        ],
+        "e": "Alice"
+      },
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "name",
+          "Bob",
+          106,
+          10
+        ],
+        "e": ""
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "name",
+          110
+        ],
+        "e": "Bob"
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "name",
+          117
+        ],
+        "e": ""
+      }
+    ]
+  },
+  {
+    "id": "db-l3-scan-at",
+    "level": 3,
+    "calls": [
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "name",
+          "Alice",
+          100,
+          10
+        ],
+        "e": ""
+      },
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "age",
+          "30",
+          101,
+          5
+        ],
+        "e": ""
+      },
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "city",
+          "NY",
+          102,
+          15
+        ],
+        "e": ""
+      },
+      {
+        "m": "scan_at",
+        "a": [
+          "user1",
+          105
+        ],
+        "e": "age(30), city(NY), name(Alice)"
+      },
+      {
+        "m": "scan_at",
+        "a": [
+          "user1",
+          106
+        ],
+        "e": "city(NY), name(Alice)"
+      },
+      {
+        "m": "scan_at",
+        "a": [
+          "user1",
+          110
+        ],
+        "e": "city(NY)"
+      },
+      {
+        "m": "scan_at",
+        "a": [
+          "user1",
+          116
+        ],
+        "e": "city(NY)"
+      },
+      {
+        "m": "scan_at",
+        "a": [
+          "user1",
+          117
+        ],
+        "e": ""
+      }
+    ]
+  },
+  {
+    "id": "db-l3-scan-ignores-ttl",
+    "level": 3,
+    "calls": [
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "name",
+          "Alice",
+          100,
+          10
+        ],
+        "e": ""
+      },
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "age",
+          "30",
+          101,
+          5
+        ],
+        "e": ""
+      },
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "city",
+          "NY",
+          102,
+          15
+        ],
+        "e": ""
+      },
+      {
+        "m": "scan",
+        "a": [
+          "user1"
+        ],
+        "e": "age(30), city(NY), name(Alice)"
+      }
+    ]
+  },
+  {
+    "id": "db-l3-prefix-at",
+    "level": 3,
+    "calls": [
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "name",
+          "Alice",
+          100,
+          10
+        ],
+        "e": ""
+      },
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "age",
+          "30",
+          101,
+          5
+        ],
+        "e": ""
+      },
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "city",
+          "NY",
+          102,
+          15
+        ],
+        "e": ""
+      },
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "nationality",
+          "free_country",
+          103,
+          5
+        ],
+        "e": ""
+      },
+      {
+        "m": "scan_by_prefix_at",
+        "a": [
+          "user1",
+          "a",
+          105
+        ],
+        "e": "age(30)"
+      },
+      {
+        "m": "scan_by_prefix_at",
+        "a": [
+          "user1",
+          "a",
+          106
+        ],
+        "e": ""
+      },
+      {
+        "m": "scan_by_prefix_at",
+        "a": [
+          "user1",
+          "n",
+          107
+        ],
+        "e": "name(Alice), nationality(free_country)"
+      },
+      {
+        "m": "scan_by_prefix_at",
+        "a": [
+          "user1",
+          "n",
+          109
+        ],
+        "e": "name(Alice)"
+      }
+    ]
+  }
+]

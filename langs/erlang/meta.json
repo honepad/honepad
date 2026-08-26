@@ -1,0 +1,11 @@
+{
+  "id": "erlang",
+  "name": "Erlang",
+  "ext": "erl",
+  "naming": "snake",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

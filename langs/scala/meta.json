@@ -1,0 +1,11 @@
+{
+  "id": "scala",
+  "name": "Scala",
+  "ext": "scala",
+  "naming": "camel",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

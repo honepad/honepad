@@ -1,0 +1,11 @@
+{
+  "id": "ocaml",
+  "name": "OCaml",
+  "ext": "ml",
+  "naming": "snake",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

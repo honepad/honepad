@@ -1,0 +1,11 @@
+{
+  "id": "lua",
+  "name": "Lua",
+  "ext": "lua",
+  "naming": "snake",
+  "suites": [
+    "gca"
+  ],
+  "ci": true,
+  "adapter": "stub"
+}

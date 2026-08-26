@@ -1,0 +1,11 @@
+{
+  "id": "mongodb",
+  "name": "MongoDB",
+  "ext": "js",
+  "naming": "camel",
+  "suites": [
+    "extra"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

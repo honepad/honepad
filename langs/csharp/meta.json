@@ -1,0 +1,12 @@
+{
+  "id": "csharp",
+  "name": "C#",
+  "ext": "cs",
+  "naming": "camel",
+  "suites": [
+    "gca",
+    "ica"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

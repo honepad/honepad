@@ -1,0 +1,152 @@
+[
+  {
+    "id": "db-l1-set-get",
+    "level": 1,
+    "calls": [
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "name",
+          "Alice"
+        ],
+        "e": ""
+      },
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "age",
+          "30"
+        ],
+        "e": ""
+      },
+      {
+        "m": "get",
+        "a": [
+          "user1",
+          "name"
+        ],
+        "e": "Alice"
+      },
+      {
+        "m": "get",
+        "a": [
+          "user1",
+          "age"
+        ],
+        "e": "30"
+      }
+    ]
+  },
+  {
+    "id": "db-l1-overwrite",
+    "level": 1,
+    "calls": [
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "name",
+          "Alice"
+        ],
+        "e": ""
+      },
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "name",
+          "Bob"
+        ],
+        "e": ""
+      },
+      {
+        "m": "get",
+        "a": [
+          "user1",
+          "name"
+        ],
+        "e": "Bob"
+      }
+    ]
+  },
+  {
+    "id": "db-l1-missing",
+    "level": 1,
+    "calls": [
+      {
+        "m": "get",
+        "a": [
+          "user1",
+          "field"
+        ],
+        "e": ""
+      },
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "name",
+          "Alice"
+        ],
+        "e": ""
+      },
+      {
+        "m": "get",
+        "a": [
+          "user1",
+          "non_existent"
+        ],
+        "e": ""
+      }
+    ]
+  },
+  {
+    "id": "db-l1-delete",
+    "level": 1,
+    "calls": [
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "name",
+          "Alice"
+        ],
+        "e": ""
+      },
+      {
+        "m": "delete",
+        "a": [
+          "user1",
+          "name"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "get",
+        "a": [
+          "user1",
+          "name"
+        ],
+        "e": ""
+      },
+      {
+        "m": "delete",
+        "a": [
+          "user1",
+          "name"
+        ],
+        "e": "false"
+      },
+      {
+        "m": "delete",
+        "a": [
+          "non_existent",
+          "field"
+        ],
+        "e": "false"
+      }
+    ]
+  }
+]

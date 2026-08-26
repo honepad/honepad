@@ -1,0 +1,11 @@
+{
+  "id": "perl",
+  "name": "Perl",
+  "ext": "pl",
+  "naming": "snake",
+  "suites": [
+    "gca"
+  ],
+  "ci": true,
+  "adapter": "stub"
+}

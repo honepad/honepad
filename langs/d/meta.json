@@ -1,0 +1,11 @@
+{
+  "id": "d",
+  "name": "D",
+  "ext": "d",
+  "naming": "camel",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

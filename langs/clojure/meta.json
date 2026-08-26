@@ -1,0 +1,11 @@
+{
+  "id": "clojure",
+  "name": "Clojure",
+  "ext": "clj",
+  "naming": "snake",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

@@ -1,0 +1,11 @@
+{
+  "id": "postgresql",
+  "name": "PostgreSQL",
+  "ext": "sql",
+  "naming": "snake",
+  "suites": [
+    "sql"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

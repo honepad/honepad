@@ -1,0 +1,6 @@
+honepad
+Copyright 2026 Sebastien Tardif
+
+Bank and in-memory database traces follow the public pytest cases in
+EricZheng0404/LibreSignal (MIT License). That project remains a separate
+Python-only kit. This tree re-encodes those cases as JSON traces.

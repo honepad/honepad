@@ -1,0 +1,11 @@
+{
+  "id": "fsharp",
+  "name": "F#",
+  "ext": "fs",
+  "naming": "camel",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

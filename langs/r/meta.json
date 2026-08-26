@@ -1,0 +1,11 @@
+{
+  "id": "r",
+  "name": "R",
+  "ext": "R",
+  "naming": "snake",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}

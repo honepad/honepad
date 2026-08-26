@@ -1,0 +1,12 @@
+{
+  "id": "typescript",
+  "name": "TypeScript",
+  "ext": "ts",
+  "naming": "camel",
+  "suites": [
+    "gca",
+    "ica"
+  ],
+  "ci": true,
+  "adapter": "stub"
+}

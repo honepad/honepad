@@ -1,0 +1,11 @@
+{
+  "id": "fortran",
+  "name": "Fortran",
+  "ext": "f90",
+  "naming": "snake",
+  "suites": [
+    "gca"
+  ],
+  "ci": false,
+  "adapter": "stub"
+}
