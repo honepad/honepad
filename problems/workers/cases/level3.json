@@ -1,0 +1,24 @@
+[
+  {
+    "id": "wk-l3-spec",
+    "level": 3,
+    "calls": [
+      {"m": "add_worker", "a": ["John", "Middle Developer", 200], "e": "true"},
+      {"m": "register", "a": ["John", 100], "e": "registered"},
+      {"m": "register", "a": ["John", 125], "e": "registered"},
+      {"m": "promote", "a": ["John", "Senior Developer", 500, 200], "e": "success"},
+      {"m": "register", "a": ["John", 150], "e": "registered"},
+      {"m": "promote", "a": ["John", "Senior Developer", 350, 250], "e": "invalid_request"},
+      {"m": "register", "a": ["John", 300], "e": "registered"},
+      {"m": "register", "a": ["John", 325], "e": "registered"},
+      {"m": "calc_salary", "a": ["John", 0, 500], "e": "35000"},
+      {"m": "top_n_workers", "a": [3, "Senior Developer"], "e": "John(0)"},
+      {"m": "register", "a": ["John", 400], "e": "registered"},
+      {"m": "get", "a": ["John"], "e": "250"},
+      {"m": "top_n_workers", "a": [10, "Senior Developer"], "e": "John(75)"},
+      {"m": "top_n_workers", "a": [10, "Middle Developer"], "e": ""},
+      {"m": "calc_salary", "a": ["John", 110, 350], "e": "45500"},
+      {"m": "calc_salary", "a": ["John", 900, 1400], "e": "0"}
+    ]
+  }
+]

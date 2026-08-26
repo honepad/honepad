@@ -1,0 +1,23 @@
+[
+  {
+    "id": "wk-l2-spec",
+    "level": 2,
+    "calls": [
+      {"m": "add_worker", "a": ["John", "Junior Developer", 120], "e": "true"},
+      {"m": "add_worker", "a": ["Jason", "Junior Developer", 120], "e": "true"},
+      {"m": "add_worker", "a": ["Ashley", "Junior Developer", 120], "e": "true"},
+      {"m": "register", "a": ["John", 100], "e": "registered"},
+      {"m": "register", "a": ["John", 150], "e": "registered"},
+      {"m": "register", "a": ["Jason", 200], "e": "registered"},
+      {"m": "register", "a": ["Jason", 250], "e": "registered"},
+      {"m": "register", "a": ["Jason", 275], "e": "registered"},
+      {"m": "top_n_workers", "a": [5, "Junior Developer"], "e": "Jason(50), John(50), Ashley(0)"},
+      {"m": "top_n_workers", "a": [1, "Junior Developer"], "e": "Jason(50)"},
+      {"m": "register", "a": ["Ashley", 400], "e": "registered"},
+      {"m": "register", "a": ["Ashley", 500], "e": "registered"},
+      {"m": "register", "a": ["Jason", 575], "e": "registered"},
+      {"m": "top_n_workers", "a": [3, "Junior Developer"], "e": "Jason(350), Ashley(100), John(50)"},
+      {"m": "top_n_workers", "a": [3, "Middle Developer"], "e": ""}
+    ]
+  }
+]

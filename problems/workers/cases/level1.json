@@ -1,1 +1,19 @@
-[]
+[
+  {
+    "id": "wk-l1-spec",
+    "level": 1,
+    "calls": [
+      {"m": "add_worker", "a": ["Ashley", "Middle Developer", 150], "e": "true"},
+      {"m": "add_worker", "a": ["Ashley", "Junior Developer", 100], "e": "false"},
+      {"m": "register", "a": ["Ashley", 10], "e": "registered"},
+      {"m": "register", "a": ["Ashley", 25], "e": "registered"},
+      {"m": "get", "a": ["Ashley"], "e": "15"},
+      {"m": "register", "a": ["Ashley", 40], "e": "registered"},
+      {"m": "register", "a": ["Ashley", 67], "e": "registered"},
+      {"m": "register", "a": ["Ashley", 100], "e": "registered"},
+      {"m": "get", "a": ["Ashley"], "e": "42"},
+      {"m": "get", "a": ["Walter"], "e": ""},
+      {"m": "register", "a": ["Walter", 120], "e": "invalid_request"}
+    ]
+  }
+]
