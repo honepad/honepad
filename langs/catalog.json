@@ -421,7 +421,7 @@
         "ica"
       ],
       "ci": true,
-      "adapter": "stub"
+      "adapter": "cargo-run"
     },
     {
       "id": "scala",
