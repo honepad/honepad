@@ -1,0 +1,18 @@
+[
+  {
+    "id": "fs-l3-spec",
+    "level": 3,
+    "calls": [
+      {"m": "add_user", "a": ["user1", 200], "e": "true"},
+      {"m": "add_user", "a": ["user1", 100], "e": "false"},
+      {"m": "add_file_by", "a": ["user1", "/dir/file.med", 50], "e": "150"},
+      {"m": "add_file_by", "a": ["user1", "/big.blob", 140], "e": "10"},
+      {"m": "add_file_by", "a": ["user1", "/file-small", 20], "e": ""},
+      {"m": "add_file", "a": ["/dir/admin_file", 300], "e": "true"},
+      {"m": "add_user", "a": ["user2", 110], "e": "true"},
+      {"m": "add_file_by", "a": ["user2", "/dir/file.med", 45], "e": ""},
+      {"m": "add_file_by", "a": ["user2", "/new_file", 50], "e": "60"},
+      {"m": "merge_user", "a": ["user1", "user2"], "e": "70"}
+    ]
+  }
+]

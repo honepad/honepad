@@ -24,3 +24,11 @@ def test_javascript_bank_and_db() -> None:
     assert bank.ok, bank.failed
     db = run("in_memory_database", "javascript", 4, "solution")
     assert db.ok, db.failed
+
+
+def test_file_storage_python_and_js() -> None:
+    py = run_python("file_storage", 4, "solution")
+    assert py.ok, py.failed
+    assert py.passed == len(load_cases("file_storage", 4))
+    js = run("file_storage", "javascript", 4, "solution")
+    assert js.ok, js.failed

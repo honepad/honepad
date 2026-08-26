@@ -1,0 +1,16 @@
+[
+  {
+    "id": "fs-l2-spec",
+    "level": 2,
+    "calls": [
+      {"m": "add_file", "a": ["/dir/file1.txt", 5], "e": "true"},
+      {"m": "add_file", "a": ["/dir/file2", 20], "e": "true"},
+      {"m": "add_file", "a": ["/dir/deeper/file3.mov", 9], "e": "true"},
+      {"m": "get_n_largest", "a": ["/dir", 2], "e": "/dir/file2(20), /dir/deeper/file3.mov(9)"},
+      {"m": "get_n_largest", "a": ["/dir/file", 3], "e": "/dir/file2(20), /dir/file1.txt(5)"},
+      {"m": "get_n_largest", "a": ["/another_dir", 3], "e": ""},
+      {"m": "add_file", "a": ["/big_file.mp4", 20], "e": "true"},
+      {"m": "get_n_largest", "a": ["/", 2], "e": "/big_file.mp4(20), /dir/file2(20)"}
+    ]
+  }
+]

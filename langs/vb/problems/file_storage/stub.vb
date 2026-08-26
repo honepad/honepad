@@ -1,0 +1,10 @@
+' Simulation stub. Fill methods from the problem spec.
+' add_file(name, size)
+' get_file_size(name)
+' delete_file(name)
+' get_n_largest(prefix, n)
+' add_user(user_id, capacity)
+' add_file_by(user_id, name, size)
+' merge_user(user_id1, user_id2)
+' backup_user(user_id)
+' restore_user(user_id)

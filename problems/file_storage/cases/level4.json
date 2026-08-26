@@ -1,0 +1,51 @@
+[
+  {
+    "id": "fs-l4-no-backup",
+    "level": 4,
+    "calls": [
+      {"m": "add_user", "a": ["user", 100], "e": "true"},
+      {"m": "add_file_by", "a": ["user", "/dir/file1", 50], "e": "50"},
+      {"m": "add_file_by", "a": ["user", "/file2.txt", 30], "e": "20"},
+      {"m": "restore_user", "a": ["user"], "e": "0"},
+      {"m": "get_file_size", "a": ["/dir/file1"], "e": ""}
+    ]
+  },
+  {
+    "id": "fs-l4-backup-restore",
+    "level": 4,
+    "calls": [
+      {"m": "add_user", "a": ["user", 100], "e": "true"},
+      {"m": "add_file_by", "a": ["user", "/a.txt", 10], "e": "90"},
+      {"m": "add_file_by", "a": ["user", "/b.txt", 20], "e": "70"},
+      {"m": "backup_user", "a": ["user"], "e": "2"},
+      {"m": "delete_file", "a": ["/a.txt"], "e": "10"},
+      {"m": "add_file_by", "a": ["user", "/c.txt", 5], "e": "75"},
+      {"m": "restore_user", "a": ["user"], "e": "2"},
+      {"m": "get_file_size", "a": ["/a.txt"], "e": "10"},
+      {"m": "get_file_size", "a": ["/b.txt"], "e": "20"},
+      {"m": "get_file_size", "a": ["/c.txt"], "e": ""}
+    ]
+  },
+  {
+    "id": "fs-l4-skip-taken-name",
+    "level": 4,
+    "calls": [
+      {"m": "add_user", "a": ["alice", 100], "e": "true"},
+      {"m": "add_user", "a": ["bob", 100], "e": "true"},
+      {"m": "add_file_by", "a": ["alice", "/shared.txt", 10], "e": "90"},
+      {"m": "backup_user", "a": ["alice"], "e": "1"},
+      {"m": "delete_file", "a": ["/shared.txt"], "e": "10"},
+      {"m": "add_file_by", "a": ["bob", "/shared.txt", 15], "e": "85"},
+      {"m": "restore_user", "a": ["alice"], "e": "0"},
+      {"m": "get_file_size", "a": ["/shared.txt"], "e": "15"}
+    ]
+  },
+  {
+    "id": "fs-l4-missing-user",
+    "level": 4,
+    "calls": [
+      {"m": "backup_user", "a": ["ghost"], "e": ""},
+      {"m": "restore_user", "a": ["ghost"], "e": ""}
+    ]
+  }
+]
