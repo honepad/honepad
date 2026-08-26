@@ -171,6 +171,71 @@ def run_go(problem: str, level: int, kind: str = "solution") -> Report:
     return Report(problem, "go", level, int(payload.get("passed", 0)), failed)
 
 
+def rust_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "rust" / "problems" / problem
+    name = "solution.rs" if kind == "solution" else "stub.rs"
+    return pack / name
+
+
+def run_rust(problem: str, level: int, kind: str = "solution") -> Report:
+    src = rust_entry(problem, kind)
+    rust_dir = repo_root() / "langs" / "rust"
+    adapter = rust_dir / "adapter.rs"
+    harness = rust_dir / "harness.rs"
+    cases = load_cases(problem, level)
+    ctor = class_for_problem(problem)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpdir = Path(tmp)
+        src_dir = tmpdir / "src"
+        src_dir.mkdir()
+        shutil.copy(adapter, src_dir / "main.rs")
+        shutil.copy(harness, src_dir / "harness.rs")
+        shutil.copy(src, src_dir / "solution.rs")
+        (src_dir / "ctor.rs").write_text(
+            "use crate::harness::Harness;\n"
+            f"use crate::solution::{ctor};\n\n"
+            "pub fn new_target() -> Box<dyn Harness> {\n"
+            f"    Box::new({ctor}::new())\n"
+            "}\n",
+            encoding="utf-8",
+        )
+        (tmpdir / "Cargo.toml").write_text(
+            "[package]\n"
+            'name = "honepadrun"\n'
+            'version = "0.1.0"\n'
+            'edition = "2021"\n\n'
+            "[dependencies]\n"
+            'serde = { version = "1", features = ["derive"] }\n'
+            'serde_json = "1"\n',
+            encoding="utf-8",
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(cases, handle)
+            cases_path = handle.name
+        proc = subprocess.run(
+            ["cargo", "run", "--quiet", "--", cases_path],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+    if not proc.stdout.strip():
+        raise RuntimeError(proc.stderr or "rust adapter produced no output")
+    payload = json.loads(proc.stdout.splitlines()[-1])
+    failed = [
+        Fail(
+            row["case"],
+            row["index"],
+            row["method"],
+            [],
+            row["expected"],
+            row["actual"],
+        )
+        for row in payload.get("failed", [])
+    ]
+    return Report(problem, "rust", level, int(payload.get("passed", 0)), failed)
+
+
 def run(
     problem: str,
     lang_id: str,
@@ -184,6 +249,8 @@ def run(
         return run_javascript(problem, level, kind)
     if row["id"] == "go":
         return run_go(problem, level, kind)
+    if row["id"] == "rust":
+        return run_rust(problem, level, kind)
     raise NotImplementedError(
         f"runner for {lang_id} is a factory job (adapter={row.get('adapter')})"
     )

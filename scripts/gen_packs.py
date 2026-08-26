@@ -90,6 +90,8 @@ EXTRA = [
 ADAPTERS = {
     "python3": "python-import",
     "javascript": "node",
+    "go": "go-run",
+    "rust": "cargo-run",
 }
 
 CI = {
