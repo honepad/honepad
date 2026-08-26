@@ -87,6 +87,11 @@ EXTRA = [
     ("shell", "Shell", "sh", "snake"),
 ]
 
+ADAPTERS = {
+    "python3": "python-import",
+    "javascript": "node",
+}
+
 CI = {
     "python3",
     "javascript",
@@ -255,7 +260,7 @@ def main() -> None:
                 "naming": naming,
                 "suites": suites,
                 "ci": lang_id in CI,
-                "adapter": "python-import" if lang_id == "python3" else "stub",
+                "adapter": ADAPTERS.get(lang_id, "stub"),
             }
         )
 
