@@ -32,3 +32,11 @@ def test_file_storage_python_and_js() -> None:
     assert py.passed == len(load_cases("file_storage", 4))
     js = run("file_storage", "javascript", 4, "solution")
     assert js.ok, js.failed
+
+
+def test_workers_python_and_js() -> None:
+    py = run_python("workers", 3, "solution")
+    assert py.ok, py.failed
+    assert py.passed == len(load_cases("workers", 3))
+    js = run("workers", "javascript", 3, "solution")
+    assert js.ok, js.failed
