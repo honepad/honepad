@@ -84,3 +84,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("coffeescript")["ci"] is True
     assert language("bash")["adapter"] == "bash"
     assert language("bash")["ci"] is True
+    assert language("common-lisp")["adapter"] == "sbcl"
+    assert language("common-lisp")["ci"] is True
