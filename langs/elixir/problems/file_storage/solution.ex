@@ -25,6 +25,35 @@ defmodule Simulation do
     end
   end
 
+  def copy_file(sim, source, dest) do
+    case Map.get(sim.files, source) do
+      nil ->
+        {"", sim}
+
+      src ->
+        if source == dest do
+          {Integer.to_string(src.size), sim}
+        else
+          dest_item = Map.get(sim.files, dest)
+          owner = if dest_item == nil, do: src.owner, else: dest_item.owner
+          extra = if dest_item == nil, do: src.size, else: src.size - dest_item.size
+          rem = remaining(sim, owner)
+
+          cond do
+            rem != nil and extra > rem ->
+              {"", sim}
+
+            dest_item == nil ->
+              {Integer.to_string(src.size), put_file(sim, dest, src.size, owner)}
+
+            true ->
+              files = Map.put(sim.files, dest, %{dest_item | size: src.size})
+              {Integer.to_string(src.size), %{sim | files: files}}
+          end
+        end
+    end
+  end
+
   def get_n_largest(sim, prefix, n) do
     result =
       sim.files

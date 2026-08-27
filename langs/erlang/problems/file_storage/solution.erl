@@ -5,6 +5,7 @@
     add_file/3,
     get_file_size/2,
     delete_file/2,
+    copy_file/3,
     get_n_largest/3,
     add_user/3,
     add_file_by/4,
@@ -34,6 +35,39 @@ delete_file(Sim, Name) ->
             {<<>>, Sim};
         {Item, Files} ->
             {integer_to_binary(maps:get(size, Item)), Sim#{files := Files}}
+    end.
+
+copy_file(Sim, Source, Dest) ->
+    case maps:find(Source, maps:get(files, Sim)) of
+        error ->
+            {<<>>, Sim};
+        {ok, Src} ->
+            SrcSize = maps:get(size, Src),
+            if
+                Source =:= Dest ->
+                    {integer_to_binary(SrcSize), Sim};
+                true ->
+                    DestItem = maps:get(Dest, maps:get(files, Sim), undefined),
+                    {Owner, Extra} =
+                        case DestItem of
+                            undefined ->
+                                {maps:get(owner, Src), SrcSize};
+                            _ ->
+                                {maps:get(owner, DestItem), SrcSize - maps:get(size, DestItem)}
+                        end,
+                    Left = remaining(Sim, Owner),
+                    if
+                        Left =/= null, Extra > Left ->
+                            {<<>>, Sim};
+                        DestItem =:= undefined ->
+                            {integer_to_binary(SrcSize), put_file(Sim, Dest, SrcSize, Owner)};
+                        true ->
+                            Files = maps:put(
+                                Dest, DestItem#{size := SrcSize}, maps:get(files, Sim)
+                            ),
+                            {integer_to_binary(SrcSize), Sim#{files := Files}}
+                    end
+            end
     end.
 
 get_n_largest(Sim, Prefix, N) ->

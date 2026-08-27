@@ -10,5 +10,21 @@
       {"m": "delete_file", "a": ["/dir1/dir2/file.txt"], "e": "10"},
       {"m": "get_file_size", "a": ["/not-existing.file"], "e": ""}
     ]
+  },
+  {
+    "id": "fs-l1-copy",
+    "level": 1,
+    "calls": [
+      {"m": "add_file", "a": ["/Cars.txt", 200], "e": "true"},
+      {"m": "copy_file", "a": ["/Cars.txt", "/Cars2.txt"], "e": "200"},
+      {"m": "get_file_size", "a": ["/Cars2.txt"], "e": "200"},
+      {"m": "add_file", "a": ["/Old.txt", 50], "e": "true"},
+      {"m": "copy_file", "a": ["/Cars.txt", "/Old.txt"], "e": "200"},
+      {"m": "get_file_size", "a": ["/Old.txt"], "e": "200"},
+      {"m": "copy_file", "a": ["/Missing.txt", "/Nope.txt"], "e": ""},
+      {"m": "get_file_size", "a": ["/Nope.txt"], "e": ""},
+      {"m": "copy_file", "a": ["/Cars.txt", "/Cars.txt"], "e": "200"},
+      {"m": "get_file_size", "a": ["/Cars.txt"], "e": "200"}
+    ]
   }
 ]

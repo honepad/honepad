@@ -34,6 +34,8 @@ class Target a where
   getFileSize _ _ = missing "get_file_size"
   deleteFile :: a -> String -> (String, a)
   deleteFile _ _ = missing "delete_file"
+  copyFile :: a -> String -> String -> (String, a)
+  copyFile _ _ _ = missing "copy_file"
   getNLargest :: a -> String -> Int64 -> (String, a)
   getNLargest _ _ _ = missing "get_n_largest"
   addUser :: a -> String -> Int64 -> (String, a)
@@ -124,6 +126,7 @@ dispatch obj method args =
     "add_file" -> wrapStr (addFile obj (argStr args 0) (argInt args 1))
     "get_file_size" -> wrapStr (getFileSize obj (argStr args 0))
     "delete_file" -> wrapStr (deleteFile obj (argStr args 0))
+    "copy_file" -> wrapStr (copyFile obj (argStr args 0) (argStr args 1))
     "get_n_largest" -> wrapStr (getNLargest obj (argStr args 0) (argInt args 1))
     "add_user" -> wrapStr (addUser obj (argStr args 0) (argInt args 1))
     "add_file_by" -> wrapStr (addFileBy obj (argStr args 0) (argStr args 1) (argInt args 2))

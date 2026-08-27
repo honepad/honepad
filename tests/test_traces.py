@@ -55,6 +55,7 @@ def test_java_stubs_declare_methods() -> None:
     assert "public String set(String key, String field, String value)" in db
     files = (root / "file_storage" / "stub.java").read_text(encoding="utf-8")
     assert "public String addFile(String name, int size)" in files
+    assert "public String copyFile(String source, String dest)" in files
     workers = (root / "workers" / "stub.java").read_text(encoding="utf-8")
     assert "public String addWorker(String workerId, String position, int compensation)" in workers
 

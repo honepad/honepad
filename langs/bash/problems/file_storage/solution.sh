@@ -64,6 +64,41 @@ delete_file() {
   hp_str "$size"
 }
 
+copy_file() {
+  local source=$1 dest=$2
+  if [[ -z "${FILES[$source]+x}" ]]; then
+    hp_str ""
+    return 0
+  fi
+  local src_size=${FILES[$source]}
+  if [[ "$source" == "$dest" ]]; then
+    hp_str "$src_size"
+    return 0
+  fi
+  local dest_exists=0 dest_size owner extra remaining
+  if [[ -n "${FILES[$dest]+x}" ]]; then
+    dest_exists=1
+    dest_size=${FILES[$dest]}
+    owner=${OWNER[$dest]}
+    extra=$((src_size - dest_size))
+  else
+    owner=${OWNER[$source]}
+    extra=$src_size
+  fi
+  remaining=$(_remaining "$owner")
+  if [[ -n "$remaining" && "$extra" -gt "$remaining" ]]; then
+    hp_str ""
+    return 0
+  fi
+  if [[ "$dest_exists" -eq 0 ]]; then
+    FILES[$dest]=$src_size
+    OWNER[$dest]=$owner
+  else
+    FILES[$dest]=$src_size
+  fi
+  hp_str "$src_size"
+}
+
 get_n_largest() {
   local prefix=$1 n=$2
   local items=() name

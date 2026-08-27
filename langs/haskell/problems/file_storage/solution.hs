@@ -49,6 +49,24 @@ instance Target Simulation where
         , sim {simFiles = Map.insert name (StoredFile name size "admin") (simFiles sim)}
         )
 
+  copyFile sim source dest =
+    case Map.lookup source (simFiles sim) of
+      Nothing -> ("", sim)
+      Just src
+        | source == dest -> (show (fileSize src), sim)
+        | otherwise ->
+            let destItem = Map.lookup dest (simFiles sim)
+                owner = maybe (fileOwner src) fileOwner destItem
+                extra = maybe (fileSize src) (\item -> fileSize src - fileSize item) destItem
+             in if maybe False (extra >) (remaining sim owner)
+                  then ("", sim)
+                  else
+                    let destFile = case destItem of
+                          Nothing -> StoredFile dest (fileSize src) owner
+                          Just item -> item {fileSize = fileSize src}
+                        sim' = sim {simFiles = Map.insert dest destFile (simFiles sim)}
+                     in (show (fileSize src), sim')
+
   getFileSize sim name =
     case Map.lookup name (simFiles sim) of
       Nothing -> ("", sim)

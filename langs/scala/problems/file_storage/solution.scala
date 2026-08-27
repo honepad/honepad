@@ -50,6 +50,29 @@ class Simulation {
     if (item == null) "" else String.valueOf(item.size)
   }
 
+  def copyFile(source: String, dest: String): String = {
+    val src = files.get(source)
+    if (src == null) {
+      return ""
+    }
+    if (source == dest) {
+      return String.valueOf(src.size)
+    }
+    val destItem = files.get(dest)
+    val owner = if (destItem == null) src.owner else destItem.owner
+    val extra = if (destItem == null) src.size else src.size - destItem.size
+    val left = remaining(owner)
+    if (left != null && extra > left.intValue()) {
+      return ""
+    }
+    if (destItem == null) {
+      files.put(dest, new StoredFile(dest, src.size, owner))
+    } else {
+      destItem.size = src.size
+    }
+    String.valueOf(src.size)
+  }
+
   def getNLargest(prefix: String, n: Int): String = {
     val matched = new ArrayList[StoredFile]()
     val it = files.values().iterator()

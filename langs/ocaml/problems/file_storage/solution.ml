@@ -50,6 +50,31 @@ let delete_file sim name =
       Hashtbl.remove sim.files name;
       Int64.to_string item.size
 
+let copy_file sim source dest =
+  match Hashtbl.find_opt sim.files source with
+  | None -> ""
+  | Some src ->
+      if source = dest then Int64.to_string src.size
+      else
+        let dest_item = Hashtbl.find_opt sim.files dest in
+        let owner =
+          match dest_item with None -> src.owner | Some item -> item.owner
+        in
+        let extra =
+          match dest_item with
+          | None -> src.size
+          | Some item -> Int64.sub src.size item.size
+        in
+        match remaining sim owner with
+        | Some left when extra > left -> ""
+        | _ ->
+            (match dest_item with
+            | None ->
+                Hashtbl.add sim.files dest { name = dest; size = src.size; owner }
+            | Some item ->
+                Hashtbl.replace sim.files dest { item with size = src.size });
+            Int64.to_string src.size
+
 let get_n_largest sim prefix n =
   let matched =
     Hashtbl.fold
@@ -142,6 +167,7 @@ let restore_user sim user_id =
 let call t meth args =
   match meth with
   | "add_file" -> JStr (add_file t (arg_str args 0) (arg_int args 1))
+  | "copy_file" -> JStr (copy_file t (arg_str args 0) (arg_str args 1))
   | "get_file_size" -> JStr (get_file_size t (arg_str args 0))
   | "delete_file" -> JStr (delete_file t (arg_str args 0))
   | "get_n_largest" -> JStr (get_n_largest t (arg_str args 0) (arg_int args 1))

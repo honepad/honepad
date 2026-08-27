@@ -34,6 +34,23 @@ class Simulation {
     return String(size);
   }
 
+  copyFile(source, dest) {
+    const src = this.files[source];
+    if (!src) return "";
+    if (source === dest) return String(src.size);
+    const destItem = this.files[dest];
+    const owner = destItem ? destItem.owner : src.owner;
+    const extra = destItem ? src.size - destItem.size : src.size;
+    const remaining = this._remaining(owner);
+    if (remaining !== null && extra > remaining) return "";
+    if (!destItem) {
+      this.files[dest] = { name: dest, size: src.size, owner };
+    } else {
+      destItem.size = src.size;
+    }
+    return String(src.size);
+  }
+
   getNLargest(prefix, n) {
     const matched = Object.values(this.files).filter((item) =>
       item.name.startsWith(prefix),

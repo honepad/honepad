@@ -45,6 +45,26 @@ class Simulation {
         return item.size.toString()
     }
 
+    fun copyFile(source: String, dest: String): String {
+        val src = files[source] ?: return ""
+        if (source == dest) {
+            return src.size.toString()
+        }
+        val destItem = files[dest]
+        val owner = if (destItem == null) src.owner else destItem.owner
+        val extra = if (destItem == null) src.size else src.size - destItem.size
+        val left = remaining(owner)
+        if (left != null && extra > left) {
+            return ""
+        }
+        if (destItem == null) {
+            files[dest] = StoredFile(dest, src.size, owner)
+        } else {
+            files[dest] = StoredFile(dest, src.size, destItem.owner)
+        }
+        return src.size.toString()
+    }
+
     fun getNLargest(prefix: String, n: Int): String {
         val matched = ArrayList<StoredFile>()
         for (item in files.values) {

@@ -55,6 +55,31 @@ function delete_file(sim::Simulation, name)
     return item === nothing ? "" : string(item.size)
 end
 
+function copy_file(sim::Simulation, source, dest)
+    source = string(source)
+    dest = string(dest)
+    src = get(sim.files, source, nothing)
+    if src === nothing
+        return ""
+    end
+    if source == dest
+        return string(src.size)
+    end
+    dest_item = get(sim.files, dest, nothing)
+    owner = dest_item === nothing ? src.owner : dest_item.owner
+    extra = dest_item === nothing ? src.size : src.size - dest_item.size
+    left = remaining(sim, owner)
+    if left !== nothing && extra > left
+        return ""
+    end
+    if dest_item === nothing
+        sim.files[dest] = StoredFile(dest, src.size, owner)
+    else
+        dest_item.size = src.size
+    end
+    return string(src.size)
+end
+
 function get_n_largest(sim::Simulation, prefix, n)
     prefix = string(prefix)
     matched = [item for item in values(sim.files) if startswith(item.name, prefix)]

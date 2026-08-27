@@ -139,6 +139,11 @@ JSONValue dispatch(Target obj, string methodName, JSONValue args)
             return toNode(obj.deleteFile(argStr(args, 0)));
         missing(methodName);
         break;
+    case "copy_file":
+        static if (__traits(hasMember, Target, "copyFile"))
+            return toNode(obj.copyFile(argStr(args, 0), argStr(args, 1)));
+        missing(methodName);
+        break;
     case "get_n_largest":
         static if (__traits(hasMember, Target, "getNLargest"))
             return toNode(obj.getNLargest(argStr(args, 0), argLong(args, 1)));

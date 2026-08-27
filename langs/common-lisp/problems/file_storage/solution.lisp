@@ -55,6 +55,23 @@
   (let ((item (remove-stored-file sim name)))
     (if item (princ-to-string (file-size item)) "")))
 
+(defmethod copy_file ((sim simulation) source dest)
+  (let ((src (gethash source (sim-files sim))))
+    (unless src
+      (return-from copy_file ""))
+    (when (string= source dest)
+      (return-from copy_file (princ-to-string (file-size src))))
+    (let* ((dest-item (gethash dest (sim-files sim)))
+           (owner (if dest-item (file-owner dest-item) (file-owner src)))
+           (extra (if dest-item (- (file-size src) (file-size dest-item)) (file-size src)))
+           (left (file-remaining sim owner)))
+      (when (and left (> extra left))
+        (return-from copy_file ""))
+      (if dest-item
+          (setf (file-size dest-item) (file-size src))
+          (add-stored-file sim dest (file-size src) owner))
+      (princ-to-string (file-size src)))))
+
 (defmethod get_n_largest ((sim simulation) prefix n)
   (let ((matched nil))
     (maphash

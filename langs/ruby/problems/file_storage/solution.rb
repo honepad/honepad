@@ -45,6 +45,25 @@ class Simulation
     item.nil? ? '' : item.size.to_s
   end
 
+  def copy_file(source, dest)
+    src = @files[source]
+    return '' if src.nil?
+    return src.size.to_s if source == dest
+
+    dest_item = @files[dest]
+    owner = dest_item.nil? ? src.owner : dest_item.owner
+    extra = dest_item.nil? ? src.size : src.size - dest_item.size
+    left = remaining(owner)
+    return '' if !left.nil? && extra > left
+
+    if dest_item.nil?
+      @files[dest] = StoredFile.new(dest, src.size, owner)
+    else
+      dest_item.size = src.size
+    end
+    src.size.to_s
+  end
+
   def get_n_largest(prefix, n)
     matched = @files.values.select { |item| item.name.start_with?(prefix) }
     matched.sort_by! { |item| [-item.size, item.name] }

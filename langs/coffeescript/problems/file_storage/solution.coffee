@@ -30,6 +30,21 @@ class Simulation
     delete @files[name]
     String size
 
+  copyFile: (source, dest) ->
+    src = @files[source]
+    return "" unless src
+    return String(src.size) if source is dest
+    destItem = @files[dest]
+    owner = if destItem then destItem.owner else src.owner
+    extra = if destItem then src.size - destItem.size else src.size
+    remaining = @_remaining owner
+    return "" if remaining isnt null and extra > remaining
+    if destItem
+      destItem.size = src.size
+    else
+      @files[dest] = {name: dest, size: src.size, owner}
+    String src.size
+
   getNLargest: (prefix, n) ->
     matched = Object.values(@files).filter (item) ->
       item.name.startsWith prefix

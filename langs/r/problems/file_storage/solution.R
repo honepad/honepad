@@ -70,6 +70,35 @@ Simulation <- function() {
     fmt_int(size)
   }
 
+  self$copy_file <- function(source, dest) {
+    src <- self$files[[source]]
+    if (is.null(src)) {
+      return("")
+    }
+    if (identical(source, dest)) {
+      return(fmt_int(src$size))
+    }
+    dest_item <- self$files[[dest]]
+    if (is.null(dest_item)) {
+      owner <- src$owner
+      extra <- src$size
+    } else {
+      owner <- dest_item$owner
+      extra <- src$size - dest_item$size
+    }
+    left <- self$remaining(owner)
+    if (!is.null(left) && extra > left) {
+      return("")
+    }
+    if (is.null(dest_item)) {
+      self$add(dest, src$size, owner)
+    } else {
+      dest_item$size <- src$size
+      self$files[[dest]] <- dest_item
+    }
+    fmt_int(src$size)
+  }
+
   self$get_n_largest <- function(prefix, n) {
     matched <- list()
     for (name in self$order) {

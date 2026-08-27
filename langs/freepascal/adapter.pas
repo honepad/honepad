@@ -96,6 +96,11 @@ begin
     M := Bind(Obj, 'DeleteFile', Method);
     Exit(TFnS(M)(ArgStr(Args, 0)));
   end;
+  if Method = 'copy_file' then
+  begin
+    M := Bind(Obj, 'CopyFile', Method);
+    Exit(TFnSS(M)(ArgStr(Args, 0), ArgStr(Args, 1)));
+  end;
   if Method = 'get_n_largest' then
   begin
     M := Bind(Obj, 'GetNLargest', Method);

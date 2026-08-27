@@ -67,6 +67,47 @@ impl Simulation {
             .unwrap_or_default()
     }
 
+    fn copy_file(&mut self, source: &str, dest: &str) -> String {
+        let Some(src) = self.files.get(source) else {
+            return String::new();
+        };
+        if source == dest {
+            return src.size.to_string();
+        }
+        let src_size = src.size;
+        let src_owner = src.owner.clone();
+        let dest_info = self
+            .files
+            .get(dest)
+            .map(|item| (item.owner.clone(), item.size));
+        let owner = dest_info
+            .as_ref()
+            .map(|(item_owner, _)| item_owner.clone())
+            .unwrap_or(src_owner);
+        let extra = dest_info
+            .as_ref()
+            .map(|(_, size)| src_size - size)
+            .unwrap_or(src_size);
+        if let Some(left) = self.remaining(&owner) {
+            if extra > left {
+                return String::new();
+            }
+        }
+        if dest_info.is_none() {
+            self.files.insert(
+                dest.to_string(),
+                StoredFile {
+                    name: dest.to_string(),
+                    size: src_size,
+                    owner,
+                },
+            );
+        } else if let Some(item) = self.files.get_mut(dest) {
+            item.size = src_size;
+        }
+        src_size.to_string()
+    }
+
     fn get_n_largest(&self, prefix: &str, n: i64) -> String {
         let mut matched: Vec<&StoredFile> = self
             .files
@@ -195,6 +236,7 @@ impl Harness for Simulation {
     fn call(&mut self, method: &str, args: &[Value]) -> Result<Value, String> {
         let text = match method {
             "add_file" => self.add_file(&arg_str(args, 0)?, arg_i64(args, 1)?),
+            "copy_file" => self.copy_file(&arg_str(args, 0)?, &arg_str(args, 1)?),
             "get_file_size" => self.get_file_size(&arg_str(args, 0)?),
             "delete_file" => self.delete_file(&arg_str(args, 0)?),
             "get_n_largest" => self.get_n_largest(&arg_str(args, 0)?, arg_i64(args, 1)?),

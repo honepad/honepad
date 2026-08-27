@@ -68,6 +68,31 @@ class Simulation : public Harness {
     return std::to_string(size);
   }
 
+  std::string copy_file(const std::string& source, const std::string& dest) {
+    auto sit = files.find(source);
+    if (sit == files.end()) {
+      return "";
+    }
+    int64_t src_size = sit->second.size;
+    if (source == dest) {
+      return std::to_string(src_size);
+    }
+    auto dit = files.find(dest);
+    std::string owner = dit == files.end() ? sit->second.owner : dit->second.owner;
+    int64_t extra = dit == files.end() ? src_size : src_size - dit->second.size;
+    auto left = remaining(owner);
+    if (left && extra > *left) {
+      return "";
+    }
+    if (dit == files.end()) {
+      files[dest] = StoredFile{dest, src_size, owner};
+      file_order.push_back(dest);
+    } else {
+      dit->second.size = src_size;
+    }
+    return std::to_string(src_size);
+  }
+
   std::string get_n_largest(const std::string& prefix, int64_t n) const {
     std::vector<const StoredFile*> matched;
     for (const auto& item : files) {
@@ -194,6 +219,8 @@ class Simulation : public Harness {
     std::string text;
     if (method == "addFile") {
       text = add_file(arg_str(args, 0), arg_i64(args, 1));
+    } else if (method == "copyFile") {
+      text = copy_file(arg_str(args, 0), arg_str(args, 1));
     } else if (method == "getFileSize") {
       text = get_file_size(arg_str(args, 0));
     } else if (method == "deleteFile") {

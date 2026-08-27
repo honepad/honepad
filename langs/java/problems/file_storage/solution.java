@@ -63,6 +63,29 @@ public class Simulation {
         return item == null ? "" : String.valueOf(item.size);
     }
 
+    public String copyFile(String source, String dest) {
+        StoredFile src = files.get(source);
+        if (src == null) {
+            return "";
+        }
+        if (source.equals(dest)) {
+            return String.valueOf(src.size);
+        }
+        StoredFile destItem = files.get(dest);
+        String owner = destItem == null ? src.owner : destItem.owner;
+        int extra = destItem == null ? src.size : src.size - destItem.size;
+        Integer left = remaining(owner);
+        if (left != null && extra > left) {
+            return "";
+        }
+        if (destItem == null) {
+            files.put(dest, new StoredFile(dest, src.size, owner));
+        } else {
+            destItem.size = src.size;
+        }
+        return String.valueOf(src.size);
+    }
+
     public String getNLargest(String prefix, int n) {
         List<StoredFile> matched = new ArrayList<>();
         for (StoredFile item : files.values()) {
