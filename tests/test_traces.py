@@ -53,6 +53,11 @@ def test_ruby_all_problems() -> None:
         assert report.ok, report.failed
 
 
+def test_ruby_stub_fails() -> None:
+    report = run("bank_system", "ruby", 1, "stub")
+    assert not report.ok
+
+
 def test_go_all_problems() -> None:
     for problem, level in (
         ("bank_system", 4),

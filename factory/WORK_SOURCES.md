@@ -32,5 +32,6 @@ Priority (first match wins):
 - `pr-16` prove python3+go on all problems
 - `pr-17` auto-approve on ready_for_review
 - `pr-18` first MPI pass on the runner
+- `pr-19` next MPI (QA: stub fails for every script lang)
 
 `--concurrency 1`. One ready PR.
