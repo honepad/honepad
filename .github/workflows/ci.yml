@@ -77,6 +77,7 @@ jobs:
       - run: python3 -m honepad.cli run in_memory_database --lang python3 --level 4
       - run: python3 -m honepad.cli run bank_system --lang go --level 4
       - run: python3 -m honepad.cli run bank_system --lang rust --level 4
+      - run: python3 -m honepad.cli run bank_system --lang ruby --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 

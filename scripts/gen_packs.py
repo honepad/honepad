@@ -92,6 +92,7 @@ ADAPTERS = {
     "javascript": "node",
     "go": "go-run",
     "rust": "cargo-run",
+    "ruby": "ruby",
 }
 
 CI = {
