@@ -507,6 +507,24 @@ def run_swift(problem: str, level: int, kind: str = "solution") -> Report:
     return run_compiled(problem, "swift", level, prepare)
 
 
+_RUNNERS = {
+    "python3": run_python,
+    "javascript": run_javascript,
+    "ruby": run_ruby,
+    "php": run_php,
+    "perl": run_perl,
+    "lua": run_lua,
+    "go": run_go,
+    "rust": run_rust,
+    "java": run_java,
+    "typescript": run_typescript,
+    "csharp": run_csharp,
+    "kotlin": run_kotlin,
+    "cpp": run_cpp,
+    "swift": run_swift,
+}
+
+
 def run(
     problem: str,
     lang_id: str,
@@ -514,37 +532,12 @@ def run(
     kind: str = "solution",
 ) -> Report:
     row = language(lang_id)
-    if row["id"] == "python3":
-        return run_python(problem, level, kind)
-    if row["id"] == "javascript":
-        return run_javascript(problem, level, kind)
-    if row["id"] == "ruby":
-        return run_ruby(problem, level, kind)
-    if row["id"] == "php":
-        return run_php(problem, level, kind)
-    if row["id"] == "perl":
-        return run_perl(problem, level, kind)
-    if row["id"] == "lua":
-        return run_lua(problem, level, kind)
-    if row["id"] == "go":
-        return run_go(problem, level, kind)
-    if row["id"] == "rust":
-        return run_rust(problem, level, kind)
-    if row["id"] == "java":
-        return run_java(problem, level, kind)
-    if row["id"] == "typescript":
-        return run_typescript(problem, level, kind)
-    if row["id"] == "csharp":
-        return run_csharp(problem, level, kind)
-    if row["id"] == "kotlin":
-        return run_kotlin(problem, level, kind)
-    if row["id"] == "cpp":
-        return run_cpp(problem, level, kind)
-    if row["id"] == "swift":
-        return run_swift(problem, level, kind)
-    raise NotImplementedError(
-        f"runner for {lang_id} is a factory job (adapter={row.get('adapter')})"
-    )
+    fn = _RUNNERS.get(row["id"])
+    if fn is None:
+        raise NotImplementedError(
+            f"runner for {lang_id} is a factory job (adapter={row.get('adapter')})"
+        )
+    return fn(problem, level, kind)
 
 
 def map_call(call: dict[str, Any], naming: str) -> dict[str, Any]:

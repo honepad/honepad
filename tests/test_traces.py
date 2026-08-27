@@ -240,3 +240,12 @@ def test_prove_python3_and_go_all_problems() -> None:
         ):
             report = run(problem, lang, level, "solution")
             assert report.ok, (lang, problem, report.failed)
+
+
+def test_run_unknown_language_is_not_implemented() -> None:
+    try:
+        run("bank_system", "fortran", 1, "stub")
+    except NotImplementedError as exc:
+        assert "fortran" in str(exc)
+        return
+    raise AssertionError("expected NotImplementedError")
