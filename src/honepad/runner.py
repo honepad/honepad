@@ -258,6 +258,26 @@ def _dart() -> str:
     raise RuntimeError("dart not found")
 
 
+def _elixir() -> str:
+    path = shutil.which("elixir")
+    if path:
+        return path
+    raise RuntimeError("elixir not found")
+
+
+def run_elixir(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "elixir" / "problems" / problem
+    src = pack / ("solution.ex" if kind == "solution" else "stub.ex")
+    adapter = repo_root() / "langs" / "elixir" / "adapter.exs"
+    return run_script(
+        problem,
+        "elixir",
+        level,
+        kind,
+        [_elixir(), str(adapter), str(src), class_for_problem(problem)],
+    )
+
+
 def run_dart(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "dart" / "problems" / problem
     src = pack / ("solution.dart" if kind == "solution" else "stub.dart")
@@ -729,6 +749,7 @@ _RUNNERS = {
     "octave": run_octave,
     "groovy": run_groovy,
     "dart": run_dart,
+    "elixir": run_elixir,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,
