@@ -88,6 +88,8 @@ jobs:
       - uses: swift-actions/setup-swift@7ca6abe6b3b0e8b5421b88be48feee39cbf52c6a # v2.4.0
         with:
           swift-version: "6.0"
+      - name: Install Lua
+        run: sudo apt-get update && sudo apt-get install -y lua5.4
       - run: python3 -m pip install -e ".[dev]"
       - run: python3 -m pytest
       - run: python3 -m honepad.cli run bank_system --lang python3 --level 4
@@ -108,6 +110,7 @@ jobs:
       - run: python3 -m honepad.cli run bank_system --lang cpp --level 4
       - run: python3 -m honepad.cli run bank_system --lang swift --level 4
       - run: python3 -m honepad.cli run bank_system --lang perl --level 4
+      - run: python3 -m honepad.cli run bank_system --lang lua --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 

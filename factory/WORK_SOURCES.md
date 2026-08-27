@@ -54,5 +54,6 @@ Priority (first match wins):
 - `pr-38` next MPI (QA: swift stub fails bank traces)
 - `pr-39` next MPI (first remaining GCA language Ubuntu can run: perl)
 - `pr-40` lua GCA runner for the same traces
+- `pr-41` next MPI (switch next_work_source to improve if GCA script langs keep growing; otherwise bash/shell runner)
 
 `--concurrency 1`. One ready PR.

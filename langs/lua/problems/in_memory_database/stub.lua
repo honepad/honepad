@@ -12,3 +12,8 @@
 -- scan_by_prefix_at(key, prefix, timestamp)
 -- backup(timestamp)
 -- restore(timestamp, timestamp_to_restore)
+InMemoryDatabase = {}
+InMemoryDatabase.__index = InMemoryDatabase
+function InMemoryDatabase.new()
+  return setmetatable({}, InMemoryDatabase)
+end
