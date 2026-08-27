@@ -44,5 +44,6 @@ Priority (first match wins):
 - `pr-28` next MPI (start without --level after unlock prints current spec)
 - `pr-29` next MPI (explicit --level 4 run still works with a session)
 - `pr-30` next MPI (run without session defaults to python3 level 4)
+- `pr-31` share temp-dir compile for go rust java csharp kotlin cpp swift
 
 `--concurrency 1`. One ready PR.
