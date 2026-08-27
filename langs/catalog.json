@@ -179,8 +179,8 @@
       "suites": [
         "gca"
       ],
-      "ci": false,
-      "adapter": "stub"
+      "ci": true,
+      "adapter": "fpc"
     },
     {
       "id": "fortran",
@@ -442,8 +442,8 @@
       "suites": [
         "gca"
       ],
-      "ci": true,
-      "adapter": "gst"
+      "ci": false,
+      "adapter": "stub"
     },
     {
       "id": "swift",

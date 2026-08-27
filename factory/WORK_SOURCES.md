@@ -80,7 +80,7 @@ Priority (first match wins):
 - `pr-64` next improve MPI (expand: next cheap GCA language after bash: common-lisp)
 - `pr-65` next improve MPI (expand: next cheap GCA language after common-lisp: fortran)
 - `pr-66` next improve MPI (expand: next cheap GCA language after fortran: fsharp)
-- `pr-67` next improve MPI (expand: next cheap GCA language after fsharp: smalltalk)
-- `pr-68` next improve MPI (expand: next cheap GCA language after smalltalk: freepascal)
+- `pr-67` skipped smalltalk (`gnu-smalltalk` is not in Ubuntu 24.04). This slice is freepascal.
+- `pr-68` next improve MPI (Maintainer: CI Test apt line is too long; split install or cache)
 
 `--concurrency 1`. One ready PR.
