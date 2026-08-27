@@ -193,3 +193,17 @@ def test_start_level1_after_unlock_prints_l1_spec(monkeypatch, tmp_path: Path, c
     assert "create_account" in out
     assert "top_spenders" not in out
     assert "unlocked=2" in out
+
+
+def test_start_without_level_prints_unlocked_spec(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    assert main(["run", "bank_system"]) == 0
+    capsys.readouterr()
+    assert load_session()["unlocked"] == 2
+    assert main(["start", "bank_system", "python3"]) == 0
+    out = capsys.readouterr().out
+    assert "top_spenders" in out
+    assert "Bank system level 2" in out
+    assert "unlocked=2" in out

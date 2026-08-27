@@ -42,5 +42,6 @@ Priority (first match wins):
 - `pr-26` next MPI (CLI run --kind stub does not unlock)
 - `pr-27` next MPI (start --level 1 after unlock still prints L1 spec)
 - `pr-28` next MPI (start without --level after unlock prints current spec)
+- `pr-29` next MPI (explicit --level 4 run still works with a session)
 
 `--concurrency 1`. One ready PR.
