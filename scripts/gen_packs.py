@@ -102,6 +102,7 @@ ADAPTERS = {
     "swift": "swiftc",
     "tcl": "tclsh",
     "r": "Rscript",
+    "octave": "octave",
 }
 
 CI = {
@@ -122,6 +123,7 @@ CI = {
     "swift",
     "tcl",
     "r",
+    "octave",
 }
 
 BANK_METHODS = [
