@@ -54,7 +54,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2
         with:
@@ -92,7 +92,7 @@ jobs:
         with:
           sdk: stable
       - name: Install Lua
-        run: sudo apt-get update && sudo apt-get install -y lua5.4 tcl r-base r-cran-jsonlite octave nim groovy elixir
+        run: sudo apt-get update && sudo apt-get install -y lua5.4 tcl r-base r-cran-jsonlite octave nim groovy elixir ghc
       - run: python3 -m pip install -e ".[dev]"
       - run: python3 -m pytest
       - run: python3 -m honepad.cli run bank_system --lang python3 --level 4
@@ -123,6 +123,7 @@ jobs:
       - run: python3 -m honepad.cli run bank_system --lang dart --level 4
       - run: python3 -m honepad.cli run bank_system --lang elixir --level 4
       - run: python3 -m honepad.cli run bank_system --lang erlang --level 4
+      - run: python3 -m honepad.cli run bank_system --lang haskell --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 

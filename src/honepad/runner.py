@@ -285,6 +285,42 @@ def run_elixir(problem: str, level: int, kind: str = "solution") -> Report:
     )
 
 
+def haskell_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "haskell" / "problems" / problem
+    name = "solution.hs" if kind == "solution" else "stub.hs"
+    return pack / name
+
+
+def _ghc() -> str:
+    path = shutil.which("ghc")
+    if path:
+        return path
+    raise RuntimeError("ghc not found")
+
+
+def run_haskell(problem: str, level: int, kind: str = "solution") -> Report:
+    src = haskell_entry(problem, kind)
+    haskell_dir = repo_root() / "langs" / "haskell"
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
+        shutil.copy(haskell_dir / "Adapter.hs", tmpdir / "Adapter.hs")
+        shutil.copy(haskell_dir / "Harness.hs", tmpdir / "Harness.hs")
+        shutil.copy(haskell_dir / "MiniJson.hs", tmpdir / "MiniJson.hs")
+        shutil.copy(src, tmpdir / "Solution.hs")
+        compiled = subprocess.run(
+            [_ghc(), "-O0", "-w", "-o", "run", "Adapter.hs"],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if compiled.returncode != 0:
+            raise RuntimeError(compiled.stderr or compiled.stdout or "ghc compile failed")
+        return [str(tmpdir / "run"), cases_path]
+
+    return run_compiled(problem, "haskell", level, prepare)
+
+
 def run_erlang(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "erlang" / "problems" / problem
     src = pack / ("solution.erl" if kind == "solution" else "stub.erl")
@@ -771,6 +807,7 @@ _RUNNERS = {
     "dart": run_dart,
     "elixir": run_elixir,
     "erlang": run_erlang,
+    "haskell": run_haskell,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,

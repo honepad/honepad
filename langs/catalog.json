@@ -235,8 +235,8 @@
       "suites": [
         "gca"
       ],
-      "ci": false,
-      "adapter": "stub"
+      "ci": true,
+      "adapter": "ghc"
     },
     {
       "id": "java",
