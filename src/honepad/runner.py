@@ -236,6 +236,39 @@ def run_r(problem: str, level: int, kind: str = "solution") -> Report:
     )
 
 
+def _octave() -> str:
+    for name in ("octave", "octave-cli"):
+        path = shutil.which(name)
+        if path:
+            return path
+    raise RuntimeError("octave not found")
+
+
+def run_octave(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "octave" / "problems" / problem
+    src = pack / ("solution.m" if kind == "solution" else "stub.m")
+    adapter = repo_root() / "langs" / "octave" / "adapter.m"
+    return run_script(
+        problem,
+        "octave",
+        level,
+        kind,
+        [
+            _octave(),
+            "--quiet",
+            "--no-gui",
+            "--no-window-system",
+            "--no-history",
+            "--norc",
+            "--path",
+            str(adapter.parent),
+            str(adapter),
+            str(src),
+            class_for_problem(problem),
+        ],
+    )
+
+
 def run_lua(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "lua" / "problems" / problem
     src = pack / ("solution.lua" if kind == "solution" else "stub.lua")
@@ -612,6 +645,7 @@ _RUNNERS = {
     "lua": run_lua,
     "tcl": run_tcl,
     "r": run_r,
+    "octave": run_octave,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,

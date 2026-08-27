@@ -65,5 +65,6 @@ Priority (first match wins):
 - `pr-49` next improve MPI (expand: next cheap GCA language Ubuntu can run after C: tcl)
 - `pr-50` next improve MPI (expand: next cheap GCA language after tcl: r)
 - `pr-51` next improve MPI (expand: next cheap GCA language after r: octave)
+- `pr-52` next improve MPI (expand: next cheap GCA language after octave: nim)
 
 `--concurrency 1`. One ready PR.

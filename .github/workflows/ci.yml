@@ -89,7 +89,7 @@ jobs:
         with:
           swift-version: "6.0"
       - name: Install Lua
-        run: sudo apt-get update && sudo apt-get install -y lua5.4 tcl r-base r-cran-jsonlite
+        run: sudo apt-get update && sudo apt-get install -y lua5.4 tcl r-base r-cran-jsonlite octave
       - run: python3 -m pip install -e ".[dev]"
       - run: python3 -m pytest
       - run: python3 -m honepad.cli run bank_system --lang python3 --level 4
@@ -114,6 +114,7 @@ jobs:
       - run: python3 -m honepad.cli run bank_system --lang c --level 4
       - run: python3 -m honepad.cli run bank_system --lang tcl --level 4
       - run: python3 -m honepad.cli run bank_system --lang r --level 4
+      - run: python3 -m honepad.cli run bank_system --lang octave --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 
