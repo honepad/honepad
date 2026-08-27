@@ -30,3 +30,41 @@ def test_next_job_prints_one_improve_job() -> None:
     job = json.loads(picked)
     assert job["work_source"] == state.get("next_work_source", "improve")
     assert job.get("job_id")
+    assert job["pr_plan_cursor"] == "pr-70"
+
+
+def test_ci_test_job_splits_apt_install() -> None:
+    text = (ROOT / ".github/workflows/ci.yml").read_text()
+    assert text.count("apt-get update") == 1
+    assert "sudo apt-get update && sudo apt-get install -y lua5.4" not in text
+    wanted = {
+        "lua5.4",
+        "tcl",
+        "r-base",
+        "r-cran-jsonlite",
+        "octave",
+        "nim",
+        "gdc",
+        "gfortran",
+        "fp-compiler",
+        "ghc",
+        "ocaml",
+        "groovy",
+        "elixir",
+        "sbcl",
+    }
+    found: set[str] = set()
+    for line in text.splitlines():
+        if "apt-get install -y" not in line:
+            continue
+        found.update(line.split("apt-get install -y", 1)[1].split())
+    assert wanted <= found
+    assert "Install script langs" in text
+    assert "Install stats langs" in text
+    assert "Install compiled langs" in text
+    assert "Install jvm/beam langs" in text
+    assert "Install GNU Smalltalk" in text
+    assert "gnu-smalltalk_${ver}_amd64.deb" in text
+    assert "python3 -m honepad.cli run bank_system --lang lua --level 4" in text
+    assert "python3 -m honepad.cli run bank_system --lang smalltalk --level 4" in text
+    assert "python3 -m honepad.cli run bank_system --lang freepascal --level 4" in text
