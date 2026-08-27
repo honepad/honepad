@@ -459,6 +459,61 @@ def run_cpp(problem: str, level: int, kind: str = "solution") -> Report:
     return run_compiled(problem, "cpp", level, prepare)
 
 
+def c_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "c" / "problems" / problem
+    name = "solution.c" if kind == "solution" else "stub.c"
+    return pack / name
+
+
+def _cc() -> str:
+    for name in ("cc", "gcc", "clang"):
+        path = shutil.which(name)
+        if path:
+            return path
+    raise RuntimeError("c compiler not found")
+
+
+def run_c(problem: str, level: int, kind: str = "solution") -> Report:
+    src = c_entry(problem, kind)
+    c_dir = repo_root() / "langs" / "c"
+    ctor_name = class_for_problem(problem)
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
+        shutil.copy(c_dir / "adapter.c", tmpdir / "adapter.c")
+        shutil.copy(c_dir / "minijson.h", tmpdir / "minijson.h")
+        shutil.copy(c_dir / "minijson.c", tmpdir / "minijson.c")
+        shutil.copy(c_dir / "harness.h", tmpdir / "harness.h")
+        shutil.copy(src, tmpdir / "solution.c")
+        (tmpdir / "ctor.c").write_text(
+            '#include "harness.h"\n'
+            '#include "solution.c"\n\n'
+            f"HonepadTarget *new_target(void) {{ return {ctor_name}_new(); }}\n",
+            encoding="utf-8",
+        )
+        compiled = subprocess.run(
+            [
+                _cc(),
+                "-std=c11",
+                "-O0",
+                "adapter.c",
+                "minijson.c",
+                "solution.c",
+                "ctor.c",
+                "-o",
+                "run",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if compiled.returncode != 0:
+            raise RuntimeError(compiled.stderr or compiled.stdout or "c compile failed")
+        return [str(tmpdir / "run"), cases_path]
+
+    return run_compiled(problem, "c", level, prepare)
+
+
 def swift_entry(problem: str, kind: str) -> Path:
     pack = repo_root() / "langs" / "swift" / "problems" / problem
     name = "solution.swift" if kind == "solution" else "stub.swift"
@@ -521,6 +576,7 @@ _RUNNERS = {
     "csharp": run_csharp,
     "kotlin": run_kotlin,
     "cpp": run_cpp,
+    "c": run_c,
     "swift": run_swift,
 }
 

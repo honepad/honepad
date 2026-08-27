@@ -62,5 +62,6 @@ Priority (first match wins):
 - `pr-46` next improve MPI (End User: honepad start with an unimplemented catalog lang prints FAIL and exits 1)
 - `pr-47` next improve MPI (Architecture: honepad langs marks catalog ids that have no runner)
 - `pr-48` next improve MPI (expand: next catalog language Ubuntu CI can run that still has no runner)
+- `pr-49` next improve MPI (expand: next cheap GCA language Ubuntu can run after C: tcl)
 
 `--concurrency 1`. One ready PR.

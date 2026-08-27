@@ -101,7 +101,7 @@
         "gca"
       ],
       "ci": true,
-      "adapter": "stub"
+      "adapter": "gcc"
     },
     {
       "id": "cpp",
