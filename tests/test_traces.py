@@ -295,6 +295,22 @@ def test_octave_bank_stub_fails() -> None:
     assert not report.ok
 
 
+def test_nim_all_problems() -> None:
+    for problem, level in (
+        ("bank_system", 4),
+        ("in_memory_database", 4),
+        ("file_storage", 4),
+        ("workers", 3),
+    ):
+        report = run(problem, "nim", level, "solution")
+        assert report.ok, report.failed
+
+
+def test_nim_bank_stub_fails() -> None:
+    report = run("bank_system", "nim", 1, "stub")
+    assert not report.ok
+
+
 def test_prove_python3_and_go_all_problems() -> None:
     for lang in ("python3", "go"):
         for problem, level in (
