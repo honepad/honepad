@@ -1,4 +1,7 @@
-from honepad.catalog import language, languages, load_catalog, required_ids
+import json
+
+from honepad.catalog import language, languages, load_catalog, repo_root, required_ids
+from honepad.runner import _RUNNERS
 
 
 def test_required_ids_match_rows() -> None:
@@ -109,3 +112,18 @@ def test_python3_is_import_adapter() -> None:
     assert language("powershell")["ci"] is True
     assert language("shell")["adapter"] == "bash"
     assert language("shell")["ci"] is True
+
+
+def test_implemented_langs_do_not_keep_adapter_stub() -> None:
+    by_id = {row["id"]: row for row in languages()}
+    assert _RUNNERS
+    for lang_id in _RUNNERS:
+        assert lang_id in by_id, lang_id
+        assert by_id[lang_id].get("adapter") != "stub", lang_id
+        meta = json.loads(
+            (repo_root() / "langs" / lang_id / "meta.json").read_text(encoding="utf-8")
+        )
+        assert meta.get("adapter") != "stub", lang_id
+    for row in languages():
+        if row["id"] in _RUNNERS:
+            assert row.get("adapter") != "stub", row["id"]
