@@ -48,10 +48,20 @@ def _load_python_class(path: Path, class_name: str) -> Any:
     return getattr(mod, class_name)
 
 
+def pack_src(lang_id: str, problem: str, kind: str, solution_name: str, stub_name: str) -> Path:
+    if kind == "work":
+        from honepad.session import work_src
+
+        path = work_src(problem, lang_id)
+        if not path.is_file():
+            raise FileNotFoundError(f"work file missing: {path}")
+        return path
+    pack = repo_root() / "langs" / lang_id / "problems" / problem
+    return pack / (solution_name if kind == "solution" else stub_name)
+
+
 def python_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "python3" / "problems" / problem
-    name = "solution.py" if kind == "solution" else "stub.py"
-    return pack / name
+    return pack_src("python3", problem, kind, "solution.py", "stub.py")
 
 
 def class_for_problem(problem: str) -> str:
@@ -149,8 +159,7 @@ def run_script(
 
 
 def run_javascript(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "javascript" / "problems" / problem
-    src = pack / ("solution.js" if kind == "solution" else "stub.js")
+    src = pack_src("javascript", problem, kind, "solution.js", "stub.js")
     adapter = repo_root() / "langs" / "javascript" / "adapter.js"
     return run_script(
         problem,
@@ -162,8 +171,7 @@ def run_javascript(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def run_ruby(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "ruby" / "problems" / problem
-    src = pack / ("solution.rb" if kind == "solution" else "stub.rb")
+    src = pack_src("ruby", problem, kind, "solution.rb", "stub.rb")
     adapter = repo_root() / "langs" / "ruby" / "adapter.rb"
     return run_script(
         problem,
@@ -175,8 +183,7 @@ def run_ruby(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def run_perl(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "perl" / "problems" / problem
-    src = pack / ("solution.pl" if kind == "solution" else "stub.pl")
+    src = pack_src("perl", problem, kind, "solution.pl", "stub.pl")
     adapter = repo_root() / "langs" / "perl" / "adapter.pl"
     return run_script(
         problem,
@@ -204,8 +211,7 @@ def _tclsh() -> str:
 
 
 def run_tcl(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "tcl" / "problems" / problem
-    src = pack / ("solution.tcl" if kind == "solution" else "stub.tcl")
+    src = pack_src("tcl", problem, kind, "solution.tcl", "stub.tcl")
     adapter = repo_root() / "langs" / "tcl" / "adapter.tcl"
     return run_script(
         problem,
@@ -224,8 +230,7 @@ def _rscript() -> str:
 
 
 def run_r(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "r" / "problems" / problem
-    src = pack / ("solution.R" if kind == "solution" else "stub.R")
+    src = pack_src("r", problem, kind, "solution.R", "stub.R")
     adapter = repo_root() / "langs" / "r" / "adapter.R"
     return run_script(
         problem,
@@ -273,8 +278,7 @@ def _escript() -> str:
 
 
 def run_elixir(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "elixir" / "problems" / problem
-    src = pack / ("solution.ex" if kind == "solution" else "stub.ex")
+    src = pack_src("elixir", problem, kind, "solution.ex", "stub.ex")
     adapter = repo_root() / "langs" / "elixir" / "adapter.exs"
     return run_script(
         problem,
@@ -286,9 +290,7 @@ def run_elixir(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def haskell_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "haskell" / "problems" / problem
-    name = "solution.hs" if kind == "solution" else "stub.hs"
-    return pack / name
+    return pack_src("haskell", problem, kind, "solution.hs", "stub.hs")
 
 
 def _ghc() -> str:
@@ -322,9 +324,7 @@ def run_haskell(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def ocaml_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "ocaml" / "problems" / problem
-    name = "solution.ml" if kind == "solution" else "stub.ml"
-    return pack / name
+    return pack_src("ocaml", problem, kind, "solution.ml", "stub.ml")
 
 
 def _ocaml() -> str:
@@ -336,9 +336,7 @@ def _ocaml() -> str:
 
 
 def scala_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "scala" / "problems" / problem
-    name = "solution.scala" if kind == "solution" else "stub.scala"
-    return pack / name
+    return pack_src("scala", problem, kind, "solution.scala", "stub.scala")
 
 
 def _scalac() -> str:
@@ -389,9 +387,7 @@ def run_scala(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def d_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "d" / "problems" / problem
-    name = "solution.d" if kind == "solution" else "stub.d"
-    return pack / name
+    return pack_src("d", problem, kind, "solution.d", "stub.d")
 
 
 def _d_compiler() -> str:
@@ -453,8 +449,7 @@ def run_ocaml(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def run_erlang(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "erlang" / "problems" / problem
-    src = pack / ("solution.erl" if kind == "solution" else "stub.erl")
+    src = pack_src("erlang", problem, kind, "solution.erl", "stub.erl")
     adapter = repo_root() / "langs" / "erlang" / "adapter.erl"
     return run_script(
         problem,
@@ -466,8 +461,7 @@ def run_erlang(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def run_dart(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "dart" / "problems" / problem
-    src = pack / ("solution.dart" if kind == "solution" else "stub.dart")
+    src = pack_src("dart", problem, kind, "solution.dart", "stub.dart")
     adapter = repo_root() / "langs" / "dart" / "adapter.dart"
     return run_script(
         problem,
@@ -486,8 +480,7 @@ def _julia() -> str:
 
 
 def run_julia(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "julia" / "problems" / problem
-    src = pack / ("solution.jl" if kind == "solution" else "stub.jl")
+    src = pack_src("julia", problem, kind, "solution.jl", "stub.jl")
     adapter = repo_root() / "langs" / "julia" / "adapter.jl"
     return run_script(
         problem,
@@ -509,8 +502,7 @@ def _coffee() -> list[str]:
 
 
 def run_coffeescript(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "coffeescript" / "problems" / problem
-    src = pack / ("solution.coffee" if kind == "solution" else "stub.coffee")
+    src = pack_src("coffeescript", problem, kind, "solution.coffee", "stub.coffee")
     adapter = repo_root() / "langs" / "coffeescript" / "adapter.coffee"
     return run_script(
         problem,
@@ -522,8 +514,7 @@ def run_coffeescript(problem: str, level: int, kind: str = "solution") -> Report
 
 
 def run_bash(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "bash" / "problems" / problem
-    src = pack / ("solution.sh" if kind == "solution" else "stub.sh")
+    src = pack_src("bash", problem, kind, "solution.sh", "stub.sh")
     adapter = repo_root() / "langs" / "bash" / "adapter.sh"
     return run_script(
         problem,
@@ -535,8 +526,7 @@ def run_bash(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def run_shell(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "shell" / "problems" / problem
-    src = pack / ("solution.sh" if kind == "solution" else "stub.sh")
+    src = pack_src("shell", problem, kind, "solution.sh", "stub.sh")
     adapter = repo_root() / "langs" / "bash" / "adapter.sh"
     return run_script(
         problem,
@@ -555,8 +545,7 @@ def _pwsh() -> str:
 
 
 def run_powershell(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "powershell" / "problems" / problem
-    src = pack / ("solution.ps1" if kind == "solution" else "stub.ps1")
+    src = pack_src("powershell", problem, kind, "solution.ps1", "stub.ps1")
     adapter = repo_root() / "langs" / "powershell" / "adapter.ps1"
     return run_script(
         problem,
@@ -605,8 +594,7 @@ def _clojure() -> list[str]:
 
 
 def run_clojure(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "clojure" / "problems" / problem
-    src = pack / ("solution.clj" if kind == "solution" else "stub.clj")
+    src = pack_src("clojure", problem, kind, "solution.clj", "stub.clj")
     adapter = repo_root() / "langs" / "clojure" / "adapter.clj"
     return run_script(
         problem,
@@ -625,8 +613,7 @@ def _gst() -> str:
 
 
 def run_smalltalk(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "smalltalk" / "problems" / problem
-    src = pack / ("solution.st" if kind == "solution" else "stub.st")
+    src = pack_src("smalltalk", problem, kind, "solution.st", "stub.st")
     adapter = repo_root() / "langs" / "smalltalk" / "adapter.st"
     return run_script(
         problem,
@@ -646,8 +633,7 @@ def run_smalltalk(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def run_common_lisp(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "common-lisp" / "problems" / problem
-    src = pack / ("solution.lisp" if kind == "solution" else "stub.lisp")
+    src = pack_src("common-lisp", problem, kind, "solution.lisp", "stub.lisp")
     adapter = repo_root() / "langs" / "common-lisp" / "adapter.lisp"
     return run_script(
         problem,
@@ -659,8 +645,7 @@ def run_common_lisp(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def run_groovy(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "groovy" / "problems" / problem
-    src = pack / ("solution.groovy" if kind == "solution" else "stub.groovy")
+    src = pack_src("groovy", problem, kind, "solution.groovy", "stub.groovy")
     adapter = repo_root() / "langs" / "groovy" / "adapter.groovy"
     return run_script(
         problem,
@@ -672,8 +657,7 @@ def run_groovy(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def run_octave(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "octave" / "problems" / problem
-    src = pack / ("solution.m" if kind == "solution" else "stub.m")
+    src = pack_src("octave", problem, kind, "solution.m", "stub.m")
     adapter = repo_root() / "langs" / "octave" / "adapter.m"
     return run_script(
         problem,
@@ -697,8 +681,7 @@ def run_octave(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def run_lua(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "lua" / "problems" / problem
-    src = pack / ("solution.lua" if kind == "solution" else "stub.lua")
+    src = pack_src("lua", problem, kind, "solution.lua", "stub.lua")
     adapter = repo_root() / "langs" / "lua" / "adapter.lua"
     return run_script(
         problem,
@@ -710,8 +693,7 @@ def run_lua(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def run_php(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "php" / "problems" / problem
-    src = pack / ("solution.php" if kind == "solution" else "stub.php")
+    src = pack_src("php", problem, kind, "solution.php", "stub.php")
     adapter = repo_root() / "langs" / "php" / "adapter.php"
     return run_script(
         problem,
@@ -723,9 +705,7 @@ def run_php(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def go_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "go" / "problems" / problem
-    name = "solution.go" if kind == "solution" else "stub.go"
-    return pack / name
+    return pack_src("go", problem, kind, "solution.go", "stub.go")
 
 
 def run_go(problem: str, level: int, kind: str = "solution") -> Report:
@@ -747,9 +727,7 @@ def run_go(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def rust_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "rust" / "problems" / problem
-    name = "solution.rs" if kind == "solution" else "stub.rs"
-    return pack / name
+    return pack_src("rust", problem, kind, "solution.rs", "stub.rs")
 
 
 def run_rust(problem: str, level: int, kind: str = "solution") -> Report:
@@ -789,9 +767,7 @@ def run_rust(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def java_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "java" / "problems" / problem
-    name = "solution.java" if kind == "solution" else "stub.java"
-    return pack / name
+    return pack_src("java", problem, kind, "solution.java", "stub.java")
 
 
 def run_java(problem: str, level: int, kind: str = "solution") -> Report:
@@ -818,9 +794,7 @@ def run_java(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def csharp_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "csharp" / "problems" / problem
-    name = "solution.cs" if kind == "solution" else "stub.cs"
-    return pack / name
+    return pack_src("csharp", problem, kind, "solution.cs", "stub.cs")
 
 
 def run_csharp(problem: str, level: int, kind: str = "solution") -> Report:
@@ -841,9 +815,7 @@ def run_csharp(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def fsharp_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "fsharp" / "problems" / problem
-    name = "solution.fs" if kind == "solution" else "stub.fs"
-    return pack / name
+    return pack_src("fsharp", problem, kind, "solution.fs", "stub.fs")
 
 
 def run_fsharp(problem: str, level: int, kind: str = "solution") -> Report:
@@ -864,9 +836,7 @@ def run_fsharp(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def freepascal_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "freepascal" / "problems" / problem
-    name = "solution.pas" if kind == "solution" else "stub.pas"
-    return pack / name
+    return pack_src("freepascal", problem, kind, "solution.pas", "stub.pas")
 
 
 def _fpc() -> str:
@@ -899,8 +869,7 @@ def run_freepascal(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def run_typescript(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "typescript" / "problems" / problem
-    src = pack / ("solution.ts" if kind == "solution" else "stub.ts")
+    src = pack_src("typescript", problem, kind, "solution.ts", "stub.ts")
     adapter = repo_root() / "langs" / "javascript" / "adapter.js"
     return run_script(
         problem,
@@ -912,9 +881,7 @@ def run_typescript(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def kotlin_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "kotlin" / "problems" / problem
-    name = "solution.kt" if kind == "solution" else "stub.kt"
-    return pack / name
+    return pack_src("kotlin", problem, kind, "solution.kt", "stub.kt")
 
 
 def _kotlinc() -> str:
@@ -975,9 +942,7 @@ def run_kotlin(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def cpp_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "cpp" / "problems" / problem
-    name = "solution.cpp" if kind == "solution" else "stub.cpp"
-    return pack / name
+    return pack_src("cpp", problem, kind, "solution.cpp", "stub.cpp")
 
 
 def _cxx() -> str:
@@ -1019,9 +984,7 @@ def run_cpp(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def c_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "c" / "problems" / problem
-    name = "solution.c" if kind == "solution" else "stub.c"
-    return pack / name
+    return pack_src("c", problem, kind, "solution.c", "stub.c")
 
 
 def _cc() -> str:
@@ -1033,9 +996,7 @@ def _cc() -> str:
 
 
 def nim_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "nim" / "problems" / problem
-    name = "solution.nim" if kind == "solution" else "stub.nim"
-    return pack / name
+    return pack_src("nim", problem, kind, "solution.nim", "stub.nim")
 
 
 def _nim() -> str:
@@ -1074,9 +1035,7 @@ def run_nim(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def fortran_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "fortran" / "problems" / problem
-    name = "solution.f90" if kind == "solution" else "stub.f90"
-    return pack / name
+    return pack_src("fortran", problem, kind, "solution.f90", "stub.f90")
 
 
 def _gfortran() -> str:
@@ -1174,9 +1133,7 @@ def run_c(problem: str, level: int, kind: str = "solution") -> Report:
 
 
 def swift_entry(problem: str, kind: str) -> Path:
-    pack = repo_root() / "langs" / "swift" / "problems" / problem
-    name = "solution.swift" if kind == "solution" else "stub.swift"
-    return pack / name
+    return pack_src("swift", problem, kind, "solution.swift", "stub.swift")
 
 
 def _swiftc() -> str:

@@ -12,6 +12,7 @@ from honepad.catalog import language, languages, problems
 from honepad.runner import _RUNNERS, run
 from honepad.session import (
     ensure_session,
+    ensure_work_copy,
     load_session,
     remaining_s,
     unlock_next,
@@ -41,42 +42,52 @@ def cmd_start(args: argparse.Namespace) -> int:
         print(f"FAIL: runner for {row['id']} is a factory job (adapter={row.get('adapter')})")
         return 1
     session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=args.reset)
+    work = ensure_work_copy(args.problem, row["id"], reset=args.reset)
     unlocked = int(session["unlocked"])
     level = unlocked if args.level is None else args.level
     if level > unlocked:
         print(f"LOCKED: level {level} (unlocked={unlocked})")
+        print(f"WORK: {work}")
         return 1
     spec = problem_dir(args.problem) / "spec" / f"level{level}.md"
     if not spec.is_file():
         print(f"FAIL: missing spec {spec}")
         return 1
     print(spec.read_text(encoding="utf-8"))
-    stub = (
-        problem_dir(args.problem).parent.parent
-        / "langs"
-        / row["id"]
-        / "problems"
-        / args.problem
-        / f"stub.{row['ext']}"
+    print(f"\nWORK: {work}")
+    minutes = int(session["minutes"])
+    print(
+        f"NOTE: {minutes} minutes measures how far you get. "
+        "You are not expected to finish every level."
     )
-    print(f"\nSTUB: {stub}")
-    left = remaining_s(int(session["started_at"]), int(session["minutes"]))
+    left = remaining_s(int(session["started_at"]), minutes)
     print(f"OK: unlocked={unlocked} remaining_s={left}")
     return 0
 
 
 def cmd_run(args: argparse.Namespace) -> int:
     session = load_session()
-    same = session is not None and session.get("problem") == args.problem
-    lang = args.lang or (str(session["lang"]) if same and session is not None else "python3")
-    practice = args.level is None and same and session is not None
+    lang = args.lang or (
+        str(session["lang"])
+        if session is not None and session.get("problem") == args.problem
+        else "python3"
+    )
+    same = (
+        session is not None
+        and session.get("problem") == args.problem
+        and str(session.get("lang")) == lang
+    )
+    practice = args.level is None and same
     if args.level is None:
         level = int(session["unlocked"]) if practice and session is not None else 4
     else:
         level = args.level
+    kind = args.kind
+    if kind is None:
+        kind = "work" if same and session is not None else "solution"
     try:
-        report = run(args.problem, lang, level, kind=args.kind)
-    except (NotImplementedError, KeyError) as exc:
+        report = run(args.problem, lang, level, kind=kind)
+    except (NotImplementedError, KeyError, FileNotFoundError, RuntimeError) as exc:
         msg = exc.args[0] if exc.args else str(exc)
         print(f"FAIL: {msg}")
         return 1
@@ -89,7 +100,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
         return 1
     print("OK")
-    if practice and session is not None and args.kind == "solution":
+    if practice and session is not None and kind in ("solution", "work"):
         nxt = unlock_next(session)
         if nxt is not None:
             print(f"UNLOCKED: level {nxt}")
@@ -146,7 +157,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("problem", choices=problems())
     run_p.add_argument("--lang", default=None)
     run_p.add_argument("--level", type=int, default=None)
-    run_p.add_argument("--kind", choices=("solution", "stub"), default="solution")
+    run_p.add_argument("--kind", choices=("solution", "stub", "work"), default=None)
     run_p.set_defaults(func=cmd_run)
 
     timer = sub.add_parser("timer", help="print a 90-minute remaining_s")

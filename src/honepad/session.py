@@ -8,6 +8,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from honepad.catalog import language, repo_root
 from honepad.traces import problem_dir
 
 
@@ -16,6 +17,22 @@ def session_path() -> Path:
     if override:
         return Path(override)
     return Path.home() / ".honepad" / "session.json"
+
+
+def work_src(problem: str, lang_id: str) -> Path:
+    ext = str(language(lang_id)["ext"])
+    return session_path().parent / "work" / problem / lang_id / f"work.{ext}"
+
+
+def ensure_work_copy(problem: str, lang_id: str, *, reset: bool) -> Path:
+    dest = work_src(problem, lang_id)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.is_file() and not reset:
+        return dest
+    row = language(lang_id)
+    stub = repo_root() / "langs" / lang_id / "problems" / problem / f"stub.{row['ext']}"
+    dest.write_bytes(stub.read_bytes())
+    return dest
 
 
 def max_level(problem: str) -> int:
