@@ -78,3 +78,6 @@ def test_ci_test_job_keeps_short_cli_smoke() -> None:
     assert "python3 -m pytest" in text
     assert "name: Stealth" in text
     assert "name: Lint" in text
+    assert "name: Next job respects human_gate" in text
+    assert 'if state.get("human_gate"):' in text
+    assert "- run: bash factory/scripts/next-job.sh\n" not in text
