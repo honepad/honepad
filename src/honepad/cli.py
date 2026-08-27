@@ -87,15 +87,17 @@ def cmd_run(args: argparse.Namespace) -> int:
         kind = args.kind
         if kind is None:
             kind = "work" if same and session is not None else "solution"
+        left = 0
+        if session is not None and same:
+            left = remaining_s(int(session["started_at"]), int(session["minutes"]))
+            print(f"remaining_s={left}")
         report = run(args.problem, lang, level, kind=kind)
     except (NotImplementedError, KeyError, FileNotFoundError, RuntimeError, ValueError) as exc:
         msg = exc.args[0] if exc.args else str(exc)
         print(f"FAIL: {msg}")
         return 1
-    left = 0
     summary = f"{report.problem} {report.lang} level<={report.level} passed={report.passed}"
     if session is not None and same:
-        left = remaining_s(int(session["started_at"]), int(session["minutes"]))
         summary = f"{summary} remaining_s={left}"
     print(summary)
     if report.failed:

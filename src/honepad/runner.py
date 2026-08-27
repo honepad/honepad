@@ -15,6 +15,8 @@ from typing import Any
 from honepad.catalog import language, repo_root
 from honepad.traces import load_cases, method_name
 
+RUN_TIMEOUT_S = 30
+
 
 @dataclass
 class Fail:
@@ -138,7 +140,17 @@ def run_compiled(
         cases_path = tmpdir / "cases.json"
         cases_path.write_text(json.dumps(cases), encoding="utf-8")
         argv = prepare(tmpdir, str(cases_path))
-        proc = subprocess.run(argv, check=False, capture_output=True, text=True, cwd=tmpdir)
+        try:
+            proc = subprocess.run(
+                argv,
+                check=False,
+                capture_output=True,
+                text=True,
+                cwd=tmpdir,
+                timeout=RUN_TIMEOUT_S,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(f"{lang_id} timed out after {RUN_TIMEOUT_S}s") from exc
     return report_from_proc(proc, problem, lang_id, level)
 
 
@@ -153,12 +165,16 @@ def run_script(
     with tempfile.TemporaryDirectory() as tmp:
         cases_path = Path(tmp) / "cases.json"
         cases_path.write_text(json.dumps(cases), encoding="utf-8")
-        proc = subprocess.run(
-            [*argv, str(cases_path)],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        try:
+            proc = subprocess.run(
+                [*argv, str(cases_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=RUN_TIMEOUT_S,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(f"{lang_id} timed out after {RUN_TIMEOUT_S}s") from exc
     return report_from_proc(proc, problem, lang_id, level)
 
 

@@ -322,6 +322,65 @@ def test_work_compile_error_prints_fail(monkeypatch, tmp_path: Path, capsys) -> 
     assert "UNLOCKED" not in out
 
 
+def test_work_timeout_java_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work.write_text(
+        """import java.util.List;
+
+public class Simulation {
+    public Simulation() {
+        while (true) {}
+    }
+
+    public boolean createAccount(int timestamp, String accountId) {
+        return false;
+    }
+
+    public Integer deposit(int timestamp, String accountId, int amount) {
+        return null;
+    }
+
+    public Integer transfer(
+            int timestamp, String sourceAccountId, String targetAccountId, int amount) {
+        return null;
+    }
+
+    public List<String> topSpenders(int timestamp, int n) {
+        return null;
+    }
+
+    public String pay(int timestamp, String accountId, int amount) {
+        return null;
+    }
+
+    public String getPaymentStatus(int timestamp, String accountId, String payment) {
+        return null;
+    }
+
+    public boolean mergeAccounts(int timestamp, String accountId1, String accountId2) {
+        return false;
+    }
+
+    public Integer getBalance(int timestamp, String accountId, int timeAt) {
+        return null;
+    }
+}
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("honepad.runner.RUN_TIMEOUT_S", 1)
+    assert main(["run", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "timed out" in out
+    assert "Traceback" not in out
+    assert "UNLOCKED" not in out
+
+
 def test_work_syntax_error_python_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
