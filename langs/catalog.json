@@ -431,8 +431,8 @@
       "suites": [
         "gca"
       ],
-      "ci": false,
-      "adapter": "stub"
+      "ci": true,
+      "adapter": "scalac"
     },
     {
       "id": "smalltalk",

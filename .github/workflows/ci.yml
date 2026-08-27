@@ -91,6 +91,9 @@ jobs:
       - uses: dart-lang/setup-dart@7654d458321ee25acccccfdb86cd48bd95768ff1 # v1.8.0
         with:
           sdk: stable
+      - uses: coursier/setup-action@fd1707a76b027efdfb66ca79318b4d29b72e5a02 # v3.0.0
+        with:
+          apps: scala:2.13.16 scalac:2.13.16
       - name: Install Lua
         run: sudo apt-get update && sudo apt-get install -y lua5.4 tcl r-base r-cran-jsonlite octave nim groovy elixir ghc ocaml
       - run: python3 -m pip install -e ".[dev]"
@@ -125,6 +128,7 @@ jobs:
       - run: python3 -m honepad.cli run bank_system --lang erlang --level 4
       - run: python3 -m honepad.cli run bank_system --lang haskell --level 4
       - run: python3 -m honepad.cli run bank_system --lang ocaml --level 4
+      - run: python3 -m honepad.cli run bank_system --lang scala --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 

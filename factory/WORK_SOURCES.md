@@ -73,5 +73,6 @@ Priority (first match wins):
 - `pr-57` next improve MPI (expand: next cheap GCA language after erlang: haskell)
 - `pr-58` next improve MPI (expand: next cheap GCA language after haskell: ocaml)
 - `pr-59` next improve MPI (expand: next cheap GCA language after ocaml: scala)
+- `pr-60` next improve MPI (expand: next cheap GCA language after scala: d)
 
 `--concurrency 1`. One ready PR.
