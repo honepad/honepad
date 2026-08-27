@@ -78,8 +78,8 @@
       "suites": [
         "gca"
       ],
-      "ci": false,
-      "adapter": "stub"
+      "ci": true,
+      "adapter": "coffee"
     },
     {
       "id": "common-lisp",

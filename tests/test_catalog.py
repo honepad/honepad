@@ -80,3 +80,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("d")["ci"] is True
     assert language("julia")["adapter"] == "julia"
     assert language("julia")["ci"] is True
+    assert language("coffeescript")["adapter"] == "coffee"
+    assert language("coffeescript")["ci"] is True
