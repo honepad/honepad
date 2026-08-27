@@ -25,7 +25,8 @@ def cmd_langs(_args: argparse.Namespace) -> int:
     for row in rows:
         suites = ",".join(row["suites"])
         ci = "ci" if row.get("ci") else "no-ci"
-        print(f"{row['id']:16} {row['name']:22} {suites:20} {ci}")
+        mark = "runner" if row["id"] in _RUNNERS else "no-runner"
+        print(f"{row['id']:16} {row['name']:22} {suites:20} {ci:12} {mark:12}")
     return 0
 
 
