@@ -317,6 +317,7 @@ def test_work_compile_error_prints_fail(monkeypatch, tmp_path: Path, capsys) -> 
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
+    assert "work.java" in out
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
 
@@ -343,6 +344,7 @@ def test_corrupt_session_run_prints_fail(monkeypatch, tmp_path: Path, capsys) ->
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
+    assert str(session_file) in out
     assert "Traceback" not in out
 
 
@@ -354,6 +356,7 @@ def test_corrupt_session_start_prints_fail(monkeypatch, tmp_path: Path, capsys) 
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
+    assert str(session_file) in out
     assert "Traceback" not in out
 
 
@@ -365,6 +368,7 @@ def test_corrupt_session_timer_prints_fail(monkeypatch, tmp_path: Path, capsys) 
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
+    assert str(session_file) in out
     assert "Traceback" not in out
 
 

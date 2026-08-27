@@ -791,7 +791,7 @@ def run_java(problem: str, level: int, kind: str = "solution") -> Report:
             cwd=tmpdir,
         )
         if compiled.returncode != 0:
-            raise RuntimeError(compiled.stderr or compiled.stdout or "javac failed")
+            raise RuntimeError(f"{src}: {compiled.stderr or compiled.stdout or 'javac failed'}")
         return ["java", "Adapter", cases_path, class_name]
 
     return run_compiled(problem, "java", level, prepare)
