@@ -92,7 +92,12 @@ def cmd_run(args: argparse.Namespace) -> int:
         msg = exc.args[0] if exc.args else str(exc)
         print(f"FAIL: {msg}")
         return 1
-    print(f"{report.problem} {report.lang} level<={report.level} passed={report.passed}")
+    left = 0
+    summary = f"{report.problem} {report.lang} level<={report.level} passed={report.passed}"
+    if session is not None and same:
+        left = remaining_s(int(session["started_at"]), int(session["minutes"]))
+        summary = f"{summary} remaining_s={left}"
+    print(summary)
     if report.failed:
         fail = report.failed[0]
         print(
@@ -100,8 +105,11 @@ def cmd_run(args: argparse.Namespace) -> int:
             f"expected={fail.expected!r} actual={fail.actual!r}"
         )
         return 1
+    if report.passed == 0:
+        print("FAIL: no cases")
+        return 1
     print("OK")
-    if practice and session is not None and kind in ("solution", "work"):
+    if practice and session is not None and kind in ("solution", "work") and left > 0:
         nxt = unlock_next(session)
         if nxt is not None:
             print(f"UNLOCKED: level {nxt}")
