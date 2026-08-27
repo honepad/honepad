@@ -95,6 +95,8 @@ ADAPTERS = {
     "ruby": "ruby",
     "php": "php",
     "typescript": "node",
+    "java": "javac",
+    "csharp": "dotnet",
 }
 
 CI = {
@@ -110,6 +112,7 @@ CI = {
     "rust",
     "cpp",
     "c",
+    "csharp",
 }
 
 BANK_METHODS = [

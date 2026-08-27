@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import shutil
 import subprocess
 import tempfile
@@ -350,6 +351,54 @@ def run_java(problem: str, level: int, kind: str = "solution") -> Report:
     return Report(problem, "java", level, int(payload.get("passed", 0)), failed)
 
 
+def csharp_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "csharp" / "problems" / problem
+    name = "solution.cs" if kind == "solution" else "stub.cs"
+    return pack / name
+
+
+def run_csharp(problem: str, level: int, kind: str = "solution") -> Report:
+    src = csharp_entry(problem, kind)
+    csharp_dir = repo_root() / "langs" / "csharp"
+    class_name = class_for_problem(problem)
+    cases = load_cases(problem, level)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpdir = Path(tmp)
+        shutil.copy(csharp_dir / "Adapter.cs", tmpdir / "Adapter.cs")
+        shutil.copy(csharp_dir / "honepadrun.csproj", tmpdir / "honepadrun.csproj")
+        shutil.copy(src, tmpdir / "Solution.cs")
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(cases, handle)
+            cases_path = handle.name
+        env = os.environ.copy()
+        env["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
+        env["DOTNET_NOLOGO"] = "1"
+        env["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1"
+        proc = subprocess.run(
+            ["dotnet", "run", "--quiet", "--", cases_path, class_name],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+            env=env,
+        )
+    if not proc.stdout.strip():
+        raise RuntimeError(proc.stderr or "csharp adapter produced no output")
+    payload = json.loads(proc.stdout.splitlines()[-1])
+    failed = [
+        Fail(
+            row["case"],
+            row["index"],
+            row["method"],
+            [],
+            row["expected"],
+            row["actual"],
+        )
+        for row in payload.get("failed", [])
+    ]
+    return Report(problem, "csharp", level, int(payload.get("passed", 0)), failed)
+
+
 def run_typescript(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "typescript" / "problems" / problem
     src = pack / ("solution.ts" if kind == "solution" else "stub.ts")
@@ -404,6 +453,8 @@ def run(
         return run_java(problem, level, kind)
     if row["id"] == "typescript":
         return run_typescript(problem, level, kind)
+    if row["id"] == "csharp":
+        return run_csharp(problem, level, kind)
     raise NotImplementedError(
         f"runner for {lang_id} is a factory job (adapter={row.get('adapter')})"
     )
