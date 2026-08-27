@@ -50,3 +50,4 @@ def test_python3_is_import_adapter() -> None:
     assert language("cpp")["ci"] is True
     assert language("swift")["adapter"] == "swiftc"
     assert language("swift")["ci"] is True
+    assert language("perl")["adapter"] == "perl"

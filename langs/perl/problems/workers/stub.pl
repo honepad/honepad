@@ -5,3 +5,6 @@
 # top_n_workers(n, position)
 # promote(worker_id, new_position, new_compensation, start_timestamp)
 # calc_salary(worker_id, start_timestamp, end_timestamp)
+package Simulation;
+sub new { bless {}, shift }
+1;

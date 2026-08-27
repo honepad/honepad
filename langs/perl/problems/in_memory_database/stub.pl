@@ -12,3 +12,6 @@
 # scan_by_prefix_at(key, prefix, timestamp)
 # backup(timestamp)
 # restore(timestamp, timestamp_to_restore)
+package InMemoryDatabase;
+sub new { bless {}, shift }
+1;
