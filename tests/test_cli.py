@@ -23,7 +23,8 @@ def test_langs(capsys) -> None:
     assert "no-runner" not in freepascal.split()
     assert "runner" in freepascal.split()
     smalltalk = next(line for line in lang_lines if line.split()[0] == "smalltalk")
-    assert "no-runner" in smalltalk.split()
+    assert "no-runner" not in smalltalk.split()
+    assert "runner" in smalltalk.split()
     vb = next(line for line in lang_lines if line.split()[0] == "vb")
     assert "no-runner" in vb.split()
     for line in lang_lines:
