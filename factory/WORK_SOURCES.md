@@ -58,5 +58,6 @@ Priority (first match wins):
 - `pr-42` first improve MPI (Developer: runner dispatch table)
 - `pr-43` next improve MPI (QA: unknown lang error mentions adapter)
 - `pr-44` next improve MPI (Maintainer: next-job.sh after improve still prints one job)
+- `pr-45` next improve MPI (adversary: honepad run unknown lang exits 2 or 1 via CLI if applicable; else skip to expand)
 
 `--concurrency 1`. One ready PR.
