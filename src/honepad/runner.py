@@ -94,6 +94,40 @@ def run_python(
     return Report(problem, "python3", level, passed, failed)
 
 
+def report_from_proc(
+    proc: subprocess.CompletedProcess[str],
+    problem: str,
+    lang_id: str,
+    level: int,
+) -> Report:
+    if not proc.stdout.strip():
+        raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
+    payload = json.loads(proc.stdout.splitlines()[-1])
+    failed = [
+        Fail(row["case"], row["index"], row["method"], [], row["expected"], row["actual"])
+        for row in payload.get("failed", [])
+    ]
+    return Report(problem, lang_id, level, int(payload.get("passed", 0)), failed)
+
+
+def run_compiled(
+    problem: str,
+    lang_id: str,
+    level: int,
+    prepare,
+) -> Report:
+    """prepare(tmpdir: Path, cases_path: str) -> list[str]  (argv to run in tmpdir)."""
+    cases = load_cases(problem, level)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpdir = Path(tmp)
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(cases, handle)
+            cases_path = handle.name
+        argv = prepare(tmpdir, cases_path)
+        proc = subprocess.run(argv, check=False, capture_output=True, text=True, cwd=tmpdir)
+    return report_from_proc(proc, problem, lang_id, level)
+
+
 def run_script(
     problem: str,
     lang_id: str,
@@ -111,21 +145,7 @@ def run_script(
         capture_output=True,
         text=True,
     )
-    if not proc.stdout.strip():
-        raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
-    payload = json.loads(proc.stdout.splitlines()[-1])
-    failed = [
-        Fail(
-            row["case"],
-            row["index"],
-            row["method"],
-            [],
-            row["expected"],
-            row["actual"],
-        )
-        for row in payload.get("failed", [])
-    ]
-    return Report(problem, lang_id, level, int(payload.get("passed", 0)), failed)
+    return report_from_proc(proc, problem, lang_id, level)
 
 
 def run_javascript(problem: str, level: int, kind: str = "solution") -> Report:
@@ -176,10 +196,9 @@ def go_entry(problem: str, kind: str) -> Path:
 def run_go(problem: str, level: int, kind: str = "solution") -> Report:
     src = go_entry(problem, kind)
     adapter = repo_root() / "langs" / "go" / "adapter.go"
-    cases = load_cases(problem, level)
     ctor = class_for_problem(problem)
-    with tempfile.TemporaryDirectory() as tmp:
-        tmpdir = Path(tmp)
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(adapter, tmpdir / "adapter.go")
         shutil.copy(src, tmpdir / src.name)
         (tmpdir / "ctor.go").write_text(
@@ -187,31 +206,9 @@ def run_go(problem: str, level: int, kind: str = "solution") -> Report:
             encoding="utf-8",
         )
         (tmpdir / "go.mod").write_text("module honepadrun\n\ngo 1.22\n", encoding="utf-8")
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-            json.dump(cases, handle)
-            cases_path = handle.name
-        proc = subprocess.run(
-            ["go", "run", ".", cases_path],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
-        )
-    if not proc.stdout.strip():
-        raise RuntimeError(proc.stderr or "go adapter produced no output")
-    payload = json.loads(proc.stdout.splitlines()[-1])
-    failed = [
-        Fail(
-            row["case"],
-            row["index"],
-            row["method"],
-            [],
-            row["expected"],
-            row["actual"],
-        )
-        for row in payload.get("failed", [])
-    ]
-    return Report(problem, "go", level, int(payload.get("passed", 0)), failed)
+        return ["go", "run", ".", cases_path]
+
+    return run_compiled(problem, "go", level, prepare)
 
 
 def rust_entry(problem: str, kind: str) -> Path:
@@ -225,10 +222,9 @@ def run_rust(problem: str, level: int, kind: str = "solution") -> Report:
     rust_dir = repo_root() / "langs" / "rust"
     adapter = rust_dir / "adapter.rs"
     harness = rust_dir / "harness.rs"
-    cases = load_cases(problem, level)
     ctor = class_for_problem(problem)
-    with tempfile.TemporaryDirectory() as tmp:
-        tmpdir = Path(tmp)
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         src_dir = tmpdir / "src"
         src_dir.mkdir()
         shutil.copy(adapter, src_dir / "main.rs")
@@ -252,31 +248,9 @@ def run_rust(problem: str, level: int, kind: str = "solution") -> Report:
             'serde_json = "1"\n',
             encoding="utf-8",
         )
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-            json.dump(cases, handle)
-            cases_path = handle.name
-        proc = subprocess.run(
-            ["cargo", "run", "--quiet", "--", cases_path],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
-        )
-    if not proc.stdout.strip():
-        raise RuntimeError(proc.stderr or "rust adapter produced no output")
-    payload = json.loads(proc.stdout.splitlines()[-1])
-    failed = [
-        Fail(
-            row["case"],
-            row["index"],
-            row["method"],
-            [],
-            row["expected"],
-            row["actual"],
-        )
-        for row in payload.get("failed", [])
-    ]
-    return Report(problem, "rust", level, int(payload.get("passed", 0)), failed)
+        return ["cargo", "run", "--quiet", "--", cases_path]
+
+    return run_compiled(problem, "rust", level, prepare)
 
 
 def java_entry(problem: str, kind: str) -> Path:
@@ -289,15 +263,11 @@ def run_java(problem: str, level: int, kind: str = "solution") -> Report:
     src = java_entry(problem, kind)
     java_dir = repo_root() / "langs" / "java"
     class_name = class_for_problem(problem)
-    cases = load_cases(problem, level)
-    with tempfile.TemporaryDirectory() as tmp:
-        tmpdir = Path(tmp)
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(java_dir / "Adapter.java", tmpdir / "Adapter.java")
         shutil.copy(java_dir / "MiniJson.java", tmpdir / "MiniJson.java")
         shutil.copy(src, tmpdir / f"{class_name}.java")
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-            json.dump(cases, handle)
-            cases_path = handle.name
         compiled = subprocess.run(
             ["javac", "Adapter.java", "MiniJson.java", f"{class_name}.java"],
             check=False,
@@ -307,28 +277,9 @@ def run_java(problem: str, level: int, kind: str = "solution") -> Report:
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "javac failed")
-        proc = subprocess.run(
-            ["java", "Adapter", cases_path, class_name],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
-        )
-    if not proc.stdout.strip():
-        raise RuntimeError(proc.stderr or "java adapter produced no output")
-    payload = json.loads(proc.stdout.splitlines()[-1])
-    failed = [
-        Fail(
-            row["case"],
-            row["index"],
-            row["method"],
-            [],
-            row["expected"],
-            row["actual"],
-        )
-        for row in payload.get("failed", [])
-    ]
-    return Report(problem, "java", level, int(payload.get("passed", 0)), failed)
+        return ["java", "Adapter", cases_path, class_name]
+
+    return run_compiled(problem, "java", level, prepare)
 
 
 def csharp_entry(problem: str, kind: str) -> Path:
@@ -341,42 +292,17 @@ def run_csharp(problem: str, level: int, kind: str = "solution") -> Report:
     src = csharp_entry(problem, kind)
     csharp_dir = repo_root() / "langs" / "csharp"
     class_name = class_for_problem(problem)
-    cases = load_cases(problem, level)
-    with tempfile.TemporaryDirectory() as tmp:
-        tmpdir = Path(tmp)
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(csharp_dir / "Adapter.cs", tmpdir / "Adapter.cs")
         shutil.copy(csharp_dir / "honepadrun.csproj", tmpdir / "honepadrun.csproj")
         shutil.copy(src, tmpdir / "Solution.cs")
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-            json.dump(cases, handle)
-            cases_path = handle.name
-        env = os.environ.copy()
-        env["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
-        env["DOTNET_NOLOGO"] = "1"
-        env["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1"
-        proc = subprocess.run(
-            ["dotnet", "run", "--quiet", "--", cases_path, class_name],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
-            env=env,
-        )
-    if not proc.stdout.strip():
-        raise RuntimeError(proc.stderr or "csharp adapter produced no output")
-    payload = json.loads(proc.stdout.splitlines()[-1])
-    failed = [
-        Fail(
-            row["case"],
-            row["index"],
-            row["method"],
-            [],
-            row["expected"],
-            row["actual"],
-        )
-        for row in payload.get("failed", [])
-    ]
-    return Report(problem, "csharp", level, int(payload.get("passed", 0)), failed)
+        os.environ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
+        os.environ["DOTNET_NOLOGO"] = "1"
+        os.environ["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1"
+        return ["dotnet", "run", "--quiet", "--", cases_path, class_name]
+
+    return run_compiled(problem, "csharp", level, prepare)
 
 
 def run_typescript(problem: str, level: int, kind: str = "solution") -> Report:
@@ -410,15 +336,11 @@ def run_kotlin(problem: str, level: int, kind: str = "solution") -> Report:
     src = kotlin_entry(problem, kind)
     kotlin_dir = repo_root() / "langs" / "kotlin"
     class_name = class_for_problem(problem)
-    cases = load_cases(problem, level)
-    with tempfile.TemporaryDirectory() as tmp:
-        tmpdir = Path(tmp)
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(kotlin_dir / "Adapter.kt", tmpdir / "Adapter.kt")
         shutil.copy(repo_root() / "langs" / "java" / "MiniJson.java", tmpdir / "MiniJson.java")
         shutil.copy(src, tmpdir / "solution.kt")
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-            json.dump(cases, handle)
-            cases_path = handle.name
         # kotlinc type-checks .java sources but does not emit those classes.
         java_compiled = subprocess.run(
             ["javac", "MiniJson.java"],
@@ -447,28 +369,16 @@ def run_kotlin(problem: str, level: int, kind: str = "solution") -> Report:
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "kotlinc failed")
-        proc = subprocess.run(
-            ["java", "-cp", os.pathsep.join(["run.jar", "."]), "Adapter", cases_path, class_name],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
-        )
-    if not proc.stdout.strip():
-        raise RuntimeError(proc.stderr or "kotlin adapter produced no output")
-    payload = json.loads(proc.stdout.splitlines()[-1])
-    failed = [
-        Fail(
-            row["case"],
-            row["index"],
-            row["method"],
-            [],
-            row["expected"],
-            row["actual"],
-        )
-        for row in payload.get("failed", [])
-    ]
-    return Report(problem, "kotlin", level, int(payload.get("passed", 0)), failed)
+        return [
+            "java",
+            "-cp",
+            os.pathsep.join(["run.jar", "."]),
+            "Adapter",
+            cases_path,
+            class_name,
+        ]
+
+    return run_compiled(problem, "kotlin", level, prepare)
 
 
 def cpp_entry(problem: str, kind: str) -> Path:
@@ -489,9 +399,8 @@ def run_cpp(problem: str, level: int, kind: str = "solution") -> Report:
     src = cpp_entry(problem, kind)
     cpp_dir = repo_root() / "langs" / "cpp"
     ctor_name = class_for_problem(problem)
-    cases = load_cases(problem, level)
-    with tempfile.TemporaryDirectory() as tmp:
-        tmpdir = Path(tmp)
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(cpp_dir / "adapter.cpp", tmpdir / "adapter.cpp")
         shutil.copy(cpp_dir / "minijson.hpp", tmpdir / "minijson.hpp")
         shutil.copy(cpp_dir / "harness.hpp", tmpdir / "harness.hpp")
@@ -502,9 +411,6 @@ def run_cpp(problem: str, level: int, kind: str = "solution") -> Report:
             f"Harness* new_target() {{ return new {ctor_name}(); }}\n",
             encoding="utf-8",
         )
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-            json.dump(cases, handle)
-            cases_path = handle.name
         compiled = subprocess.run(
             [_cxx(), "-std=c++17", "-O0", "adapter.cpp", "ctor.cpp", "solution.cpp", "-o", "run"],
             check=False,
@@ -514,28 +420,9 @@ def run_cpp(problem: str, level: int, kind: str = "solution") -> Report:
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "c++ compile failed")
-        proc = subprocess.run(
-            [str(tmpdir / "run"), cases_path],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
-        )
-    if not proc.stdout.strip():
-        raise RuntimeError(proc.stderr or "cpp adapter produced no output")
-    payload = json.loads(proc.stdout.splitlines()[-1])
-    failed = [
-        Fail(
-            row["case"],
-            row["index"],
-            row["method"],
-            [],
-            row["expected"],
-            row["actual"],
-        )
-        for row in payload.get("failed", [])
-    ]
-    return Report(problem, "cpp", level, int(payload.get("passed", 0)), failed)
+        return [str(tmpdir / "run"), cases_path]
+
+    return run_compiled(problem, "cpp", level, prepare)
 
 
 def swift_entry(problem: str, kind: str) -> Path:
@@ -555,9 +442,8 @@ def run_swift(problem: str, level: int, kind: str = "solution") -> Report:
     src = swift_entry(problem, kind)
     swift_dir = repo_root() / "langs" / "swift"
     ctor_name = class_for_problem(problem)
-    cases = load_cases(problem, level)
-    with tempfile.TemporaryDirectory() as tmp:
-        tmpdir = Path(tmp)
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(swift_dir / "Adapter.swift", tmpdir / "Adapter.swift")
         shutil.copy(swift_dir / "Harness.swift", tmpdir / "Harness.swift")
         shutil.copy(src, tmpdir / "solution.swift")
@@ -565,9 +451,6 @@ def run_swift(problem: str, level: int, kind: str = "solution") -> Report:
             f"func newTarget() -> Harness {{ return {ctor_name}() }}\n",
             encoding="utf-8",
         )
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-            json.dump(cases, handle)
-            cases_path = handle.name
         compiled = subprocess.run(
             [
                 _swiftc(),
@@ -585,28 +468,9 @@ def run_swift(problem: str, level: int, kind: str = "solution") -> Report:
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "swiftc failed")
-        proc = subprocess.run(
-            [str(tmpdir / "run"), cases_path],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
-        )
-    if not proc.stdout.strip():
-        raise RuntimeError(proc.stderr or "swift adapter produced no output")
-    payload = json.loads(proc.stdout.splitlines()[-1])
-    failed = [
-        Fail(
-            row["case"],
-            row["index"],
-            row["method"],
-            [],
-            row["expected"],
-            row["actual"],
-        )
-        for row in payload.get("failed", [])
-    ]
-    return Report(problem, "swift", level, int(payload.get("passed", 0)), failed)
+        return [str(tmpdir / "run"), cases_path]
+
+    return run_compiled(problem, "swift", level, prepare)
 
 
 def run(
