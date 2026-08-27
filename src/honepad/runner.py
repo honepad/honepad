@@ -430,6 +430,85 @@ def run_typescript(problem: str, level: int, kind: str = "solution") -> Report:
     return Report(problem, "typescript", level, int(payload.get("passed", 0)), failed)
 
 
+def kotlin_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "kotlin" / "problems" / problem
+    name = "solution.kt" if kind == "solution" else "stub.kt"
+    return pack / name
+
+
+def _kotlinc() -> str:
+    for name in ("kotlinc", "kotlinc-jvm"):
+        path = shutil.which(name)
+        if path:
+            return path
+    raise RuntimeError("kotlinc not found")
+
+
+def run_kotlin(problem: str, level: int, kind: str = "solution") -> Report:
+    src = kotlin_entry(problem, kind)
+    kotlin_dir = repo_root() / "langs" / "kotlin"
+    class_name = class_for_problem(problem)
+    cases = load_cases(problem, level)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpdir = Path(tmp)
+        shutil.copy(kotlin_dir / "Adapter.kt", tmpdir / "Adapter.kt")
+        shutil.copy(repo_root() / "langs" / "java" / "MiniJson.java", tmpdir / "MiniJson.java")
+        shutil.copy(src, tmpdir / "solution.kt")
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(cases, handle)
+            cases_path = handle.name
+        # kotlinc type-checks .java sources but does not emit those classes.
+        java_compiled = subprocess.run(
+            ["javac", "MiniJson.java"],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if java_compiled.returncode != 0:
+            raise RuntimeError(java_compiled.stderr or java_compiled.stdout or "javac failed")
+        compiled = subprocess.run(
+            [
+                _kotlinc(),
+                "Adapter.kt",
+                "solution.kt",
+                "-classpath",
+                ".",
+                "-include-runtime",
+                "-d",
+                "run.jar",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if compiled.returncode != 0:
+            raise RuntimeError(compiled.stderr or compiled.stdout or "kotlinc failed")
+        proc = subprocess.run(
+            ["java", "-cp", os.pathsep.join(["run.jar", "."]), "Adapter", cases_path, class_name],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+    if not proc.stdout.strip():
+        raise RuntimeError(proc.stderr or "kotlin adapter produced no output")
+    payload = json.loads(proc.stdout.splitlines()[-1])
+    failed = [
+        Fail(
+            row["case"],
+            row["index"],
+            row["method"],
+            [],
+            row["expected"],
+            row["actual"],
+        )
+        for row in payload.get("failed", [])
+    ]
+    return Report(problem, "kotlin", level, int(payload.get("passed", 0)), failed)
+
+
 def run(
     problem: str,
     lang_id: str,
@@ -455,6 +534,8 @@ def run(
         return run_typescript(problem, level, kind)
     if row["id"] == "csharp":
         return run_csharp(problem, level, kind)
+    if row["id"] == "kotlin":
+        return run_kotlin(problem, level, kind)
     raise NotImplementedError(
         f"runner for {lang_id} is a factory job (adapter={row.get('adapter')})"
     )

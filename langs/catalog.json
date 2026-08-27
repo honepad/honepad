@@ -282,8 +282,8 @@
         "gca",
         "ica"
       ],
-      "ci": false,
-      "adapter": "stub"
+      "ci": true,
+      "adapter": "kotlinc"
     },
     {
       "id": "lua",

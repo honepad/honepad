@@ -97,6 +97,7 @@ ADAPTERS = {
     "typescript": "node",
     "java": "javac",
     "csharp": "dotnet",
+    "kotlin": "kotlinc",
 }
 
 CI = {
@@ -113,6 +114,7 @@ CI = {
     "cpp",
     "c",
     "csharp",
+    "kotlin",
 }
 
 BANK_METHODS = [

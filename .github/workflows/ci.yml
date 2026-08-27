@@ -82,6 +82,9 @@ jobs:
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
         with:
           dotnet-version: "8.0.x"
+      - uses: fwilhe2/setup-kotlin@ee9692514da313706b193d808526812102a344e4 # v2.0
+        with:
+          version: "2.1.21"
       - run: python3 -m pip install -e ".[dev]"
       - run: python3 -m pytest
       - run: python3 -m honepad.cli run bank_system --lang python3 --level 4
@@ -93,6 +96,7 @@ jobs:
       - run: python3 -m honepad.cli run bank_system --lang java --level 4
       - run: python3 -m honepad.cli run bank_system --lang typescript --level 4
       - run: python3 -m honepad.cli run bank_system --lang csharp --level 4
+      - run: python3 -m honepad.cli run bank_system --lang kotlin --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 

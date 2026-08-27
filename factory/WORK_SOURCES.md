@@ -28,5 +28,6 @@ Priority (first match wins):
 - `pr-12` csharp ICA runner for the same traces
 - `pr-13` kotlin ICA runner for the same traces
 - `pr-14` cpp ICA runner for the same traces
+- `pr-15` swift ICA runner for the same traces
 
 `--concurrency 1`. One ready PR.
