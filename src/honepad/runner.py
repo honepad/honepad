@@ -187,6 +187,27 @@ def run_perl(problem: str, level: int, kind: str = "solution") -> Report:
     )
 
 
+def _lua() -> str:
+    for name in ("lua", "lua5.5", "lua5.4", "lua5.3"):
+        path = shutil.which(name)
+        if path:
+            return path
+    raise RuntimeError("lua not found")
+
+
+def run_lua(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "lua" / "problems" / problem
+    src = pack / ("solution.lua" if kind == "solution" else "stub.lua")
+    adapter = repo_root() / "langs" / "lua" / "adapter.lua"
+    return run_script(
+        problem,
+        "lua",
+        level,
+        kind,
+        [_lua(), str(adapter), str(src), class_for_problem(problem)],
+    )
+
+
 def run_php(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "php" / "problems" / problem
     src = pack / ("solution.php" if kind == "solution" else "stub.php")
@@ -503,6 +524,8 @@ def run(
         return run_php(problem, level, kind)
     if row["id"] == "perl":
         return run_perl(problem, level, kind)
+    if row["id"] == "lua":
+        return run_lua(problem, level, kind)
     if row["id"] == "go":
         return run_go(problem, level, kind)
     if row["id"] == "rust":

@@ -59,6 +59,11 @@ def test_perl_stub_fails() -> None:
     assert not report.ok
 
 
+def test_lua_stub_fails() -> None:
+    report = run("bank_system", "lua", 1, "stub")
+    assert not report.ok
+
+
 def test_javascript_bank_and_db() -> None:
     bank = run("bank_system", "javascript", 4, "solution")
     assert bank.ok, bank.failed
@@ -211,6 +216,17 @@ def test_perl_all_problems() -> None:
         ("workers", 3),
     ):
         report = run(problem, "perl", level, "solution")
+        assert report.ok, report.failed
+
+
+def test_lua_all_problems() -> None:
+    for problem, level in (
+        ("bank_system", 4),
+        ("in_memory_database", 4),
+        ("file_storage", 4),
+        ("workers", 3),
+    ):
+        report = run(problem, "lua", level, "solution")
         assert report.ok, report.failed
 
 

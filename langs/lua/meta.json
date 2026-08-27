@@ -7,5 +7,5 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "stub"
+  "adapter": "lua"
 }
