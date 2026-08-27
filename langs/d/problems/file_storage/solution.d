@@ -85,6 +85,40 @@ class Simulation
         return size.to!string;
     }
 
+    string copyFile(string source, string dest)
+    {
+        if (source !in files)
+        {
+            return "";
+        }
+        auto src = files[source];
+        if (source == dest)
+        {
+            return src.size.to!string;
+        }
+        StoredFile destItem = null;
+        if (dest in files)
+        {
+            destItem = files[dest];
+        }
+        auto owner = destItem is null ? src.owner : destItem.owner;
+        auto extra = destItem is null ? src.size : src.size - destItem.size;
+        auto left = remaining(owner);
+        if (!left.isNull && extra > left.get)
+        {
+            return "";
+        }
+        if (destItem is null)
+        {
+            files[dest] = new StoredFile(dest, src.size, owner);
+        }
+        else
+        {
+            destItem.size = src.size;
+        }
+        return src.size.to!string;
+    }
+
     string getNLargest(string prefix, long n)
     {
         StoredFile[] matched;

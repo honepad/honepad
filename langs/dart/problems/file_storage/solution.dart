@@ -54,6 +54,29 @@ class Simulation {
     return item == null ? '' : '${item.size}';
   }
 
+  String copyFile(String source, String dest) {
+    final src = files[source];
+    if (src == null) {
+      return '';
+    }
+    if (source == dest) {
+      return '${src.size}';
+    }
+    final destItem = files[dest];
+    final owner = destItem == null ? src.owner : destItem.owner;
+    final extra = destItem == null ? src.size : src.size - destItem.size;
+    final left = _remaining(owner);
+    if (left != null && extra > left) {
+      return '';
+    }
+    if (destItem == null) {
+      files[dest] = StoredFile(dest, src.size, owner);
+    } else {
+      files[dest] = StoredFile(dest, src.size, destItem.owner);
+    }
+    return '${src.size}';
+  }
+
   String getNLargest(String prefix, int n) {
     final matched = [
       for (final item in files.values)

@@ -66,6 +66,25 @@ sub delete_file {
     return '' . $size;
 }
 
+sub copy_file {
+    my ( $self, $source, $dest ) = @_;
+    my $src = $self->{files}{$source};
+    return '' unless $src;
+    return '' . $src->{size} if $source eq $dest;
+    my $dest_item = $self->{files}{$dest};
+    my $owner     = $dest_item ? $dest_item->{owner} : $src->{owner};
+    my $extra     = $dest_item ? $src->{size} - $dest_item->{size} : $src->{size};
+    my $left      = $self->remaining($owner);
+    return '' if defined $left && $extra > $left;
+    if ( !$dest_item ) {
+        $self->_add( $dest, $src->{size}, $owner );
+    }
+    else {
+        $dest_item->{size} = $src->{size};
+    }
+    return '' . $src->{size};
+}
+
 sub get_n_largest {
     my ( $self, $prefix, $n ) = @_;
     my @matched =

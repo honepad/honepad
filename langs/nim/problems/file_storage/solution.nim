@@ -50,6 +50,25 @@ proc deleteFile(self: Simulation; name: string): string =
   self.files.del(name)
   result = $size
 
+proc copyFile(self: Simulation; source, dest: string): string =
+  self.ensureAdmin()
+  if source notin self.files:
+    return ""
+  let src = self.files[source]
+  if source == dest:
+    return $src.size
+  let destItem = if dest in self.files: self.files[dest] else: nil
+  let owner = if destItem.isNil: src.owner else: destItem.owner
+  let extra = if destItem.isNil: src.size else: src.size - destItem.size
+  let left = self.remaining(owner)
+  if left.isSome and extra > left.get:
+    return ""
+  if destItem.isNil:
+    self.files[dest] = StoredFile(name: dest, size: src.size, owner: owner)
+  else:
+    destItem.size = src.size
+  result = $src.size
+
 proc getNLargest(self: Simulation; prefix: string; n: int64): string =
   self.ensureAdmin()
   var matched: seq[StoredFile] = @[]

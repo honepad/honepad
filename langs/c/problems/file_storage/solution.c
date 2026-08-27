@@ -134,6 +134,40 @@ static char *delete_file(Simulation *sim, const char *name) {
   return hp_strdup("");
 }
 
+static char *copy_file(Simulation *sim, const char *source, const char *dest) {
+  StoredFile *src = find_file(sim, source);
+  if (src == NULL) {
+    return hp_strdup("");
+  }
+  int64_t src_size = src->size;
+  if (strcmp(source, dest) == 0) {
+    char buf[32];
+    snprintf(buf, sizeof(buf), "%lld", (long long)src_size);
+    return hp_strdup(buf);
+  }
+  StoredFile *dest_item = find_file(sim, dest);
+  const char *owner = dest_item == NULL ? src->owner : dest_item->owner;
+  int64_t extra = dest_item == NULL ? src_size : src_size - dest_item->size;
+  int64_t left = 0;
+  if (remaining(sim, owner, &left) && extra > left) {
+    return hp_strdup("");
+  }
+  if (dest_item == NULL) {
+    HP_GROW(sim->files, sim->file_len, sim->file_cap, StoredFile);
+    sim->files[sim->file_len].name = hp_strdup(dest);
+    sim->files[sim->file_len].size = src_size;
+    sim->files[sim->file_len].owner = hp_strdup(owner);
+    sim->file_len++;
+    HP_GROW(sim->order, sim->order_len, sim->order_cap, char *);
+    sim->order[sim->order_len++] = hp_strdup(dest);
+  } else {
+    dest_item->size = src_size;
+  }
+  char buf[32];
+  snprintf(buf, sizeof(buf), "%lld", (long long)src_size);
+  return hp_strdup(buf);
+}
+
 typedef struct {
   char *name;
   int64_t size;
@@ -354,6 +388,8 @@ static JsonVal *simulation_call(HonepadTarget *self, const char *method, const J
   char *text = NULL;
   if (strcmp(method, "add_file") == 0) {
     text = add_file(sim, arg_str(args, 0), arg_i64(args, 1));
+  } else if (strcmp(method, "copy_file") == 0) {
+    text = copy_file(sim, arg_str(args, 0), arg_str(args, 1));
   } else if (strcmp(method, "get_file_size") == 0) {
     text = get_file_size(sim, arg_str(args, 0));
   } else if (strcmp(method, "delete_file") == 0) {

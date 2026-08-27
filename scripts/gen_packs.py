@@ -163,6 +163,7 @@ FILE_METHODS = [
     "add_file(name, size)",
     "get_file_size(name)",
     "delete_file(name)",
+    "copy_file(source, dest)",
     "get_n_largest(prefix, n)",
     "add_user(user_id, capacity)",
     "add_file_by(user_id, name, size)",

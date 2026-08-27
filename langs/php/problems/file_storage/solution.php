@@ -67,6 +67,30 @@ class Simulation
         return (string) $size;
     }
 
+    public function copyFile(string $source, string $dest): string
+    {
+        if (!array_key_exists($source, $this->files)) {
+            return '';
+        }
+        $src = $this->files[$source];
+        if ($source === $dest) {
+            return (string) $src->size;
+        }
+        $destItem = array_key_exists($dest, $this->files) ? $this->files[$dest] : null;
+        $owner = $destItem === null ? $src->owner : $destItem->owner;
+        $extra = $destItem === null ? $src->size : $src->size - $destItem->size;
+        $remaining = $this->remaining($owner);
+        if ($remaining !== null && $extra > $remaining) {
+            return '';
+        }
+        if ($destItem === null) {
+            $this->files[$dest] = new StoredFile($dest, $src->size, $owner);
+        } else {
+            $destItem->size = $src->size;
+        }
+        return (string) $src->size;
+    }
+
     public function getNLargest(string $prefix, int $n): string
     {
         $matched = array_values(array_filter(

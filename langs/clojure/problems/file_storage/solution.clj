@@ -37,6 +37,23 @@
       (str (:size item)))
     ""))
 
+(defn copy_file [sim source dest]
+  (if-let [src (get-in @sim [:files source])]
+    (if (= source dest)
+      (str (:size src))
+      (let [dest-item (get-in @sim [:files dest])
+            owner (if dest-item (:owner dest-item) (:owner src))
+            extra (if dest-item (- (:size src) (:size dest-item)) (:size src))
+            left (remaining sim owner)]
+        (if (and (some? left) (> extra left))
+          ""
+          (do
+            (if dest-item
+              (swap! sim assoc-in [:files dest :size] (:size src))
+              (put-file sim dest (:size src) owner))
+            (str (:size src))))))
+    ""))
+
 (defn get_n_largest [sim prefix n]
   (->> (vals (:files @sim))
        (filter #(.startsWith ^String (:name %) prefix))

@@ -66,6 +66,35 @@ public class Simulation
         return item.Size.ToString();
     }
 
+    public string CopyFile(string source, string dest)
+    {
+        if (!files.TryGetValue(source, out StoredFile? src))
+        {
+            return "";
+        }
+        if (source == dest)
+        {
+            return src.Size.ToString();
+        }
+        files.TryGetValue(dest, out StoredFile? destItem);
+        string owner = destItem == null ? src.Owner : destItem.Owner;
+        int extra = destItem == null ? src.Size : src.Size - destItem.Size;
+        int? remaining = Remaining(owner);
+        if (remaining != null && extra > remaining)
+        {
+            return "";
+        }
+        if (destItem == null)
+        {
+            files[dest] = new StoredFile(dest, src.Size, owner);
+        }
+        else
+        {
+            destItem.Size = src.Size;
+        }
+        return src.Size.ToString();
+    }
+
     public string GetNLargest(string prefix, int n)
     {
         List<StoredFile> matched = files.Values.Where(item => item.Name.StartsWith(prefix, StringComparison.Ordinal)).ToList();

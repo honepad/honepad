@@ -50,6 +50,28 @@ final class Simulation: Harness {
     return String(item.size)
   }
 
+  private func copyFile(_ source: String, _ dest: String) -> String {
+    guard let src = files[source] else {
+      return ""
+    }
+    if source == dest {
+      return String(src.size)
+    }
+    let destItem = files[dest]
+    let owner = destItem == nil ? src.owner : destItem!.owner
+    let extra = destItem == nil ? src.size : src.size - destItem!.size
+    if let left = remaining(owner), extra > left {
+      return ""
+    }
+    if destItem == nil {
+      files[dest] = StoredFile(name: dest, size: src.size, owner: owner)
+      fileOrder.append(dest)
+    } else {
+      files[dest]?.size = src.size
+    }
+    return String(src.size)
+  }
+
   private func getNLargest(_ prefix: String, _ n: Int64) -> String {
     var matched = files.values.filter { $0.name.hasPrefix(prefix) }
     matched.sort { left, right in
@@ -164,6 +186,8 @@ final class Simulation: Harness {
       text = try getFileSize(argStr(args, 0))
     case "deleteFile":
       text = try deleteFile(argStr(args, 0))
+    case "copyFile":
+      text = try copyFile(argStr(args, 0), argStr(args, 1))
     case "getNLargest":
       text = try getNLargest(argStr(args, 0), argI64(args, 1))
     case "addUser":

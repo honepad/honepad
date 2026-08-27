@@ -54,6 +54,33 @@ class Simulation {
         return [string]$size
     }
 
+    [object] copyFile([string] $Source, [string] $Dest) {
+        if (-not $this.Files.ContainsKey($Source)) {
+            return ''
+        }
+        $src = $this.Files[$Source]
+        $srcSize = [long]$src.Size
+        if ($Source -eq $Dest) {
+            return [string]$srcSize
+        }
+        $destItem = $null
+        if ($this.Files.ContainsKey($Dest)) {
+            $destItem = $this.Files[$Dest]
+        }
+        $owner = if ($null -eq $destItem) { [string]$src.Owner } else { [string]$destItem.Owner }
+        $extra = if ($null -eq $destItem) { $srcSize } else { $srcSize - [long]$destItem.Size }
+        $left = $this.Remaining($owner)
+        if ($null -ne $left -and $extra -gt [long]$left) {
+            return ''
+        }
+        if ($null -eq $destItem) {
+            $this.Files[$Dest] = [pscustomobject]@{ Name = $Dest; Size = $srcSize; Owner = $owner }
+        } else {
+            $destItem.Size = $srcSize
+        }
+        return [string]$srcSize
+    }
+
     [object] getNLargest([string] $Prefix, [long] $N) {
         $matched = @(
             $this.Files.Values |

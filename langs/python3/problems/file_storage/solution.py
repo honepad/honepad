@@ -39,6 +39,24 @@ class Simulation:
         item = self.files.pop(name, None)
         return "" if item is None else str(item.size)
 
+    def copy_file(self, source: str, dest: str) -> str:
+        src = self.files.get(source)
+        if src is None:
+            return ""
+        if source == dest:
+            return str(src.size)
+        dest_item = self.files.get(dest)
+        owner = src.owner if dest_item is None else dest_item.owner
+        extra = src.size if dest_item is None else src.size - dest_item.size
+        remaining = self._remaining(owner)
+        if remaining is not None and extra > remaining:
+            return ""
+        if dest_item is None:
+            self.files[dest] = StoredFile(dest, src.size, owner)
+        else:
+            dest_item.size = src.size
+        return str(src.size)
+
     def get_n_largest(self, prefix: str, n: int) -> str:
         matched = [item for item in self.files.values() if item.name.startswith(prefix)]
         matched.sort(key=lambda item: (-item.size, item.name))

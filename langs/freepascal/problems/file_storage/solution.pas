@@ -51,6 +51,7 @@ type
     destructor Destroy; override;
   published
     function AddFile(const Name: string; Size: Int64): TJsonVal;
+    function CopyFile(const Source, Dest: string): TJsonVal;
     function GetFileSize(const Name: string): TJsonVal;
     function DeleteFile(const Name: string): TJsonVal;
     function GetNLargest(const Prefix: string; N: Int64): TJsonVal;
@@ -196,6 +197,37 @@ begin
     Exit(JsonStr('false'));
   Files.AddObject(Name, TStoredFile.Create(Name, Size, 'admin'));
   Result := JsonStr('true');
+end;
+
+function Simulation.CopyFile(const Source, Dest: string): TJsonVal;
+var
+  Src, DestItem: TStoredFile;
+  Owner: string;
+  Extra, Left: Int64;
+begin
+  Src := FindFile(Source);
+  if Src = nil then
+    Exit(JsonStr(''));
+  if Source = Dest then
+    Exit(JsonStr(IntToStr(Src.Size)));
+  DestItem := FindFile(Dest);
+  if DestItem = nil then
+  begin
+    Owner := Src.Owner;
+    Extra := Src.Size;
+  end
+  else
+  begin
+    Owner := DestItem.Owner;
+    Extra := Src.Size - DestItem.Size;
+  end;
+  if Remaining(Owner, Left) and (Extra > Left) then
+    Exit(JsonStr(''));
+  if DestItem = nil then
+    Files.AddObject(Dest, TStoredFile.Create(Dest, Src.Size, Owner))
+  else
+    DestItem.Size := Src.Size;
+  Result := JsonStr(IntToStr(Src.Size));
 end;
 
 function Simulation.GetFileSize(const Name: string): TJsonVal;

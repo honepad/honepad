@@ -69,6 +69,37 @@ oo::class create Simulation {
         return [json::str $size]
     }
 
+    method copy_file {source dest} {
+        if {![dict exists $files $source]} {
+            return [json::str ""]
+        }
+        set src [dict get $files $source]
+        set src_size [dict get $src size]
+        if {$source eq $dest} {
+            return [json::str $src_size]
+        }
+        set dest_exists [dict exists $files $dest]
+        if {$dest_exists} {
+            set dest_item [dict get $files $dest]
+            set owner [dict get $dest_item owner]
+            set extra [expr {$src_size - [dict get $dest_item size]}]
+        } else {
+            set owner [dict get $src owner]
+            set extra $src_size
+        }
+        set left [my remaining $owner]
+        if {$left ne "" && $extra > $left} {
+            return [json::str ""]
+        }
+        if {!$dest_exists} {
+            my _add $dest $src_size $owner
+        } else {
+            dict set dest_item size $src_size
+            dict set files $dest $dest_item
+        }
+        return [json::str $src_size]
+    }
+
     method get_n_largest {prefix n} {
         set pairs {}
         foreach name $order {

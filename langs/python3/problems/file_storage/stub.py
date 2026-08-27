@@ -11,6 +11,9 @@ class Simulation:
     def delete_file(self, name):
         raise NotImplementedError
 
+    def copy_file(self, source, dest):
+        raise NotImplementedError
+
     def get_n_largest(self, prefix, n):
         raise NotImplementedError
 

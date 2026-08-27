@@ -46,6 +46,29 @@ class Simulation {
         return item == null ? '' : String.valueOf(item.size)
     }
 
+    String copyFile(String source, String dest) {
+        StoredFile src = files[source]
+        if (src == null) {
+            return ''
+        }
+        if (source == dest) {
+            return String.valueOf(src.size)
+        }
+        StoredFile destItem = files[dest]
+        String owner = destItem == null ? src.owner : destItem.owner
+        long extra = destItem == null ? src.size : src.size - destItem.size
+        Long left = remaining(owner)
+        if (left != null && extra > left) {
+            return ''
+        }
+        if (destItem == null) {
+            files[dest] = new StoredFile(dest, src.size, owner)
+        } else {
+            destItem.size = src.size
+        }
+        return String.valueOf(src.size)
+    }
+
     String getNLargest(String prefix, long n) {
         List<StoredFile> matched = files.values().findAll { it.name.startsWith(prefix) }
         matched.sort { a, b ->

@@ -8,6 +8,7 @@ function obj = Simulation()
   obj.add_file = @add_file;
   obj.get_file_size = @get_file_size;
   obj.delete_file = @delete_file;
+  obj.copy_file = @copy_file;
   obj.get_n_largest = @get_n_largest;
   obj.add_user = @add_user;
   obj.add_file_by = @add_file_by;
@@ -89,6 +90,39 @@ function obj = Simulation()
     size = item.size;
     delete_name(name);
     result = sprintf("%d", size);
+  endfunction
+
+  function result = copy_file(source, dest)
+    if (!files.isKey(source))
+      result = "";
+      return;
+    endif
+    src = files(source);
+    if (strcmp(source, dest))
+      result = sprintf("%d", src.size);
+      return;
+    endif
+    if (files.isKey(dest))
+      dest_item = files(dest);
+      owner = dest_item.owner;
+      extra = src.size - dest_item.size;
+    else
+      dest_item = [];
+      owner = src.owner;
+      extra = src.size;
+    endif
+    left = remaining_of(owner);
+    if (!isempty(left) && extra > left)
+      result = "";
+      return;
+    endif
+    if (isempty(dest_item))
+      add_item(dest, src.size, owner);
+    else
+      dest_item.size = src.size;
+      files(dest) = dest_item;
+    endif
+    result = sprintf("%d", src.size);
   endfunction
 
   function result = get_n_largest(prefix, n)

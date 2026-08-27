@@ -70,6 +70,34 @@ func (s *Simulation) DeleteFile(name string) any {
 	return strconv.Itoa(item.size)
 }
 
+func (s *Simulation) CopyFile(source, dest string) any {
+	src, ok := s.files[source]
+	if !ok {
+		return ""
+	}
+	if source == dest {
+		return strconv.Itoa(src.size)
+	}
+	destItem, destExists := s.files[dest]
+	owner := src.owner
+	extra := src.size
+	if destExists {
+		owner = destItem.owner
+		extra = src.size - destItem.size
+	}
+	left := s.remaining(owner)
+	if left != nil && extra > *left {
+		return ""
+	}
+	if !destExists {
+		s.files[dest] = storedFile{name: dest, size: src.size, owner: owner}
+	} else {
+		destItem.size = src.size
+		s.files[dest] = destItem
+	}
+	return strconv.Itoa(src.size)
+}
+
 func (s *Simulation) GetNLargest(prefix string, n int) any {
 	matched := make([]storedFile, 0)
 	for _, item := range s.files {

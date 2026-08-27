@@ -50,6 +50,37 @@ type Simulation() =
             files.Remove(name) |> ignore
             string item.Size
 
+    member this.copyFile(source: string, dest: string) : string =
+        match files.TryGetValue(source) with
+        | false, _ -> ""
+        | true, src when source = dest -> string src.Size
+        | true, src ->
+            let destItem =
+                match files.TryGetValue(dest) with
+                | true, item -> Some item
+                | _ -> None
+
+            let owner =
+                match destItem with
+                | None -> src.Owner
+                | Some item -> item.Owner
+
+            let extra =
+                match destItem with
+                | None -> src.Size
+                | Some item -> src.Size - item.Size
+
+            let left = remaining owner
+
+            if left.HasValue && extra > left.Value then
+                ""
+            else
+                match destItem with
+                | None -> files[dest] <- StoredFile(dest, src.Size, owner)
+                | Some item -> item.Size <- src.Size
+
+                string src.Size
+
     member this.getNLargest(prefix: string, n: int) : string =
         let matched =
             ResizeArray(

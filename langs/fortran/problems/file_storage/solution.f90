@@ -65,6 +65,8 @@ contains
     err = ""
     if (method == "add_file") then
       text = add_file(arg_str(args, 0), arg_i64(args, 1))
+    else if (method == "copy_file") then
+      text = copy_file(arg_str(args, 0), arg_str(args, 1))
     else if (method == "get_file_size") then
       text = get_file_size(arg_str(args, 0))
     else if (method == "delete_file") then
@@ -238,6 +240,49 @@ contains
     end do
     sim%file_n = sim%file_n - 1
     write (buf, '(i0)') size
+    out = trim(buf)
+  end function
+
+  function copy_file(source, dest) result(out)
+    character(len=*), intent(in) :: source, dest
+    character(len=:), allocatable :: out
+    integer :: src_idx, dest_idx
+    integer(int64) :: extra, left, src_size
+    character(len=:), allocatable :: owner
+    character(len=32) :: buf
+    src_idx = find_file(source)
+    if (src_idx == 0) then
+      out = ""
+      return
+    end if
+    src_size = sim%files(src_idx)%size
+    if (source == dest) then
+      write (buf, '(i0)') src_size
+      out = trim(buf)
+      return
+    end if
+    dest_idx = find_file(dest)
+    if (dest_idx == 0) then
+      owner = sim%files(src_idx)%owner
+      extra = src_size
+    else
+      owner = sim%files(dest_idx)%owner
+      extra = src_size - sim%files(dest_idx)%size
+    end if
+    if (remaining(owner, left) .and. extra > left) then
+      out = ""
+      return
+    end if
+    if (dest_idx == 0) then
+      call grow_files()
+      sim%file_n = sim%file_n + 1
+      sim%files(sim%file_n)%name = dest
+      sim%files(sim%file_n)%size = src_size
+      sim%files(sim%file_n)%owner = owner
+    else
+      sim%files(dest_idx)%size = src_size
+    end if
+    write (buf, '(i0)') src_size
     out = trim(buf)
   end function
 

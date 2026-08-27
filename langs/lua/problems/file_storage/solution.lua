@@ -75,6 +75,29 @@ function Simulation:delete_file(name)
   return tostring(size)
 end
 
+function Simulation:copy_file(source, dest)
+  local src = self.files[source]
+  if not src then
+    return ""
+  end
+  if source == dest then
+    return tostring(src.size)
+  end
+  local dest_item = self.files[dest]
+  local owner = dest_item and dest_item.owner or src.owner
+  local extra = dest_item and (src.size - dest_item.size) or src.size
+  local left = self:remaining(owner)
+  if left ~= nil and extra > left then
+    return ""
+  end
+  if not dest_item then
+    self:_add(dest, src.size, owner)
+  else
+    dest_item.size = src.size
+  end
+  return tostring(src.size)
+end
+
 function Simulation:get_n_largest(prefix, n)
   local matched = {}
   for _, name in ipairs(self.order) do

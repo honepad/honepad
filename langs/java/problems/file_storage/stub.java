@@ -13,6 +13,10 @@ public class Simulation {
         return "";
     }
 
+    public String copyFile(String source, String dest) {
+        return "";
+    }
+
     public String getNLargest(String prefix, int n) {
         return "";
     }

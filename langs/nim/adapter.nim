@@ -97,6 +97,11 @@ proc dispatch(obj: var Target; methodName: string; args: JsonNode): JsonNode =
       result = toNode(obj.deleteFile(argStr(args, 0)))
     else:
       missing(methodName)
+  of "copy_file":
+    when compiles(obj.copyFile("", "")):
+      result = toNode(obj.copyFile(argStr(args, 0), argStr(args, 1)))
+    else:
+      missing(methodName)
   of "get_n_largest":
     when compiles(obj.getNLargest("", 0'i64)):
       result = toNode(obj.getNLargest(argStr(args, 0), argInt(args, 1)))

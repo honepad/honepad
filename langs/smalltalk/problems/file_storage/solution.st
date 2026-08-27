@@ -68,6 +68,32 @@ Object subclass: Simulation [
         ^item size printString
     ]
 
+    copyFile: source with: dest [
+        | src destItem owner extra remaining |
+        src := files at: source ifAbsent: [^''].
+        source = dest ifTrue: [^src size printString].
+        destItem := files at: dest ifAbsent: [nil].
+        destItem isNil
+            ifTrue: [
+                owner := src owner.
+                extra := src size
+            ]
+            ifFalse: [
+                owner := destItem owner.
+                extra := src size - destItem size
+            ].
+        remaining := self remaining: owner.
+        (remaining notNil and: [extra > remaining]) ifTrue: [^''].
+        destItem isNil
+            ifTrue: [
+                files at: dest put: (StoredFile name: dest size: src size owner: owner)
+            ]
+            ifFalse: [
+                files at: dest put: (StoredFile name: dest size: src size owner: destItem owner)
+            ].
+        ^src size printString
+    ]
+
     join: parts [
         | s |
         parts isEmpty ifTrue: [^''].

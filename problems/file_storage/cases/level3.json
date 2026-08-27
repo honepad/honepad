@@ -14,5 +14,22 @@
       {"m": "add_file_by", "a": ["user2", "/new_file", 50], "e": "60"},
       {"m": "merge_user", "a": ["user1", "user2"], "e": "70"}
     ]
+  },
+  {
+    "id": "fs-l3-copy-capacity",
+    "level": 3,
+    "calls": [
+      {"m": "add_user", "a": ["alice", 20], "e": "true"},
+      {"m": "add_file_by", "a": ["alice", "/x.txt", 10], "e": "10"},
+      {"m": "copy_file", "a": ["/x.txt", "/y.txt"], "e": "10"},
+      {"m": "copy_file", "a": ["/x.txt", "/z.txt"], "e": ""},
+      {"m": "get_file_size", "a": ["/z.txt"], "e": ""},
+      {"m": "add_file", "a": ["/admin.bin", 30], "e": "true"},
+      {"m": "copy_file", "a": ["/admin.bin", "/x.txt"], "e": ""},
+      {"m": "get_file_size", "a": ["/x.txt"], "e": "10"},
+      {"m": "delete_file", "a": ["/y.txt"], "e": "10"},
+      {"m": "copy_file", "a": ["/x.txt", "/x2.txt"], "e": "10"},
+      {"m": "get_file_size", "a": ["/x2.txt"], "e": "10"}
+    ]
   }
 ]
