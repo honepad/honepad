@@ -1,6 +1,12 @@
+import shutil
+
+import pytest
+
 from honepad.catalog import language
 from honepad.runner import run, run_python
 from honepad.traces import load_cases
+
+_GST = shutil.which("gst")
 
 
 def test_bank_solution_all_levels() -> None:
@@ -538,6 +544,25 @@ def test_fsharp_bank_stub_fails() -> None:
     assert not report.ok
 
 
+@pytest.mark.skipif(_GST is None, reason="gst not found")
+def test_smalltalk_all_problems() -> None:
+    for problem, level in (
+        ("bank_system", 4),
+        ("in_memory_database", 4),
+        ("file_storage", 4),
+        ("workers", 3),
+    ):
+        report = run(problem, "smalltalk", level, "solution")
+        assert report.passed > 0, report
+        assert report.ok, report.failed
+
+
+@pytest.mark.skipif(_GST is None, reason="gst not found")
+def test_smalltalk_bank_stub_fails() -> None:
+    report = run("bank_system", "smalltalk", 1, "stub")
+    assert not report.ok
+
+
 def test_prove_python3_and_go_all_problems() -> None:
     for lang in ("python3", "go"):
         for problem, level in (
@@ -551,12 +576,12 @@ def test_prove_python3_and_go_all_problems() -> None:
 
 
 def test_run_unknown_language_is_not_implemented() -> None:
-    adapter = language("smalltalk")["adapter"]
+    adapter = language("vb")["adapter"]
     try:
-        run("bank_system", "smalltalk", 1, "stub")
+        run("bank_system", "vb", 1, "stub")
     except NotImplementedError as exc:
         msg = str(exc)
-        assert "smalltalk" in msg
+        assert "vb" in msg
         assert "adapter=" in msg
         assert f"adapter={adapter}" in msg
         return
