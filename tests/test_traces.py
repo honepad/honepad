@@ -1,4 +1,5 @@
 import shutil
+from pathlib import Path
 
 import pytest
 
@@ -42,6 +43,20 @@ def test_rust_stub_fails() -> None:
 def test_java_stub_fails() -> None:
     report = run("bank_system", "java", 1, "stub")
     assert not report.ok
+    assert report.failed
+    assert "NoSuchMethod" not in str(report.failed[0].actual)
+
+
+def test_java_stubs_declare_methods() -> None:
+    root = Path(__file__).resolve().parents[1] / "langs" / "java" / "problems"
+    bank = (root / "bank_system" / "stub.java").read_text(encoding="utf-8")
+    assert "public boolean createAccount(int timestamp, String accountId)" in bank
+    db = (root / "in_memory_database" / "stub.java").read_text(encoding="utf-8")
+    assert "public String set(String key, String field, String value)" in db
+    files = (root / "file_storage" / "stub.java").read_text(encoding="utf-8")
+    assert "public String addFile(String name, int size)" in files
+    workers = (root / "workers" / "stub.java").read_text(encoding="utf-8")
+    assert "public String addWorker(String workerId, String position, int compensation)" in workers
 
 
 def test_csharp_stub_fails() -> None:

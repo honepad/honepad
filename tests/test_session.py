@@ -29,7 +29,7 @@ def test_run_pass_unlocks_next_level(monkeypatch, tmp_path: Path, capsys) -> Non
     stub_out = capsys.readouterr().out
     assert "UNLOCKED" not in stub_out
     assert load_session()["unlocked"] == 1
-    assert main(["run", "bank_system"]) == 0
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
     out = capsys.readouterr().out
     assert "UNLOCKED: level 2" in out
     assert load_session()["unlocked"] == 2
@@ -58,13 +58,13 @@ def test_unlock_does_not_skip_a_level(monkeypatch, tmp_path: Path, capsys) -> No
     capsys.readouterr()
     seen = [1]
     for nxt in (2, 3, 4):
-        assert main(["run", "bank_system"]) == 0
+        assert main(["run", "bank_system", "--kind", "solution"]) == 0
         out = capsys.readouterr().out
         assert f"UNLOCKED: level {nxt}" in out
         assert load_session()["unlocked"] == nxt
         seen.append(nxt)
     assert seen == [1, 2, 3, 4]
-    assert main(["run", "bank_system"]) == 0
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
     last = capsys.readouterr().out
     assert "UNLOCKED" not in last
     assert load_session()["unlocked"] == 4
@@ -74,7 +74,7 @@ def test_start_reset_clears_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
     capsys.readouterr()
-    assert main(["run", "bank_system"]) == 0
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
     capsys.readouterr()
     assert load_session()["unlocked"] == 2
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
@@ -89,7 +89,7 @@ def test_start_different_problem_replaces_session(monkeypatch, tmp_path: Path, c
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
     capsys.readouterr()
-    assert main(["run", "bank_system"]) == 0
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
     capsys.readouterr()
     assert load_session()["unlocked"] == 2
     assert main(["start", "workers", "python3"]) == 0
@@ -107,7 +107,7 @@ def test_start_same_problem_keeps_unlock(monkeypatch, tmp_path: Path, capsys) ->
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
     capsys.readouterr()
-    assert main(["run", "bank_system"]) == 0
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
     capsys.readouterr()
     assert load_session()["unlocked"] == 2
     assert main(["start", "bank_system", "javascript"]) == 0
@@ -185,7 +185,7 @@ def test_start_level1_after_unlock_prints_l1_spec(monkeypatch, tmp_path: Path, c
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
     capsys.readouterr()
-    assert main(["run", "bank_system"]) == 0
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
     capsys.readouterr()
     assert load_session()["unlocked"] == 2
     assert main(["start", "bank_system", "python3", "--level", "1"]) == 0
@@ -199,7 +199,7 @@ def test_start_without_level_prints_unlocked_spec(monkeypatch, tmp_path: Path, c
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
     capsys.readouterr()
-    assert main(["run", "bank_system"]) == 0
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
     capsys.readouterr()
     assert load_session()["unlocked"] == 2
     assert main(["start", "bank_system", "python3"]) == 0
@@ -213,7 +213,7 @@ def test_run_level4_with_session_does_not_unlock(monkeypatch, tmp_path: Path, ca
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
     capsys.readouterr()
-    assert main(["run", "bank_system", "--level", "4"]) == 0
+    assert main(["run", "bank_system", "--kind", "solution", "--level", "4"]) == 0
     out = capsys.readouterr().out
     assert "UNLOCKED" not in out
     assert load_session()["unlocked"] == 1
@@ -229,3 +229,93 @@ def test_run_without_session_defaults_to_python3_level4(
     assert "bank_system python3 level<=4" in out
     assert "UNLOCKED" not in out
     assert load_session() is None
+
+
+def test_start_copies_work_file_away_from_pack(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    out = capsys.readouterr().out
+    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    assert work.is_file()
+    assert f"WORK: {work}" in out
+    assert "createAccount" in work.read_text(encoding="utf-8")
+    assert not (work.parent / "solution.java").exists()
+    assert "not expected to finish every level" in out.lower()
+
+
+def test_start_keeps_edited_work_unless_reset(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work.write_text("edited-by-candidate\n", encoding="utf-8")
+    assert main(["start", "bank_system", "java"]) == 0
+    capsys.readouterr()
+    assert work.read_text(encoding="utf-8") == "edited-by-candidate\n"
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    capsys.readouterr()
+    assert "createAccount" in work.read_text(encoding="utf-8")
+
+
+def test_run_with_session_uses_work_file(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    capsys.readouterr()
+    assert main(["run", "bank_system"]) == 1
+    first = capsys.readouterr().out
+    assert "UNLOCKED" not in first
+    assert load_session()["unlocked"] == 1
+    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    solution = (
+        Path(__file__).resolve().parents[1]
+        / "langs"
+        / "java"
+        / "problems"
+        / "bank_system"
+        / "solution.java"
+    )
+    work.write_text(solution.read_text(encoding="utf-8"), encoding="utf-8")
+    assert main(["run", "bank_system"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED: level 2" in out
+    assert load_session()["unlocked"] == 2
+
+
+def test_locked_start_still_creates_work_file(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--level", "2"]) == 1
+    out = capsys.readouterr().out
+    assert "LOCKED: level 2" in out
+    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    assert work.is_file()
+    assert main(["run", "bank_system"]) == 1
+    run_out = capsys.readouterr().out
+    assert "UNLOCKED" not in run_out
+    assert load_session()["unlocked"] == 1
+
+
+def test_missing_work_file_does_not_run_solution(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work.unlink()
+    assert main(["run", "bank_system"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "UNLOCKED" not in out
+    assert load_session()["unlocked"] == 1
+
+
+def test_work_compile_error_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work.write_text("this is not java\n", encoding="utf-8")
+    assert main(["run", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "Traceback" not in out
+    assert "UNLOCKED" not in out

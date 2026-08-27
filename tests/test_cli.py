@@ -73,12 +73,14 @@ def test_langs_runner_column_matches_dispatch_table(capsys) -> None:
         assert markers == (["runner"] if lang_id in _RUNNERS else ["no-runner"]), lang_id
 
 
-def test_run_bank(capsys) -> None:
+def test_run_bank(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
     assert main(["run", "bank_system", "--lang", "python3", "--level", "4"]) == 0
     assert "OK" in capsys.readouterr().out
 
 
-def test_timer_does_not_sleep(capsys) -> None:
+def test_timer_does_not_sleep(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
     assert main(["timer", "--minutes", "90"]) == 0
     out = capsys.readouterr().out
     assert "remaining_s=5400" in out
@@ -95,7 +97,10 @@ def test_run_unimplemented_catalog_lang_exits(capsys) -> None:
     assert "Traceback" not in out
 
 
-def test_run_unknown_lang_id_exits(capsys) -> None:
+def test_run_unknown_lang_id_exits(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    capsys.readouterr()
     code = main(["run", "bank_system", "--lang", "notalang", "--level", "1"])
     captured = capsys.readouterr()
     out = captured.out + captured.err
@@ -116,6 +121,7 @@ def test_start_unimplemented_catalog_lang_exits(monkeypatch, tmp_path, capsys) -
     assert "OK: unlocked=" not in out
     assert "Bank system level" not in out
     assert "STUB:" not in out
+    assert "WORK:" not in out
     assert "Traceback" not in out
 
 
@@ -140,4 +146,5 @@ def test_start_unknown_lang_id_exits(monkeypatch, tmp_path, capsys) -> None:
     assert "OK: unlocked=" not in out
     assert "Bank system level" not in out
     assert "STUB:" not in out
+    assert "WORK:" not in out
     assert "Traceback" not in out
