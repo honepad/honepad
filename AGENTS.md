@@ -1,12 +1,14 @@
 # Agents
 
-Python 3.10+. Local gate before every commit:
+Python 3.10+. Local gate before every commit is `make check`:
 
 ```bash
 ruff check src tests
 ruff format --check src tests
 python3 -m pytest
 bash factory/scripts/assert-stealth.sh honepad/honepad
+bash factory/scripts/write-ledger.sh --self-test
+# next-job.sh: exit 2 is success when factory/STATE.json has human_gate
 ```
 
 Every commit needs `git commit -s`.
