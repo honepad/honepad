@@ -105,3 +105,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("smalltalk")["ci"] is True
     assert language("clojure")["adapter"] == "clojure"
     assert language("clojure")["ci"] is True
+    assert language("powershell")["adapter"] == "pwsh"
+    assert language("powershell")["ci"] is True
