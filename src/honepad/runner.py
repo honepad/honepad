@@ -135,10 +135,9 @@ def run_compiled(
     cases = load_cases(problem, level)
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-            json.dump(cases, handle)
-            cases_path = handle.name
-        argv = prepare(tmpdir, cases_path)
+        cases_path = tmpdir / "cases.json"
+        cases_path.write_text(json.dumps(cases), encoding="utf-8")
+        argv = prepare(tmpdir, str(cases_path))
         proc = subprocess.run(argv, check=False, capture_output=True, text=True, cwd=tmpdir)
     return report_from_proc(proc, problem, lang_id, level)
 
@@ -151,15 +150,15 @@ def run_script(
     argv: list[str],
 ) -> Report:
     cases = load_cases(problem, level)
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-        json.dump(cases, handle)
-        cases_path = handle.name
-    proc = subprocess.run(
-        [*argv, cases_path],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    with tempfile.TemporaryDirectory() as tmp:
+        cases_path = Path(tmp) / "cases.json"
+        cases_path.write_text(json.dumps(cases), encoding="utf-8")
+        proc = subprocess.run(
+            [*argv, str(cases_path)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
     return report_from_proc(proc, problem, lang_id, level)
 
 

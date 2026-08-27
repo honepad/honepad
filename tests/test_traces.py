@@ -1,10 +1,11 @@
 import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 
 from honepad.catalog import language
-from honepad.runner import _RUNNERS, run, run_python
+from honepad.runner import _RUNNERS, run, run_compiled, run_python, run_script
 from honepad.traces import load_cases
 
 # Same sentinel as tests/test_cli.py. Must stay off _RUNNERS.
@@ -677,3 +678,31 @@ def test_run_unknown_language_is_not_implemented() -> None:
         assert f"adapter={adapter}" in msg
         return
     raise AssertionError("expected NotImplementedError")
+
+
+def test_run_compiled_writes_cases_inside_tmpdir() -> None:
+    seen: dict[str, object] = {}
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
+        seen["inside"] = Path(cases_path).resolve().is_relative_to(Path(tmpdir).resolve())
+        raise RuntimeError("stop")
+
+    with pytest.raises(RuntimeError, match="stop"):
+        run_compiled("bank_system", "python3", 1, prepare)
+    assert seen["inside"] is True
+
+
+def test_run_script_removes_cases_file(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run(argv, **_kwargs):
+        captured["cases_path"] = argv[-1]
+        captured["exists_during"] = Path(argv[-1]).is_file()
+        return subprocess.CompletedProcess(
+            argv, 0, stdout='{"passed": 0, "failed": []}\n', stderr=""
+        )
+
+    monkeypatch.setattr("honepad.runner.subprocess.run", fake_run)
+    run_script("bank_system", "javascript", 1, "solution", ["node"])
+    assert captured["exists_during"] is True
+    assert not Path(str(captured["cases_path"])).exists()
