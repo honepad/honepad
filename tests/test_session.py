@@ -386,11 +386,13 @@ def test_work_syntax_error_python_prints_fail(monkeypatch, tmp_path: Path, capsy
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
     capsys.readouterr()
     work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
-    work.write_text("not python\n", encoding="utf-8")
+    work.write_text("def (\n", encoding="utf-8")
     assert main(["run", "bank_system"]) == 1
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
+    assert "work.py" in out
+    assert "SyntaxError" in out
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
 
@@ -439,6 +441,8 @@ def test_incomplete_session_timer_prints_fail(monkeypatch, tmp_path: Path, capsy
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
+    assert str(session_file) in out
+    assert "missing" in out
     assert "Traceback" not in out
 
 
@@ -450,6 +454,8 @@ def test_incomplete_session_run_prints_fail(monkeypatch, tmp_path: Path, capsys)
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
+    assert str(session_file) in out
+    assert "missing" in out
     assert "Traceback" not in out
 
 

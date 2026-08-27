@@ -90,3 +90,26 @@ def test_makefile_check_accepts_parked_human_gate() -> None:
     assert "\tbash factory/scripts/next-job.sh\n" not in text
     assert "human_gate" in text
     assert "returncode == 2" in text
+    wrappers = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip().startswith("python3 -c ") and "human_gate" in line
+    ]
+    assert len(wrappers) == 1
+    next_job = subprocess.run(
+        ["bash", "factory/scripts/next-job.sh"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert next_job.returncode == 2
+    result = subprocess.run(
+        wrappers[0],
+        cwd=ROOT,
+        shell=True,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
