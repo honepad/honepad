@@ -38,6 +38,20 @@ def test_run_pass_unlocks_next_level(monkeypatch, tmp_path: Path, capsys) -> Non
     assert "LOCKED" not in start_out
 
 
+def test_stub_runs_do_not_unlock_next_level(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    assert main(["run", "bank_system", "--kind", "stub"]) == 1
+    first = capsys.readouterr().out
+    assert "UNLOCKED" not in first
+    assert load_session()["unlocked"] == 1
+    assert main(["run", "bank_system", "--kind", "stub"]) == 1
+    second = capsys.readouterr().out
+    assert "UNLOCKED" not in second
+    assert load_session()["unlocked"] == 1
+
+
 def test_unlock_does_not_skip_a_level(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
