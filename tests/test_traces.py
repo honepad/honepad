@@ -3,8 +3,11 @@ import shutil
 import pytest
 
 from honepad.catalog import language
-from honepad.runner import run, run_python
+from honepad.runner import _RUNNERS, run, run_python
 from honepad.traces import load_cases
+
+# Same sentinel as tests/test_cli.py. Must stay off _RUNNERS.
+UNIMPLEMENTED_CATALOG_LANG = "vb"
 
 _GST = shutil.which("gst")
 
@@ -643,13 +646,17 @@ def test_prove_python3_and_go_all_problems() -> None:
             assert report.ok, (lang, problem, report.failed)
 
 
+def test_unimplemented_catalog_lang_not_in_runners() -> None:
+    assert UNIMPLEMENTED_CATALOG_LANG not in _RUNNERS
+
+
 def test_run_unknown_language_is_not_implemented() -> None:
-    adapter = language("vb")["adapter"]
+    adapter = language(UNIMPLEMENTED_CATALOG_LANG)["adapter"]
     try:
-        run("bank_system", "vb", 1, "stub")
+        run("bank_system", UNIMPLEMENTED_CATALOG_LANG, 1, "stub")
     except NotImplementedError as exc:
         msg = str(exc)
-        assert "vb" in msg
+        assert UNIMPLEMENTED_CATALOG_LANG in msg
         assert "adapter=" in msg
         assert f"adapter={adapter}" in msg
         return
