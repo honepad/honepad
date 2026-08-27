@@ -87,5 +87,6 @@ Priority (first match wins):
 - `pr-71` next improve MPI (expand: powershell extra via pwsh if cheap on Ubuntu, else skip frontend/sql)
 - `pr-72` next improve MPI (QA: shell extra should share the bash runner or get its own wrapper)
 - `pr-73` next improve MPI (QA: unknown-lang CLI tests still use an unimplemented id after the latest expand)
+- `pr-74` next improve MPI (expand: skip frontend/sql/objc/vb unless cheap; next is QA on langs column vs _RUNNERS)
 
 `--concurrency 1`. One ready PR.
