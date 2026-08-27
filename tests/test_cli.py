@@ -14,7 +14,10 @@ def test_langs(capsys) -> None:
     assert "no-runner" not in python3.split()
     assert "runner" in python3.split()
     fortran = next(line for line in lang_lines if line.split()[0] == "fortran")
-    assert "no-runner" in fortran.split()
+    assert "no-runner" not in fortran.split()
+    assert "runner" in fortran.split()
+    smalltalk = next(line for line in lang_lines if line.split()[0] == "smalltalk")
+    assert "no-runner" in smalltalk.split()
     for line in lang_lines:
         markers = [tok for tok in line.split() if tok in ("runner", "no-runner")]
         assert len(markers) == 1, line
@@ -33,11 +36,11 @@ def test_timer_does_not_sleep(capsys) -> None:
 
 
 def test_run_unimplemented_catalog_lang_exits(capsys) -> None:
-    code = main(["run", "bank_system", "--lang", "fortran", "--level", "1"])
+    code = main(["run", "bank_system", "--lang", "smalltalk", "--level", "1"])
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert code in (1, 2)
-    assert "fortran" in out
+    assert "smalltalk" in out
     assert "adapter=" in out
     assert "Traceback" not in out
 
@@ -53,12 +56,12 @@ def test_run_unknown_lang_id_exits(capsys) -> None:
 
 def test_start_unimplemented_catalog_lang_exits(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
-    code = main(["start", "bank_system", "fortran"])
+    code = main(["start", "bank_system", "smalltalk"])
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert code in (1, 2)
     assert "FAIL" in out
-    assert "fortran" in out
+    assert "smalltalk" in out
     assert "adapter=" in out
     assert "OK: unlocked=" not in out
     assert "Bank system level" not in out

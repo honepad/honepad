@@ -911,6 +911,65 @@ def run_nim(problem: str, level: int, kind: str = "solution") -> Report:
     return run_compiled(problem, "nim", level, prepare)
 
 
+def fortran_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "fortran" / "problems" / problem
+    name = "solution.f90" if kind == "solution" else "stub.f90"
+    return pack / name
+
+
+def _gfortran() -> str:
+    path = shutil.which("gfortran")
+    if path:
+        return path
+    raise RuntimeError("gfortran not found")
+
+
+def run_fortran(problem: str, level: int, kind: str = "solution") -> Report:
+    src = fortran_entry(problem, kind)
+    fortran_dir = repo_root() / "langs" / "fortran"
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
+        shutil.copy(fortran_dir / "adapter.f90", tmpdir / "adapter.f90")
+        shutil.copy(fortran_dir / "honepad_json.f90", tmpdir / "honepad_json.f90")
+        shutil.copy(fortran_dir / "minijson.c", tmpdir / "minijson.c")
+        shutil.copy(fortran_dir / "minijson.h", tmpdir / "minijson.h")
+        shutil.copy(fortran_dir / "json_bridge.c", tmpdir / "json_bridge.c")
+        shutil.copy(src, tmpdir / "solution.f90")
+        compiled_c = subprocess.run(
+            [_cc(), "-std=c11", "-O0", "-c", "minijson.c", "json_bridge.c"],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if compiled_c.returncode != 0:
+            raise RuntimeError(
+                compiled_c.stderr or compiled_c.stdout or "c json helper compile failed"
+            )
+        compiled = subprocess.run(
+            [
+                _gfortran(),
+                "-O0",
+                "-o",
+                "run",
+                "minijson.o",
+                "json_bridge.o",
+                "honepad_json.f90",
+                "solution.f90",
+                "adapter.f90",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if compiled.returncode != 0:
+            raise RuntimeError(compiled.stderr or compiled.stdout or "gfortran compile failed")
+        return [str(tmpdir / "run"), cases_path]
+
+    return run_compiled(problem, "fortran", level, prepare)
+
+
 def run_c(problem: str, level: int, kind: str = "solution") -> Report:
     src = c_entry(problem, kind)
     c_dir = repo_root() / "langs" / "c"
@@ -1030,6 +1089,7 @@ _RUNNERS = {
     "kotlin": run_kotlin,
     "cpp": run_cpp,
     "c": run_c,
+    "fortran": run_fortran,
     "swift": run_swift,
     "nim": run_nim,
 }
