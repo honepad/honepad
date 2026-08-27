@@ -135,7 +135,12 @@ def cmd_timer(args: argparse.Namespace) -> int:
 
 
 def cmd_cases(args: argparse.Namespace) -> int:
-    cases = load_cases(args.problem, args.level)
+    try:
+        cases = load_cases(args.problem, args.level)
+    except (ValueError, KeyError, FileNotFoundError) as exc:
+        msg = exc.args[0] if exc.args else str(exc)
+        print(f"FAIL: {msg}")
+        return 1
     print(json.dumps({"problem": args.problem, "count": len(cases)}, indent=2))
     return 0
 

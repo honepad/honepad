@@ -366,3 +366,25 @@ def test_corrupt_session_timer_prints_fail(monkeypatch, tmp_path: Path, capsys) 
     out = captured.out + captured.err
     assert "FAIL:" in out
     assert "Traceback" not in out
+
+
+def test_incomplete_session_timer_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text("{}", encoding="utf-8")
+    assert main(["timer"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "Traceback" not in out
+
+
+def test_incomplete_session_run_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text("{}", encoding="utf-8")
+    assert main(["run", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "Traceback" not in out
