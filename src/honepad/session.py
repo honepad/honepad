@@ -52,9 +52,22 @@ def load_session(path: Path | None = None) -> dict[str, Any] | None:
     target = path or session_path()
     if not target.is_file():
         return None
-    payload = json.loads(target.read_text(encoding="utf-8"))
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"{target}: {exc}") from exc
     if not isinstance(payload, dict):
         raise ValueError(f"{target} must be a JSON object")
+    required = ("problem", "lang", "started_at", "minutes", "unlocked")
+    for key in required:
+        if key not in payload:
+            raise ValueError(f"{target} missing {key}")
+    try:
+        payload["started_at"] = int(payload["started_at"])
+        payload["minutes"] = int(payload["minutes"])
+        payload["unlocked"] = int(payload["unlocked"])
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{target} {exc}") from exc
     return payload
 
 

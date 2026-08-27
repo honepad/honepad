@@ -81,3 +81,12 @@ def test_ci_test_job_keeps_short_cli_smoke() -> None:
     assert "name: Next job respects human_gate" in text
     assert 'if state.get("human_gate"):' in text
     assert "- run: bash factory/scripts/next-job.sh\n" not in text
+
+
+def test_makefile_check_accepts_parked_human_gate() -> None:
+    text = (ROOT / "Makefile").read_text()
+    assert "factory/scripts/write-ledger.sh --self-test" in text
+    assert "factory/scripts/next-job.sh" in text
+    assert "\tbash factory/scripts/next-job.sh\n" not in text
+    assert "human_gate" in text
+    assert "returncode == 2" in text

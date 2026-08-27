@@ -317,5 +317,183 @@ def test_work_compile_error_prints_fail(monkeypatch, tmp_path: Path, capsys) -> 
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
+    assert "work.java" in out
     assert "Traceback" not in out
+    assert "UNLOCKED" not in out
+
+
+def test_work_timeout_java_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work.write_text(
+        """import java.util.List;
+
+public class Simulation {
+    public Simulation() {
+        while (true) {}
+    }
+
+    public boolean createAccount(int timestamp, String accountId) {
+        return false;
+    }
+
+    public Integer deposit(int timestamp, String accountId, int amount) {
+        return null;
+    }
+
+    public Integer transfer(
+            int timestamp, String sourceAccountId, String targetAccountId, int amount) {
+        return null;
+    }
+
+    public List<String> topSpenders(int timestamp, int n) {
+        return null;
+    }
+
+    public String pay(int timestamp, String accountId, int amount) {
+        return null;
+    }
+
+    public String getPaymentStatus(int timestamp, String accountId, String payment) {
+        return null;
+    }
+
+    public boolean mergeAccounts(int timestamp, String accountId1, String accountId2) {
+        return false;
+    }
+
+    public Integer getBalance(int timestamp, String accountId, int timeAt) {
+        return null;
+    }
+}
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("honepad.runner.RUN_TIMEOUT_S", 1)
+    assert main(["run", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "timed out" in out
+    assert "Traceback" not in out
+    assert "UNLOCKED" not in out
+
+
+def test_work_syntax_error_python_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text("not python\n", encoding="utf-8")
+    assert main(["run", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "Traceback" not in out
+    assert "UNLOCKED" not in out
+
+
+def test_corrupt_session_run_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text("{", encoding="utf-8")
+    assert main(["run", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert str(session_file) in out
+    assert "Traceback" not in out
+
+
+def test_corrupt_session_start_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text("{", encoding="utf-8")
+    assert main(["start", "bank_system", "python3"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert str(session_file) in out
+    assert "Traceback" not in out
+
+
+def test_corrupt_session_timer_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text("{", encoding="utf-8")
+    assert main(["timer"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert str(session_file) in out
+    assert "Traceback" not in out
+
+
+def test_incomplete_session_timer_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text("{}", encoding="utf-8")
+    assert main(["timer"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "Traceback" not in out
+
+
+def test_incomplete_session_run_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text("{}", encoding="utf-8")
+    assert main(["run", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "Traceback" not in out
+
+
+def test_run_with_session_prints_remaining_s(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "remaining_s=" in out
+    assert "UNLOCKED" in out
+
+
+def test_expired_run_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    started = 1_700_000_000
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": started,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("honepad.session.time.time", lambda: started + 90 * 60 + 5)
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "remaining_s=0" in out
+    assert "UNLOCKED" not in out
+    assert load_session()["unlocked"] == 1
+
+
+def test_run_level_zero_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    code = main(["run", "bank_system", "--lang", "python3", "--level", "0", "--kind", "solution"])
+    assert code == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "\nOK\n" not in out
+    assert not out.strip().endswith("OK")
     assert "UNLOCKED" not in out

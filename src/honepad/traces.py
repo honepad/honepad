@@ -20,7 +20,10 @@ def load_cases(problem: str, level: int | None = None) -> list[dict[str, Any]]:
     cases_dir = problem_dir(problem) / "cases"
     cases: list[dict[str, Any]] = []
     for path in sorted(cases_dir.glob("*.json")):
-        payload = json.loads(path.read_text(encoding="utf-8"))
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"{path}: {exc}") from exc
         if not isinstance(payload, list):
             raise ValueError(f"{path} must be a JSON list")
         for case in payload:

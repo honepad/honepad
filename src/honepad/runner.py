@@ -15,6 +15,8 @@ from typing import Any
 from honepad.catalog import language, repo_root
 from honepad.traces import load_cases, method_name
 
+RUN_TIMEOUT_S = 30
+
 
 @dataclass
 class Fail:
@@ -44,8 +46,13 @@ def _load_python_class(path: Path, class_name: str) -> Any:
     if spec is None or spec.loader is None:
         raise FileNotFoundError(path)
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return getattr(mod, class_name)
+    try:
+        spec.loader.exec_module(mod)
+        return getattr(mod, class_name)
+    except FileNotFoundError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - user pack load
+        raise RuntimeError(f"{path}: {type(exc).__name__}") from exc
 
 
 def pack_src(lang_id: str, problem: str, kind: str, solution_name: str, stub_name: str) -> Path:
@@ -113,6 +120,8 @@ def report_from_proc(
     if not proc.stdout.strip():
         raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
     payload = json.loads(proc.stdout.splitlines()[-1])
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"{lang_id} adapter produced invalid JSON")
     failed = [
         Fail(row["case"], row["index"], row["method"], [], row["expected"], row["actual"])
         for row in payload.get("failed", [])
@@ -130,11 +139,20 @@ def run_compiled(
     cases = load_cases(problem, level)
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
-        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-            json.dump(cases, handle)
-            cases_path = handle.name
-        argv = prepare(tmpdir, cases_path)
-        proc = subprocess.run(argv, check=False, capture_output=True, text=True, cwd=tmpdir)
+        cases_path = tmpdir / "cases.json"
+        cases_path.write_text(json.dumps(cases), encoding="utf-8")
+        argv = prepare(tmpdir, str(cases_path))
+        try:
+            proc = subprocess.run(
+                argv,
+                check=False,
+                capture_output=True,
+                text=True,
+                cwd=tmpdir,
+                timeout=RUN_TIMEOUT_S,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(f"{lang_id} timed out after {RUN_TIMEOUT_S}s") from exc
     return report_from_proc(proc, problem, lang_id, level)
 
 
@@ -146,15 +164,19 @@ def run_script(
     argv: list[str],
 ) -> Report:
     cases = load_cases(problem, level)
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-        json.dump(cases, handle)
-        cases_path = handle.name
-    proc = subprocess.run(
-        [*argv, cases_path],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    with tempfile.TemporaryDirectory() as tmp:
+        cases_path = Path(tmp) / "cases.json"
+        cases_path.write_text(json.dumps(cases), encoding="utf-8")
+        try:
+            proc = subprocess.run(
+                [*argv, str(cases_path)],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=RUN_TIMEOUT_S,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(f"{lang_id} timed out after {RUN_TIMEOUT_S}s") from exc
     return report_from_proc(proc, problem, lang_id, level)
 
 
@@ -787,7 +809,7 @@ def run_java(problem: str, level: int, kind: str = "solution") -> Report:
             cwd=tmpdir,
         )
         if compiled.returncode != 0:
-            raise RuntimeError(compiled.stderr or compiled.stdout or "javac failed")
+            raise RuntimeError(f"{src}: {compiled.stderr or compiled.stdout or 'javac failed'}")
         return ["java", "Adapter", cases_path, class_name]
 
     return run_compiled(problem, "java", level, prepare)

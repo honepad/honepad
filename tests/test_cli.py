@@ -135,6 +135,37 @@ def test_start_help_mentions_fail_for_unimplemented(capsys) -> None:
     assert "unimplemented" in out.lower()
 
 
+def test_start_missing_stub_prints_fail(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+
+    def _missing(*_args, **_kwargs):
+        raise FileNotFoundError("missing stub")
+
+    monkeypatch.setattr("honepad.cli.ensure_work_copy", _missing)
+    assert main(["start", "bank_system", "python3"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "missing stub" in out
+    assert "Traceback" not in out
+
+
+def test_start_os_filenotfound_prints_full_fail(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+
+    def _missing(*_args, **_kwargs):
+        raise FileNotFoundError(2, "No such file or directory", "/missing/stub.java")
+
+    monkeypatch.setattr("honepad.cli.ensure_work_copy", _missing)
+    assert main(["start", "bank_system", "java"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "FAIL: 2" not in out
+    assert "No such file" in out or "/missing/stub.java" in out
+    assert "Traceback" not in out
+
+
 def test_start_unknown_lang_id_exits(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     code = main(["start", "bank_system", "notalang"])
@@ -147,4 +178,16 @@ def test_start_unknown_lang_id_exits(monkeypatch, tmp_path, capsys) -> None:
     assert "Bank system level" not in out
     assert "STUB:" not in out
     assert "WORK:" not in out
+    assert "Traceback" not in out
+
+
+def test_corrupt_cases_prints_fail(monkeypatch, tmp_path, capsys) -> None:
+    cases_dir = tmp_path / "cases"
+    cases_dir.mkdir()
+    (cases_dir / "level1.json").write_text("{", encoding="utf-8")
+    monkeypatch.setattr("honepad.traces.problem_dir", lambda _problem: tmp_path)
+    assert main(["cases", "bank_system", "--level", "1"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
     assert "Traceback" not in out
