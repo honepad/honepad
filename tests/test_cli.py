@@ -25,6 +25,9 @@ def test_langs(capsys) -> None:
     smalltalk = next(line for line in lang_lines if line.split()[0] == "smalltalk")
     assert "no-runner" not in smalltalk.split()
     assert "runner" in smalltalk.split()
+    shell = next(line for line in lang_lines if line.split()[0] == "shell")
+    assert "no-runner" not in shell.split()
+    assert "runner" in shell.split()
     vb = next(line for line in lang_lines if line.split()[0] == "vb")
     assert "no-runner" in vb.split()
     for line in lang_lines:
