@@ -120,6 +120,8 @@ def report_from_proc(
     if not proc.stdout.strip():
         raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
     payload = json.loads(proc.stdout.splitlines()[-1])
+    if not isinstance(payload, dict):
+        raise RuntimeError(f"{lang_id} adapter produced invalid JSON")
     failed = [
         Fail(row["case"], row["index"], row["method"], [], row["expected"], row["actual"])
         for row in payload.get("failed", [])

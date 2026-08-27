@@ -44,8 +44,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
     except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
-        msg = exc.args[0] if exc.args else str(exc)
-        print(f"FAIL: {msg}")
+        print(f"FAIL: {exc}")
         return 1
     if level > unlocked:
         print(f"LOCKED: level {level} (unlocked={unlocked})")
@@ -92,9 +91,15 @@ def cmd_run(args: argparse.Namespace) -> int:
             left = remaining_s(int(session["started_at"]), int(session["minutes"]))
             print(f"remaining_s={left}")
         report = run(args.problem, lang, level, kind=kind)
-    except (NotImplementedError, KeyError, FileNotFoundError, RuntimeError, ValueError) as exc:
-        msg = exc.args[0] if exc.args else str(exc)
-        print(f"FAIL: {msg}")
+    except (
+        NotImplementedError,
+        KeyError,
+        FileNotFoundError,
+        OSError,
+        RuntimeError,
+        ValueError,
+    ) as exc:
+        print(f"FAIL: {exc}")
         return 1
     summary = f"{report.problem} {report.lang} level<={report.level} passed={report.passed}"
     if session is not None and same:
@@ -129,8 +134,7 @@ def cmd_timer(args: argparse.Namespace) -> int:
             minutes = args.minutes
             started = int(time.time())
     except ValueError as exc:
-        msg = exc.args[0] if exc.args else str(exc)
-        print(f"FAIL: {msg}")
+        print(f"FAIL: {exc}")
         return 1
     if session is not None:
         left = remaining_s(started, minutes)
@@ -148,8 +152,7 @@ def cmd_cases(args: argparse.Namespace) -> int:
     try:
         cases = load_cases(args.problem, args.level)
     except (ValueError, KeyError, FileNotFoundError) as exc:
-        msg = exc.args[0] if exc.args else str(exc)
-        print(f"FAIL: {msg}")
+        print(f"FAIL: {exc}")
         return 1
     print(json.dumps({"problem": args.problem, "count": len(cases)}, indent=2))
     return 0

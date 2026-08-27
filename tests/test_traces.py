@@ -5,7 +5,14 @@ from pathlib import Path
 import pytest
 
 from honepad.catalog import language
-from honepad.runner import _RUNNERS, run, run_compiled, run_python, run_script
+from honepad.runner import (
+    _RUNNERS,
+    report_from_proc,
+    run,
+    run_compiled,
+    run_python,
+    run_script,
+)
 from honepad.traces import load_cases
 
 # Same sentinel as tests/test_cli.py. Must stay off _RUNNERS.
@@ -690,6 +697,12 @@ def test_run_compiled_writes_cases_inside_tmpdir() -> None:
     with pytest.raises(RuntimeError, match="stop"):
         run_compiled("bank_system", "python3", 1, prepare)
     assert seen["inside"] is True
+
+
+def test_report_from_proc_rejects_non_object_json() -> None:
+    proc = subprocess.CompletedProcess(["adapter"], 0, stdout="[]\n", stderr="")
+    with pytest.raises(RuntimeError, match="invalid JSON"):
+        report_from_proc(proc, "bank_system", "java", 1)
 
 
 def test_run_script_removes_cases_file(monkeypatch) -> None:
