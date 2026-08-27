@@ -265,6 +265,13 @@ def _elixir() -> str:
     raise RuntimeError("elixir not found")
 
 
+def _escript() -> str:
+    path = shutil.which("escript")
+    if path:
+        return path
+    raise RuntimeError("escript not found")
+
+
 def run_elixir(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "elixir" / "problems" / problem
     src = pack / ("solution.ex" if kind == "solution" else "stub.ex")
@@ -275,6 +282,19 @@ def run_elixir(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         [_elixir(), str(adapter), str(src), class_for_problem(problem)],
+    )
+
+
+def run_erlang(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "erlang" / "problems" / problem
+    src = pack / ("solution.erl" if kind == "solution" else "stub.erl")
+    adapter = repo_root() / "langs" / "erlang" / "adapter.erl"
+    return run_script(
+        problem,
+        "erlang",
+        level,
+        kind,
+        [_escript(), str(adapter), str(src), class_for_problem(problem)],
     )
 
 
@@ -750,6 +770,7 @@ _RUNNERS = {
     "groovy": run_groovy,
     "dart": run_dart,
     "elixir": run_elixir,
+    "erlang": run_erlang,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,
