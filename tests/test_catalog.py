@@ -48,3 +48,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("kotlin")["ci"] is True
     assert language("cpp")["adapter"] == "g++"
     assert language("cpp")["ci"] is True
+    assert language("swift")["adapter"] == "swiftc"
+    assert language("swift")["ci"] is True

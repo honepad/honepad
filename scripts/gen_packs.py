@@ -98,6 +98,8 @@ ADAPTERS = {
     "java": "javac",
     "csharp": "dotnet",
     "kotlin": "kotlinc",
+    "cpp": "g++",
+    "swift": "swiftc",
 }
 
 CI = {
@@ -115,6 +117,7 @@ CI = {
     "c",
     "csharp",
     "kotlin",
+    "swift",
 }
 
 BANK_METHODS = [

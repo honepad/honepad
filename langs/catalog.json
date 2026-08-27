@@ -454,8 +454,8 @@
         "gca",
         "ica"
       ],
-      "ci": false,
-      "adapter": "stub"
+      "ci": true,
+      "adapter": "swiftc"
     },
     {
       "id": "tcl",
