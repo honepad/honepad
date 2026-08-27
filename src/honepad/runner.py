@@ -124,6 +124,37 @@ def run_javascript(problem: str, level: int, kind: str = "solution") -> Report:
     return Report(problem, "javascript", level, int(payload.get("passed", 0)), failed)
 
 
+def run_ruby(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "ruby" / "problems" / problem
+    src = pack / ("solution.rb" if kind == "solution" else "stub.rb")
+    adapter = repo_root() / "langs" / "ruby" / "adapter.rb"
+    cases = load_cases(problem, level)
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+        json.dump(cases, handle)
+        cases_path = handle.name
+    proc = subprocess.run(
+        ["ruby", str(adapter), str(src), class_for_problem(problem), cases_path],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if not proc.stdout.strip():
+        raise RuntimeError(proc.stderr or "ruby adapter produced no output")
+    payload = json.loads(proc.stdout.splitlines()[-1])
+    failed = [
+        Fail(
+            row["case"],
+            row["index"],
+            row["method"],
+            [],
+            row["expected"],
+            row["actual"],
+        )
+        for row in payload.get("failed", [])
+    ]
+    return Report(problem, "ruby", level, int(payload.get("passed", 0)), failed)
+
+
 def go_entry(problem: str, kind: str) -> Path:
     pack = repo_root() / "langs" / "go" / "problems" / problem
     name = "solution.go" if kind == "solution" else "stub.go"
@@ -247,6 +278,8 @@ def run(
         return run_python(problem, level, kind)
     if row["id"] == "javascript":
         return run_javascript(problem, level, kind)
+    if row["id"] == "ruby":
+        return run_ruby(problem, level, kind)
     if row["id"] == "go":
         return run_go(problem, level, kind)
     if row["id"] == "rust":

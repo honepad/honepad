@@ -409,7 +409,7 @@
         "ica"
       ],
       "ci": true,
-      "adapter": "stub"
+      "adapter": "ruby"
     },
     {
       "id": "rust",

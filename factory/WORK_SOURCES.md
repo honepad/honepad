@@ -22,5 +22,7 @@ Priority (first match wins):
 - `pr-6` remaining GCA runners that Ubuntu can execute
 - `pr-7` rust ICA runner for the same traces
 - `pr-8` ruby ICA runner for the same traces
+- `pr-9` php ICA runner for the same traces
+- `pr-10` java ICA runner for the same traces
 
 `--concurrency 1`. One ready PR.
