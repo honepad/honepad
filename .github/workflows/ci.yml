@@ -98,7 +98,19 @@ jobs:
         with:
           version: "1.10"
       - name: Install Lua
-        run: sudo apt-get update && sudo apt-get install -y lua5.4 tcl r-base r-cran-jsonlite octave nim groovy elixir ghc ocaml gdc sbcl gfortran gnu-smalltalk
+        run: sudo apt-get update && sudo apt-get install -y lua5.4 tcl r-base r-cran-jsonlite octave nim groovy elixir ghc ocaml gdc sbcl gfortran
+      - name: Install GNU Smalltalk
+        run: |
+          set -euo pipefail
+          tmp=$(mktemp -d)
+          base=http://archive.ubuntu.com/ubuntu/pool/universe/g/gnu-smalltalk
+          ver=3.2.5-1.3ubuntu1
+          curl -fsSL -o "$tmp/libgst7.deb" "$base/libgst7_${ver}_amd64.deb"
+          curl -fsSL -o "$tmp/gnu-smalltalk-common.deb" "$base/gnu-smalltalk-common_${ver}_all.deb"
+          curl -fsSL -o "$tmp/gnu-smalltalk.deb" "$base/gnu-smalltalk_${ver}_amd64.deb"
+          sudo apt-get install -y unzip zip libsigsegv2
+          sudo dpkg --force-depends -i "$tmp/libgst7.deb" "$tmp/gnu-smalltalk-common.deb" "$tmp/gnu-smalltalk.deb"
+          gst --version
       - run: python3 -m pip install -e ".[dev]"
       - run: npm install -g coffeescript@2.7.0
       - run: python3 -m pytest
