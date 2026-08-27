@@ -43,5 +43,6 @@ Priority (first match wins):
 - `pr-27` next MPI (start --level 1 after unlock still prints L1 spec)
 - `pr-28` next MPI (start without --level after unlock prints current spec)
 - `pr-29` next MPI (explicit --level 4 run still works with a session)
+- `pr-30` next MPI (run without session defaults to python3 level 4)
 
 `--concurrency 1`. One ready PR.

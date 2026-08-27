@@ -207,3 +207,14 @@ def test_start_without_level_prints_unlocked_spec(monkeypatch, tmp_path: Path, c
     assert "top_spenders" in out
     assert "Bank system level 2" in out
     assert "unlocked=2" in out
+
+
+def test_run_level4_with_session_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    assert main(["run", "bank_system", "--level", "4"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED" not in out
+    assert load_session()["unlocked"] == 1
+    assert "level<=4" in out
