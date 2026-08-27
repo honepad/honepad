@@ -218,3 +218,14 @@ def test_run_level4_with_session_does_not_unlock(monkeypatch, tmp_path: Path, ca
     assert "UNLOCKED" not in out
     assert load_session()["unlocked"] == 1
     assert "level<=4" in out
+
+
+def test_run_without_session_defaults_to_python3_level4(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    assert main(["run", "bank_system"]) == 0
+    out = capsys.readouterr().out
+    assert "bank_system python3 level<=4" in out
+    assert "UNLOCKED" not in out
+    assert load_session() is None
