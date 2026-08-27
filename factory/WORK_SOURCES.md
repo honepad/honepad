@@ -51,5 +51,6 @@ Priority (first match wins):
 - `pr-35` next MPI (QA: csharp stub fails bank traces)
 - `pr-36` next MPI (QA: kotlin stub fails bank traces)
 - `pr-37` next MPI (QA: cpp stub fails bank traces)
+- `pr-38` next MPI (QA: swift stub fails bank traces)
 
 `--concurrency 1`. One ready PR.
