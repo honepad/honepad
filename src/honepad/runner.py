@@ -335,6 +335,59 @@ def _ocaml() -> str:
     raise RuntimeError("ocamlopt not found")
 
 
+def scala_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "scala" / "problems" / problem
+    name = "solution.scala" if kind == "solution" else "stub.scala"
+    return pack / name
+
+
+def _scalac() -> str:
+    path = shutil.which("scalac")
+    if path:
+        return path
+    raise RuntimeError("scalac not found")
+
+
+def _scala() -> str:
+    path = shutil.which("scala")
+    if path:
+        return path
+    raise RuntimeError("scala not found")
+
+
+def run_scala(problem: str, level: int, kind: str = "solution") -> Report:
+    src = scala_entry(problem, kind)
+    scala_dir = repo_root() / "langs" / "scala"
+    class_name = class_for_problem(problem)
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
+        shutil.copy(scala_dir / "Adapter.scala", tmpdir / "Adapter.scala")
+        shutil.copy(repo_root() / "langs" / "java" / "MiniJson.java", tmpdir / "MiniJson.java")
+        shutil.copy(src, tmpdir / "solution.scala")
+        # scalac type-checks .java sources but does not emit those classes.
+        java_compiled = subprocess.run(
+            ["javac", "MiniJson.java"],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if java_compiled.returncode != 0:
+            raise RuntimeError(java_compiled.stderr or java_compiled.stdout or "javac failed")
+        compiled = subprocess.run(
+            [_scalac(), "-classpath", ".", "Adapter.scala", "solution.scala"],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if compiled.returncode != 0:
+            raise RuntimeError(compiled.stderr or compiled.stdout or "scalac failed")
+        return [_scala(), "-nc", "-classpath", ".", "Adapter", cases_path, class_name]
+
+    return run_compiled(problem, "scala", level, prepare)
+
+
 def run_ocaml(problem: str, level: int, kind: str = "solution") -> Report:
     src = ocaml_entry(problem, kind)
     ocaml_dir = repo_root() / "langs" / "ocaml"
@@ -845,6 +898,7 @@ _RUNNERS = {
     "erlang": run_erlang,
     "haskell": run_haskell,
     "ocaml": run_ocaml,
+    "scala": run_scala,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,
