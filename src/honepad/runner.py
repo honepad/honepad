@@ -576,6 +576,77 @@ def run_cpp(problem: str, level: int, kind: str = "solution") -> Report:
     return Report(problem, "cpp", level, int(payload.get("passed", 0)), failed)
 
 
+def swift_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "swift" / "problems" / problem
+    name = "solution.swift" if kind == "solution" else "stub.swift"
+    return pack / name
+
+
+def _swiftc() -> str:
+    path = shutil.which("swiftc")
+    if path:
+        return path
+    raise RuntimeError("swiftc not found")
+
+
+def run_swift(problem: str, level: int, kind: str = "solution") -> Report:
+    src = swift_entry(problem, kind)
+    swift_dir = repo_root() / "langs" / "swift"
+    ctor_name = class_for_problem(problem)
+    cases = load_cases(problem, level)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpdir = Path(tmp)
+        shutil.copy(swift_dir / "Adapter.swift", tmpdir / "Adapter.swift")
+        shutil.copy(swift_dir / "Harness.swift", tmpdir / "Harness.swift")
+        shutil.copy(src, tmpdir / "solution.swift")
+        (tmpdir / "ctor.swift").write_text(
+            f"func newTarget() -> Harness {{ return {ctor_name}() }}\n",
+            encoding="utf-8",
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(cases, handle)
+            cases_path = handle.name
+        compiled = subprocess.run(
+            [
+                _swiftc(),
+                "Adapter.swift",
+                "Harness.swift",
+                "ctor.swift",
+                "solution.swift",
+                "-o",
+                "run",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if compiled.returncode != 0:
+            raise RuntimeError(compiled.stderr or compiled.stdout or "swiftc failed")
+        proc = subprocess.run(
+            [str(tmpdir / "run"), cases_path],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+    if not proc.stdout.strip():
+        raise RuntimeError(proc.stderr or "swift adapter produced no output")
+    payload = json.loads(proc.stdout.splitlines()[-1])
+    failed = [
+        Fail(
+            row["case"],
+            row["index"],
+            row["method"],
+            [],
+            row["expected"],
+            row["actual"],
+        )
+        for row in payload.get("failed", [])
+    ]
+    return Report(problem, "swift", level, int(payload.get("passed", 0)), failed)
+
+
 def run(
     problem: str,
     lang_id: str,
@@ -605,6 +676,8 @@ def run(
         return run_kotlin(problem, level, kind)
     if row["id"] == "cpp":
         return run_cpp(problem, level, kind)
+    if row["id"] == "swift":
+        return run_swift(problem, level, kind)
     raise NotImplementedError(
         f"runner for {lang_id} is a factory job (adapter={row.get('adapter')})"
     )
