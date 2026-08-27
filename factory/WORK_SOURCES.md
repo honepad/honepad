@@ -79,5 +79,6 @@ Priority (first match wins):
 - `pr-63` next improve MPI (expand: next cheap GCA language after coffeescript: bash)
 - `pr-64` next improve MPI (expand: next cheap GCA language after bash: common-lisp)
 - `pr-65` next improve MPI (expand: next cheap GCA language after common-lisp: fortran)
+- `pr-66` next improve MPI (expand: next cheap GCA language after fortran: fsharp)
 
 `--concurrency 1`. One ready PR.

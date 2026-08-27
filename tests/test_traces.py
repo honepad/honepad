@@ -504,6 +504,23 @@ def test_common_lisp_bank_stub_fails() -> None:
     assert not report.ok
 
 
+def test_fortran_all_problems() -> None:
+    for problem, level in (
+        ("bank_system", 4),
+        ("in_memory_database", 4),
+        ("file_storage", 4),
+        ("workers", 3),
+    ):
+        report = run(problem, "fortran", level, "solution")
+        assert report.passed > 0, report
+        assert report.ok, report.failed
+
+
+def test_fortran_bank_stub_fails() -> None:
+    report = run("bank_system", "fortran", 1, "stub")
+    assert not report.ok
+
+
 def test_prove_python3_and_go_all_problems() -> None:
     for lang in ("python3", "go"):
         for problem, level in (
@@ -517,12 +534,12 @@ def test_prove_python3_and_go_all_problems() -> None:
 
 
 def test_run_unknown_language_is_not_implemented() -> None:
-    adapter = language("fortran")["adapter"]
+    adapter = language("smalltalk")["adapter"]
     try:
-        run("bank_system", "fortran", 1, "stub")
+        run("bank_system", "smalltalk", 1, "stub")
     except NotImplementedError as exc:
         msg = str(exc)
-        assert "fortran" in msg
+        assert "smalltalk" in msg
         assert "adapter=" in msg
         assert f"adapter={adapter}" in msg
         return
