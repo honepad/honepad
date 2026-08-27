@@ -38,5 +38,6 @@ Priority (first match wins):
 - `pr-22` next MPI (start --reset clears unlock)
 - `pr-23` next MPI (start different problem replaces session)
 - `pr-24` next MPI (start same problem keeps unlock)
+- `pr-25` next MPI (expired timer remaining_s is 0)
 
 `--concurrency 1`. One ready PR.
