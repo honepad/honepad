@@ -91,5 +91,6 @@ Priority (first match wins):
 - `pr-75` next improve MPI (Developer: _RUNNERS keys vs langs/*/meta.json adapter=stub rows)
 - `pr-76` next improve MPI (Maintainer: Test job wall clock; drop unused prove lines or cache apt)
 - `pr-77` next improve MPI (QA: honepad langs --help or start --help mentions FAIL for unimplemented langs)
+- `pr-78` next improve MPI (End User: honepad langs header line includes runner count)
 
 `--concurrency 1`. One ready PR.

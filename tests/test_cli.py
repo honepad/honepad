@@ -1,5 +1,7 @@
+import pytest
+
 from honepad.catalog import languages
-from honepad.cli import main
+from honepad.cli import build_parser, main
 from honepad.runner import _RUNNERS
 
 # Catalog id used by unimplemented-lang CLI tests. Must stay off
@@ -106,6 +108,16 @@ def test_start_unimplemented_catalog_lang_exits(monkeypatch, tmp_path, capsys) -
     assert "Bank system level" not in out
     assert "STUB:" not in out
     assert "Traceback" not in out
+
+
+def test_start_help_mentions_fail_for_unimplemented(capsys) -> None:
+    parser = build_parser()
+    with pytest.raises(SystemExit) as excinfo:
+        parser.parse_args(["start", "-h"])
+    assert excinfo.value.code == 0
+    out = capsys.readouterr().out
+    assert "FAIL" in out
+    assert "unimplemented" in out.lower()
 
 
 def test_start_unknown_lang_id_exits(monkeypatch, tmp_path, capsys) -> None:
