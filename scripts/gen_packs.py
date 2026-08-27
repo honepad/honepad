@@ -94,6 +94,7 @@ ADAPTERS = {
     "rust": "cargo-run",
     "ruby": "ruby",
     "php": "php",
+    "typescript": "node",
 }
 
 CI = {

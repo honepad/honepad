@@ -478,7 +478,7 @@
         "ica"
       ],
       "ci": true,
-      "adapter": "stub"
+      "adapter": "node"
     },
     {
       "id": "vb",
