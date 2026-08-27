@@ -72,3 +72,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("erlang")["ci"] is True
     assert language("haskell")["adapter"] == "ghc"
     assert language("haskell")["ci"] is True
+    assert language("ocaml")["adapter"] == "ocamlopt"
+    assert language("ocaml")["ci"] is True
