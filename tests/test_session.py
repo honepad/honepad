@@ -37,6 +37,24 @@ def test_run_pass_unlocks_next_level(monkeypatch, tmp_path: Path, capsys) -> Non
     assert "LOCKED" not in start_out
 
 
+def test_unlock_does_not_skip_a_level(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    seen = [1]
+    for nxt in (2, 3, 4):
+        assert main(["run", "bank_system"]) == 0
+        out = capsys.readouterr().out
+        assert f"UNLOCKED: level {nxt}" in out
+        assert load_session()["unlocked"] == nxt
+        seen.append(nxt)
+    assert seen == [1, 2, 3, 4]
+    assert main(["run", "bank_system"]) == 0
+    last = capsys.readouterr().out
+    assert "UNLOCKED" not in last
+    assert load_session()["unlocked"] == 4
+
+
 def test_timer_reads_session(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "workers", "javascript", "--minutes", "90", "--reset"]) == 0
