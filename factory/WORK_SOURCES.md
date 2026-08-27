@@ -95,3 +95,16 @@ Priority (first match wins):
 - `pr-79` next improve MPI (Observability: FAIL start/run includes adapter= for unimplemented catalog langs)
 
 `--concurrency 1`. One ready PR.
+
+## Parked
+
+Cheap Ubuntu-runnable catalog langs are done (38 of 51 ids in
+`_RUNNERS`). `pr-79` already landed: adapter= FAIL is #45/#46, langs
+header count is #79. Leftover catalog ids (`objc`, `vb`, `python2`,
+`frontend`, `sql`, `hack`, `mongodb`) are not the next expand unless
+the user asks.
+
+`human_gate.kind` is `cheap_langs_done`. `next-job.sh` stops. Do not
+invent help-text, header-count, or catalog-pin PRs so the cursor
+moves. Lift the gate only for a leftover language the user asked for,
+or a real product change.
