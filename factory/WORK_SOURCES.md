@@ -33,5 +33,6 @@ Priority (first match wins):
 - `pr-17` auto-approve on ready_for_review
 - `pr-18` first MPI pass on the runner
 - `pr-19` next MPI (QA: stub fails for every script lang)
+- `pr-20` next MPI (timer remaining_s after mocked clock)
 
 `--concurrency 1`. One ready PR.
