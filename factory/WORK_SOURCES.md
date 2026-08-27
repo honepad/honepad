@@ -88,5 +88,6 @@ Priority (first match wins):
 - `pr-72` next improve MPI (QA: shell extra should share the bash runner or get its own wrapper)
 - `pr-73` next improve MPI (QA: unknown-lang CLI tests still use an unimplemented id after the latest expand)
 - `pr-74` next improve MPI (expand: skip frontend/sql/objc/vb unless cheap; next is QA on langs column vs _RUNNERS)
+- `pr-75` next improve MPI (Developer: _RUNNERS keys vs langs/*/meta.json adapter=stub rows)
 
 `--concurrency 1`. One ready PR.

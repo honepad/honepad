@@ -30,7 +30,7 @@ def test_next_job_prints_one_improve_job() -> None:
     job = json.loads(picked)
     assert job["work_source"] == state.get("next_work_source", "improve")
     assert job.get("job_id")
-    assert job["pr_plan_cursor"] == "pr-74"
+    assert job["pr_plan_cursor"] == "pr-75"
 
 
 def test_ci_test_job_splits_apt_install() -> None:
