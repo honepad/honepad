@@ -86,5 +86,6 @@ Priority (first match wins):
 - `pr-70` next improve MPI (expand: next remaining catalog lang Ubuntu can run, or skip to expand_cursor if none cheap)
 - `pr-71` next improve MPI (expand: powershell extra via pwsh if cheap on Ubuntu, else skip frontend/sql)
 - `pr-72` next improve MPI (QA: shell extra should share the bash runner or get its own wrapper)
+- `pr-73` next improve MPI (QA: unknown-lang CLI tests still use an unimplemented id after the latest expand)
 
 `--concurrency 1`. One ready PR.

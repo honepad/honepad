@@ -534,6 +534,19 @@ def run_bash(problem: str, level: int, kind: str = "solution") -> Report:
     )
 
 
+def run_shell(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "shell" / "problems" / problem
+    src = pack / ("solution.sh" if kind == "solution" else "stub.sh")
+    adapter = repo_root() / "langs" / "bash" / "adapter.sh"
+    return run_script(
+        problem,
+        "shell",
+        level,
+        kind,
+        ["bash", str(adapter), str(src), class_for_problem(problem)],
+    )
+
+
 def _pwsh() -> str:
     path = shutil.which("pwsh")
     if path:
@@ -1229,6 +1242,7 @@ _RUNNERS = {
     "julia": run_julia,
     "coffeescript": run_coffeescript,
     "bash": run_bash,
+    "shell": run_shell,
     "powershell": run_powershell,
     "clojure": run_clojure,
     "common-lisp": run_common_lisp,

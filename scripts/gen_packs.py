@@ -103,6 +103,9 @@ ADAPTERS = {
     "tcl": "tclsh",
     "r": "Rscript",
     "octave": "octave",
+    "bash": "bash",
+    "shell": "bash",
+    "powershell": "pwsh",
 }
 
 CI = {
@@ -124,6 +127,9 @@ CI = {
     "tcl",
     "r",
     "octave",
+    "bash",
+    "shell",
+    "powershell",
 }
 
 BANK_METHODS = [
