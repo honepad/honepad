@@ -56,5 +56,6 @@ Priority (first match wins):
 - `pr-40` lua GCA runner for the same traces
 - `pr-41` switch factory source to improve after perl and lua
 - `pr-42` first improve MPI (Developer: runner dispatch table)
+- `pr-43` next improve MPI (QA: unknown lang error mentions adapter)
 
 `--concurrency 1`. One ready PR.
