@@ -92,7 +92,7 @@ jobs:
         with:
           sdk: stable
       - name: Install Lua
-        run: sudo apt-get update && sudo apt-get install -y lua5.4 tcl r-base r-cran-jsonlite octave nim groovy elixir ghc
+        run: sudo apt-get update && sudo apt-get install -y lua5.4 tcl r-base r-cran-jsonlite octave nim groovy elixir ghc ocaml
       - run: python3 -m pip install -e ".[dev]"
       - run: python3 -m pytest
       - run: python3 -m honepad.cli run bank_system --lang python3 --level 4
@@ -124,6 +124,7 @@ jobs:
       - run: python3 -m honepad.cli run bank_system --lang elixir --level 4
       - run: python3 -m honepad.cli run bank_system --lang erlang --level 4
       - run: python3 -m honepad.cli run bank_system --lang haskell --level 4
+      - run: python3 -m honepad.cli run bank_system --lang ocaml --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 

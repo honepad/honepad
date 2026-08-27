@@ -321,6 +321,42 @@ def run_haskell(problem: str, level: int, kind: str = "solution") -> Report:
     return run_compiled(problem, "haskell", level, prepare)
 
 
+def ocaml_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "ocaml" / "problems" / problem
+    name = "solution.ml" if kind == "solution" else "stub.ml"
+    return pack / name
+
+
+def _ocaml() -> str:
+    for name in ("ocamlopt", "ocamlc"):
+        path = shutil.which(name)
+        if path:
+            return path
+    raise RuntimeError("ocamlopt not found")
+
+
+def run_ocaml(problem: str, level: int, kind: str = "solution") -> Report:
+    src = ocaml_entry(problem, kind)
+    ocaml_dir = repo_root() / "langs" / "ocaml"
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
+        shutil.copy(ocaml_dir / "adapter.ml", tmpdir / "adapter.ml")
+        shutil.copy(ocaml_dir / "minijson.ml", tmpdir / "minijson.ml")
+        shutil.copy(src, tmpdir / "solution.ml")
+        compiled = subprocess.run(
+            [_ocaml(), "-o", "run", "minijson.ml", "solution.ml", "adapter.ml"],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if compiled.returncode != 0:
+            raise RuntimeError(compiled.stderr or compiled.stdout or "ocaml compile failed")
+        return [str(tmpdir / "run"), cases_path]
+
+    return run_compiled(problem, "ocaml", level, prepare)
+
+
 def run_erlang(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "erlang" / "problems" / problem
     src = pack / ("solution.erl" if kind == "solution" else "stub.erl")
@@ -808,6 +844,7 @@ _RUNNERS = {
     "elixir": run_elixir,
     "erlang": run_erlang,
     "haskell": run_haskell,
+    "ocaml": run_ocaml,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,
