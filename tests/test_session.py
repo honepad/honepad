@@ -88,6 +88,25 @@ def test_start_different_problem_replaces_session(monkeypatch, tmp_path: Path, c
     assert "LOCKED: level 2" in capsys.readouterr().out
 
 
+def test_start_same_problem_keeps_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    assert main(["run", "bank_system"]) == 0
+    capsys.readouterr()
+    assert load_session()["unlocked"] == 2
+    assert main(["start", "bank_system", "javascript"]) == 0
+    out = capsys.readouterr().out
+    session = load_session()
+    assert session is not None
+    assert session["unlocked"] == 2
+    assert session["lang"] == "javascript"
+    assert "unlocked=2" in out
+    assert main(["start", "bank_system", "javascript", "--level", "2"]) == 0
+    level_out = capsys.readouterr().out
+    assert "LOCKED" not in level_out
+
+
 def test_timer_reads_session(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "workers", "javascript", "--minutes", "90", "--reset"]) == 0
