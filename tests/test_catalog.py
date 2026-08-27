@@ -68,3 +68,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("dart")["ci"] is True
     assert language("elixir")["adapter"] == "elixir"
     assert language("elixir")["ci"] is True
+    assert language("erlang")["adapter"] == "escript"
+    assert language("erlang")["ci"] is True
