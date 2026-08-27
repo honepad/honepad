@@ -534,6 +534,33 @@ def run_bash(problem: str, level: int, kind: str = "solution") -> Report:
     )
 
 
+def _pwsh() -> str:
+    path = shutil.which("pwsh")
+    if path:
+        return path
+    raise RuntimeError("pwsh not found")
+
+
+def run_powershell(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "powershell" / "problems" / problem
+    src = pack / ("solution.ps1" if kind == "solution" else "stub.ps1")
+    adapter = repo_root() / "langs" / "powershell" / "adapter.ps1"
+    return run_script(
+        problem,
+        "powershell",
+        level,
+        kind,
+        [
+            _pwsh(),
+            "-NoProfile",
+            "-File",
+            str(adapter),
+            str(src),
+            class_for_problem(problem),
+        ],
+    )
+
+
 def _sbcl() -> str:
     path = shutil.which("sbcl")
     if path:
@@ -1202,6 +1229,7 @@ _RUNNERS = {
     "julia": run_julia,
     "coffeescript": run_coffeescript,
     "bash": run_bash,
+    "powershell": run_powershell,
     "clojure": run_clojure,
     "common-lisp": run_common_lisp,
     "smalltalk": run_smalltalk,

@@ -163,6 +163,18 @@ jobs:
       - run: python3 -m honepad.cli run bank_system --lang smalltalk --level 4
       - run: python3 -m honepad.cli run bank_system --lang freepascal --level 4
       - run: python3 -m honepad.cli run bank_system --lang clojure --level 4
+      - name: Install PowerShell
+        run: |
+          set -euo pipefail
+          if ! command -v pwsh >/dev/null 2>&1; then
+            ver=7.4.6
+            curl -fsSL -o /tmp/powershell.deb \
+              "https://github.com/PowerShell/PowerShell/releases/download/v${ver}/powershell_${ver}-1.deb_amd64.deb"
+            sudo dpkg -i /tmp/powershell.deb
+            sudo apt-get install -f -y
+          fi
+          pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
+      - run: python3 -m honepad.cli run bank_system --lang powershell --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 

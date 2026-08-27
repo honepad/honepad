@@ -597,6 +597,23 @@ def test_clojure_bank_stub_fails() -> None:
     assert not report.ok
 
 
+def test_powershell_all_problems() -> None:
+    for problem, level in (
+        ("bank_system", 4),
+        ("in_memory_database", 4),
+        ("file_storage", 4),
+        ("workers", 3),
+    ):
+        report = run(problem, "powershell", level, "solution")
+        assert report.passed > 0, report
+        assert report.ok, report.failed
+
+
+def test_powershell_bank_stub_fails() -> None:
+    report = run("bank_system", "powershell", 1, "stub")
+    assert not report.ok
+
+
 def test_prove_python3_and_go_all_problems() -> None:
     for lang in ("python3", "go"):
         for problem, level in (

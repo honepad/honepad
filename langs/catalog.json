@@ -620,8 +620,8 @@
       "suites": [
         "extra"
       ],
-      "ci": false,
-      "adapter": "stub"
+      "ci": true,
+      "adapter": "pwsh"
     },
     {
       "id": "shell",
