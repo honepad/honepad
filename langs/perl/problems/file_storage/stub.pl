@@ -8,3 +8,6 @@
 # merge_user(user_id1, user_id2)
 # backup_user(user_id)
 # restore_user(user_id)
+package Simulation;
+sub new { bless {}, shift }
+1;

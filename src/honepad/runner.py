@@ -174,6 +174,19 @@ def run_ruby(problem: str, level: int, kind: str = "solution") -> Report:
     )
 
 
+def run_perl(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "perl" / "problems" / problem
+    src = pack / ("solution.pl" if kind == "solution" else "stub.pl")
+    adapter = repo_root() / "langs" / "perl" / "adapter.pl"
+    return run_script(
+        problem,
+        "perl",
+        level,
+        kind,
+        ["perl", str(adapter), str(src), class_for_problem(problem)],
+    )
+
+
 def run_php(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "php" / "problems" / problem
     src = pack / ("solution.php" if kind == "solution" else "stub.php")
@@ -488,6 +501,8 @@ def run(
         return run_ruby(problem, level, kind)
     if row["id"] == "php":
         return run_php(problem, level, kind)
+    if row["id"] == "perl":
+        return run_perl(problem, level, kind)
     if row["id"] == "go":
         return run_go(problem, level, kind)
     if row["id"] == "rust":
