@@ -541,6 +541,42 @@ def _sbcl() -> str:
     raise RuntimeError("sbcl not found")
 
 
+def _clojure() -> list[str]:
+    path = shutil.which("clojure")
+    if path:
+        help_proc = subprocess.run(
+            [path, "-h"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        blob = f"{help_proc.stdout}\n{help_proc.stderr}"
+        if "clj-opt" in blob or "-M[aliases]" in blob:
+            return [path, "-M"]
+        return [path]
+    java = shutil.which("java")
+    for jar in (
+        "/usr/share/java/clojure.jar",
+        "/usr/share/java/clojure-1.11.1.jar",
+    ):
+        if java and Path(jar).is_file():
+            return [java, "-cp", jar, "clojure.main"]
+    raise RuntimeError("clojure not found")
+
+
+def run_clojure(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "clojure" / "problems" / problem
+    src = pack / ("solution.clj" if kind == "solution" else "stub.clj")
+    adapter = repo_root() / "langs" / "clojure" / "adapter.clj"
+    return run_script(
+        problem,
+        "clojure",
+        level,
+        kind,
+        [*_clojure(), str(adapter), str(src), class_for_problem(problem)],
+    )
+
+
 def _gst() -> str:
     path = shutil.which("gst")
     if path:
@@ -1166,6 +1202,7 @@ _RUNNERS = {
     "julia": run_julia,
     "coffeescript": run_coffeescript,
     "bash": run_bash,
+    "clojure": run_clojure,
     "common-lisp": run_common_lisp,
     "smalltalk": run_smalltalk,
     "freepascal": run_freepascal,

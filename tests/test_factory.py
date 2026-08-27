@@ -30,7 +30,7 @@ def test_next_job_prints_one_improve_job() -> None:
     job = json.loads(picked)
     assert job["work_source"] == state.get("next_work_source", "improve")
     assert job.get("job_id")
-    assert job["pr_plan_cursor"] == "pr-70"
+    assert job["pr_plan_cursor"] == "pr-71"
 
 
 def test_ci_test_job_splits_apt_install() -> None:
@@ -52,6 +52,7 @@ def test_ci_test_job_splits_apt_install() -> None:
         "groovy",
         "elixir",
         "sbcl",
+        "clojure",
     }
     found: set[str] = set()
     for line in text.splitlines():
@@ -68,3 +69,4 @@ def test_ci_test_job_splits_apt_install() -> None:
     assert "python3 -m honepad.cli run bank_system --lang lua --level 4" in text
     assert "python3 -m honepad.cli run bank_system --lang smalltalk --level 4" in text
     assert "python3 -m honepad.cli run bank_system --lang freepascal --level 4" in text
+    assert "python3 -m honepad.cli run bank_system --lang clojure --level 4" in text
