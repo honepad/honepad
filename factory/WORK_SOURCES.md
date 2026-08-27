@@ -67,5 +67,6 @@ Priority (first match wins):
 - `pr-51` next improve MPI (expand: next cheap GCA language after r: octave)
 - `pr-52` next improve MPI (expand: next cheap GCA language after octave: nim)
 - `pr-53` next improve MPI (expand: next cheap GCA language after nim: groovy)
+- `pr-54` next improve MPI (expand: next cheap GCA language after groovy: dart)
 
 `--concurrency 1`. One ready PR.

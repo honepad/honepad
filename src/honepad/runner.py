@@ -244,6 +244,26 @@ def _octave() -> str:
     raise RuntimeError("octave not found")
 
 
+def _groovy() -> str:
+    path = shutil.which("groovy")
+    if path:
+        return path
+    raise RuntimeError("groovy not found")
+
+
+def run_groovy(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "groovy" / "problems" / problem
+    src = pack / ("solution.groovy" if kind == "solution" else "stub.groovy")
+    adapter = repo_root() / "langs" / "groovy" / "adapter.groovy"
+    return run_script(
+        problem,
+        "groovy",
+        level,
+        kind,
+        [_groovy(), str(adapter), str(src), class_for_problem(problem)],
+    )
+
+
 def run_octave(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "octave" / "problems" / problem
     src = pack / ("solution.m" if kind == "solution" else "stub.m")
@@ -687,6 +707,7 @@ _RUNNERS = {
     "tcl": run_tcl,
     "r": run_r,
     "octave": run_octave,
+    "groovy": run_groovy,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,
