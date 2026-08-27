@@ -13,14 +13,25 @@ def test_unimplemented_catalog_lang_not_in_runners() -> None:
     assert UNIMPLEMENTED_CATALOG_LANG not in _RUNNERS
 
 
+def _langs_header_and_rows(out: str) -> tuple[str, list[str]]:
+    lines = [line for line in out.splitlines() if line.strip()]
+    assert lines
+    return lines[0], lines[1:]
+
+
+def test_langs_header_includes_runner_count(capsys) -> None:
+    assert main(["langs"]) == 0
+    header, _rows = _langs_header_and_rows(capsys.readouterr().out)
+    assert str(len(languages())) in header
+    assert str(len(_RUNNERS)) in header
+
+
 def test_langs(capsys) -> None:
     assert main(["langs"]) == 0
     out = capsys.readouterr().out
     assert "python3" in out
     assert "javascript" in out
-    lang_lines = [
-        line for line in out.splitlines() if line.strip() and not line.endswith(" languages")
-    ]
+    _header, lang_lines = _langs_header_and_rows(out)
     assert lang_lines
     python3 = next(line for line in lang_lines if line.split()[0] == "python3")
     assert "no-runner" not in python3.split()
@@ -52,9 +63,7 @@ def test_langs(capsys) -> None:
 def test_langs_runner_column_matches_dispatch_table(capsys) -> None:
     assert main(["langs"]) == 0
     out = capsys.readouterr().out
-    lang_lines = [
-        line for line in out.splitlines() if line.strip() and not line.endswith(" languages")
-    ]
+    _header, lang_lines = _langs_header_and_rows(out)
     by_id = {line.split()[0]: line.split() for line in lang_lines}
     catalog_ids = [row["id"] for row in languages()]
     assert catalog_ids

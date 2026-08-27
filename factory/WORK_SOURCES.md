@@ -92,5 +92,6 @@ Priority (first match wins):
 - `pr-76` next improve MPI (Maintainer: Test job wall clock; drop unused prove lines or cache apt)
 - `pr-77` next improve MPI (QA: honepad langs --help or start --help mentions FAIL for unimplemented langs)
 - `pr-78` next improve MPI (End User: honepad langs header line includes runner count)
+- `pr-79` next improve MPI (Observability: FAIL start/run includes adapter= for unimplemented catalog langs)
 
 `--concurrency 1`. One ready PR.

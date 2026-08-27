@@ -21,7 +21,7 @@ from honepad.traces import load_cases, problem_dir
 
 def cmd_langs(_args: argparse.Namespace) -> int:
     rows = languages()
-    print(f"{len(rows)} languages")
+    print(f"{len(rows)} languages runner={len(_RUNNERS)}")
     for row in rows:
         suites = ",".join(row["suites"])
         ci = "ci" if row.get("ci") else "no-ci"
