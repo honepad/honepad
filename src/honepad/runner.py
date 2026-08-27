@@ -251,6 +251,26 @@ def _groovy() -> str:
     raise RuntimeError("groovy not found")
 
 
+def _dart() -> str:
+    path = shutil.which("dart")
+    if path:
+        return path
+    raise RuntimeError("dart not found")
+
+
+def run_dart(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "dart" / "problems" / problem
+    src = pack / ("solution.dart" if kind == "solution" else "stub.dart")
+    adapter = repo_root() / "langs" / "dart" / "adapter.dart"
+    return run_script(
+        problem,
+        "dart",
+        level,
+        kind,
+        [_dart(), "run", str(adapter), str(src), class_for_problem(problem)],
+    )
+
+
 def run_groovy(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "groovy" / "problems" / problem
     src = pack / ("solution.groovy" if kind == "solution" else "stub.groovy")
@@ -708,6 +728,7 @@ _RUNNERS = {
     "r": run_r,
     "octave": run_octave,
     "groovy": run_groovy,
+    "dart": run_dart,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,

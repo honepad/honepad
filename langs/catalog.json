@@ -146,8 +146,8 @@
       "suites": [
         "gca"
       ],
-      "ci": false,
-      "adapter": "stub"
+      "ci": true,
+      "adapter": "dart"
     },
     {
       "id": "elixir",

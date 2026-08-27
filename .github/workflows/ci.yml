@@ -88,6 +88,9 @@ jobs:
       - uses: swift-actions/setup-swift@7ca6abe6b3b0e8b5421b88be48feee39cbf52c6a # v2.4.0
         with:
           swift-version: "6.0"
+      - uses: dart-lang/setup-dart@7654d458321ee25acccccfdb86cd48bd95768ff1 # v1.8.0
+        with:
+          sdk: stable
       - name: Install Lua
         run: sudo apt-get update && sudo apt-get install -y lua5.4 tcl r-base r-cran-jsonlite octave nim groovy
       - run: python3 -m pip install -e ".[dev]"
@@ -117,6 +120,7 @@ jobs:
       - run: python3 -m honepad.cli run bank_system --lang octave --level 4
       - run: python3 -m honepad.cli run bank_system --lang nim --level 4
       - run: python3 -m honepad.cli run bank_system --lang groovy --level 4
+      - run: python3 -m honepad.cli run bank_system --lang dart --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 
