@@ -92,7 +92,12 @@ jobs:
       - run: python3 -m pytest
       - run: python3 -m honepad.cli run bank_system --lang python3 --level 4
       - run: python3 -m honepad.cli run in_memory_database --lang python3 --level 4
+      - run: python3 -m honepad.cli run file_storage --lang python3 --level 4
+      - run: python3 -m honepad.cli run workers --lang python3 --level 3
       - run: python3 -m honepad.cli run bank_system --lang go --level 4
+      - run: python3 -m honepad.cli run in_memory_database --lang go --level 4
+      - run: python3 -m honepad.cli run file_storage --lang go --level 4
+      - run: python3 -m honepad.cli run workers --lang go --level 3
       - run: python3 -m honepad.cli run bank_system --lang rust --level 4
       - run: python3 -m honepad.cli run bank_system --lang ruby --level 4
       - run: python3 -m honepad.cli run bank_system --lang php --level 4

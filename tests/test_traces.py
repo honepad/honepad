@@ -150,3 +150,15 @@ def test_swift_all_problems() -> None:
     ):
         report = run(problem, "swift", level, "solution")
         assert report.ok, report.failed
+
+
+def test_prove_python3_and_go_all_problems() -> None:
+    for lang in ("python3", "go"):
+        for problem, level in (
+            ("bank_system", 4),
+            ("in_memory_database", 4),
+            ("file_storage", 4),
+            ("workers", 3),
+        ):
+            report = run(problem, lang, level, "solution")
+            assert report.ok, (lang, problem, report.failed)
