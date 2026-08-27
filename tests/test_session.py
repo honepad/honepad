@@ -179,3 +179,17 @@ def test_timer_expired_remaining_is_zero(monkeypatch, tmp_path: Path, capsys) ->
     assert main(["timer"]) == 0
     out = capsys.readouterr().out
     assert "remaining_s=0" in out
+
+
+def test_start_level1_after_unlock_prints_l1_spec(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    assert main(["run", "bank_system"]) == 0
+    capsys.readouterr()
+    assert load_session()["unlocked"] == 2
+    assert main(["start", "bank_system", "python3", "--level", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "create_account" in out
+    assert "top_spenders" not in out
+    assert "unlocked=2" in out
