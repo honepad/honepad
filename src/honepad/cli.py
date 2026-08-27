@@ -126,7 +126,11 @@ def build_parser() -> argparse.ArgumentParser:
     langs = sub.add_parser("langs", help="list catalog")
     langs.set_defaults(func=cmd_langs)
 
-    start = sub.add_parser("start", help="print a level spec")
+    start = sub.add_parser(
+        "start",
+        help="print a level spec",
+        description=("Print a level spec. Unimplemented catalog langs print FAIL and exit 1."),
+    )
     start.add_argument("problem", choices=problems())
     start.add_argument("lang")
     start.add_argument("--level", type=int, default=None)
@@ -134,7 +138,11 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("--reset", action="store_true")
     start.set_defaults(func=cmd_start)
 
-    run_p = sub.add_parser("run", help="replay traces")
+    run_p = sub.add_parser(
+        "run",
+        help="replay traces",
+        description=("Replay traces. Unimplemented catalog langs print FAIL and exit 1."),
+    )
     run_p.add_argument("problem", choices=problems())
     run_p.add_argument("--lang", default=None)
     run_p.add_argument("--level", type=int, default=None)
