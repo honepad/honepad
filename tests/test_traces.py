@@ -64,6 +64,17 @@ def test_go_all_problems() -> None:
         assert report.ok, report.failed
 
 
+def test_php_all_problems() -> None:
+    for problem, level in (
+        ("bank_system", 4),
+        ("in_memory_database", 4),
+        ("file_storage", 4),
+        ("workers", 3),
+    ):
+        report = run(problem, "php", level, "solution")
+        assert report.ok, report.failed
+
+
 def test_rust_all_problems() -> None:
     for problem, level in (
         ("bank_system", 4),

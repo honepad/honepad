@@ -361,7 +361,7 @@
         "ica"
       ],
       "ci": true,
-      "adapter": "stub"
+      "adapter": "php"
     },
     {
       "id": "python2",
