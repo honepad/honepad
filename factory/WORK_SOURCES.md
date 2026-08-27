@@ -52,5 +52,6 @@ Priority (first match wins):
 - `pr-36` next MPI (QA: kotlin stub fails bank traces)
 - `pr-37` next MPI (QA: cpp stub fails bank traces)
 - `pr-38` next MPI (QA: swift stub fails bank traces)
+- `pr-39` next MPI (first remaining GCA language Ubuntu can run: perl)
 
 `--concurrency 1`. One ready PR.
