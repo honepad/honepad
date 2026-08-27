@@ -7,3 +7,9 @@
 // get_payment_status(timestamp, account_id, payment)
 // merge_accounts(timestamp, account_id_1, account_id_2)
 // get_balance(timestamp, account_id, time_at)
+
+module Solution
+
+type Simulation() =
+    class
+    end

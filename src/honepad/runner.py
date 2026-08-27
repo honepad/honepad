@@ -736,6 +736,29 @@ def run_csharp(problem: str, level: int, kind: str = "solution") -> Report:
     return run_compiled(problem, "csharp", level, prepare)
 
 
+def fsharp_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "fsharp" / "problems" / problem
+    name = "solution.fs" if kind == "solution" else "stub.fs"
+    return pack / name
+
+
+def run_fsharp(problem: str, level: int, kind: str = "solution") -> Report:
+    src = fsharp_entry(problem, kind)
+    fsharp_dir = repo_root() / "langs" / "fsharp"
+    class_name = class_for_problem(problem)
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
+        shutil.copy(fsharp_dir / "Adapter.fs", tmpdir / "Adapter.fs")
+        shutil.copy(fsharp_dir / "honepadrun.fsproj", tmpdir / "honepadrun.fsproj")
+        shutil.copy(src, tmpdir / "Solution.fs")
+        os.environ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
+        os.environ["DOTNET_NOLOGO"] = "1"
+        os.environ["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1"
+        return ["dotnet", "run", "--quiet", "--", cases_path, class_name]
+
+    return run_compiled(problem, "fsharp", level, prepare)
+
+
 def run_typescript(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "typescript" / "problems" / problem
     src = pack / ("solution.ts" if kind == "solution" else "stub.ts")
@@ -1086,6 +1109,7 @@ _RUNNERS = {
     "java": run_java,
     "typescript": run_typescript,
     "csharp": run_csharp,
+    "fsharp": run_fsharp,
     "kotlin": run_kotlin,
     "cpp": run_cpp,
     "c": run_c,

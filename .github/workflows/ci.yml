@@ -139,6 +139,7 @@ jobs:
       - run: python3 -m honepad.cli run bank_system --lang bash --level 4
       - run: python3 -m honepad.cli run bank_system --lang common-lisp --level 4
       - run: python3 -m honepad.cli run bank_system --lang fortran --level 4
+      - run: python3 -m honepad.cli run bank_system --lang fsharp --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 

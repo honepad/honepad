@@ -16,6 +16,9 @@ def test_langs(capsys) -> None:
     fortran = next(line for line in lang_lines if line.split()[0] == "fortran")
     assert "no-runner" not in fortran.split()
     assert "runner" in fortran.split()
+    fsharp = next(line for line in lang_lines if line.split()[0] == "fsharp")
+    assert "no-runner" not in fsharp.split()
+    assert "runner" in fsharp.split()
     smalltalk = next(line for line in lang_lines if line.split()[0] == "smalltalk")
     assert "no-runner" in smalltalk.split()
     for line in lang_lines:
