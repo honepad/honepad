@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "phase": "implement",
+  "phase": "improve",
   "stealth_mode": true,
   "session_branch": null,
   "ready_pr": null,
@@ -11,9 +11,9 @@
   "last_adversary_head": null,
   "expand_cursor": 0,
   "expand_noop_streak": 0,
-  "next_work_source": "implement",
+  "next_work_source": "improve",
   "consecutive_noop": 0,
-  "pr_plan_cursor": "pr-41",
+  "pr_plan_cursor": "pr-42",
   "clone_path": null,
   "forbidden_trees": []
 }
