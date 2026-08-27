@@ -34,17 +34,19 @@ def cmd_langs(_args: argparse.Namespace) -> int:
 def cmd_start(args: argparse.Namespace) -> int:
     try:
         row = language(args.lang)
-    except KeyError as exc:
+        if row["id"] not in _RUNNERS:
+            print(f"FAIL: runner for {row['id']} is a factory job (adapter={row.get('adapter')})")
+            return 1
+        session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=args.reset)
+        work = ensure_work_copy(args.problem, row["id"], reset=args.reset)
+        unlocked = int(session["unlocked"])
+        level = unlocked if args.level is None else args.level
+        minutes = int(session["minutes"])
+        started_at = int(session["started_at"])
+    except (KeyError, ValueError) as exc:
         msg = exc.args[0] if exc.args else str(exc)
         print(f"FAIL: {msg}")
         return 1
-    if row["id"] not in _RUNNERS:
-        print(f"FAIL: runner for {row['id']} is a factory job (adapter={row.get('adapter')})")
-        return 1
-    session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=args.reset)
-    work = ensure_work_copy(args.problem, row["id"], reset=args.reset)
-    unlocked = int(session["unlocked"])
-    level = unlocked if args.level is None else args.level
     if level > unlocked:
         print(f"LOCKED: level {level} (unlocked={unlocked})")
         print(f"WORK: {work}")
@@ -55,39 +57,38 @@ def cmd_start(args: argparse.Namespace) -> int:
         return 1
     print(spec.read_text(encoding="utf-8"))
     print(f"\nWORK: {work}")
-    minutes = int(session["minutes"])
     print(
         f"NOTE: {minutes} minutes measures how far you get. "
         "You are not expected to finish every level."
     )
-    left = remaining_s(int(session["started_at"]), minutes)
+    left = remaining_s(started_at, minutes)
     print(f"OK: unlocked={unlocked} remaining_s={left}")
     return 0
 
 
 def cmd_run(args: argparse.Namespace) -> int:
-    session = load_session()
-    lang = args.lang or (
-        str(session["lang"])
-        if session is not None and session.get("problem") == args.problem
-        else "python3"
-    )
-    same = (
-        session is not None
-        and session.get("problem") == args.problem
-        and str(session.get("lang")) == lang
-    )
-    practice = args.level is None and same
-    if args.level is None:
-        level = int(session["unlocked"]) if practice and session is not None else 4
-    else:
-        level = args.level
-    kind = args.kind
-    if kind is None:
-        kind = "work" if same and session is not None else "solution"
     try:
+        session = load_session()
+        lang = args.lang or (
+            str(session["lang"])
+            if session is not None and session.get("problem") == args.problem
+            else "python3"
+        )
+        same = (
+            session is not None
+            and session.get("problem") == args.problem
+            and str(session.get("lang")) == lang
+        )
+        practice = args.level is None and same
+        if args.level is None:
+            level = int(session["unlocked"]) if practice and session is not None else 4
+        else:
+            level = args.level
+        kind = args.kind
+        if kind is None:
+            kind = "work" if same and session is not None else "solution"
         report = run(args.problem, lang, level, kind=kind)
-    except (NotImplementedError, KeyError, FileNotFoundError, RuntimeError) as exc:
+    except (NotImplementedError, KeyError, FileNotFoundError, RuntimeError, ValueError) as exc:
         msg = exc.args[0] if exc.args else str(exc)
         print(f"FAIL: {msg}")
         return 1
@@ -109,17 +110,26 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 def cmd_timer(args: argparse.Namespace) -> int:
     # Agent-driven: print remaining, do not sleep the session.
-    session = load_session()
+    try:
+        session = load_session()
+        if session is not None:
+            minutes = int(session["minutes"])
+            started = int(session["started_at"])
+        else:
+            minutes = args.minutes
+            started = int(time.time())
+    except ValueError as exc:
+        msg = exc.args[0] if exc.args else str(exc)
+        print(f"FAIL: {msg}")
+        return 1
     if session is not None:
-        minutes = int(session["minutes"])
-        started = int(session["started_at"])
         left = remaining_s(started, minutes)
         print(f"WAIT: timer {minutes}m remaining_s={left}")
         print(f"OK: started_at={started}")
     else:
-        remaining = args.minutes * 60
-        print(f"WAIT: timer {args.minutes}m remaining_s={remaining}")
-        print(f"OK: started_at={int(time.time())}")
+        remaining = minutes * 60
+        print(f"WAIT: timer {minutes}m remaining_s={remaining}")
+        print(f"OK: started_at={started}")
     print("NEXT: re-check remaining_s later; do not sleep inside this process")
     return 0
 

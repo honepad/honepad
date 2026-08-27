@@ -44,8 +44,13 @@ def _load_python_class(path: Path, class_name: str) -> Any:
     if spec is None or spec.loader is None:
         raise FileNotFoundError(path)
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return getattr(mod, class_name)
+    try:
+        spec.loader.exec_module(mod)
+        return getattr(mod, class_name)
+    except FileNotFoundError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - user pack load
+        raise RuntimeError(f"{path}: {type(exc).__name__}") from exc
 
 
 def pack_src(lang_id: str, problem: str, kind: str, solution_name: str, stub_name: str) -> Path:
