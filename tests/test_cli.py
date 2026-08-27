@@ -1,3 +1,4 @@
+from honepad.catalog import languages
 from honepad.cli import main
 from honepad.runner import _RUNNERS
 
@@ -44,6 +45,21 @@ def test_langs(capsys) -> None:
     for line in lang_lines:
         markers = [tok for tok in line.split() if tok in ("runner", "no-runner")]
         assert len(markers) == 1, line
+
+
+def test_langs_runner_column_matches_dispatch_table(capsys) -> None:
+    assert main(["langs"]) == 0
+    out = capsys.readouterr().out
+    lang_lines = [
+        line for line in out.splitlines() if line.strip() and not line.endswith(" languages")
+    ]
+    by_id = {line.split()[0]: line.split() for line in lang_lines}
+    catalog_ids = [row["id"] for row in languages()]
+    assert catalog_ids
+    assert set(by_id) == set(catalog_ids)
+    for lang_id in catalog_ids:
+        markers = [tok for tok in by_id[lang_id] if tok in ("runner", "no-runner")]
+        assert markers == (["runner"] if lang_id in _RUNNERS else ["no-runner"]), lang_id
 
 
 def test_run_bank(capsys) -> None:
