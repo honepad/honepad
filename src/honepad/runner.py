@@ -350,6 +350,37 @@ def run_java(problem: str, level: int, kind: str = "solution") -> Report:
     return Report(problem, "java", level, int(payload.get("passed", 0)), failed)
 
 
+def run_typescript(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "typescript" / "problems" / problem
+    src = pack / ("solution.ts" if kind == "solution" else "stub.ts")
+    adapter = repo_root() / "langs" / "javascript" / "adapter.js"
+    cases = load_cases(problem, level)
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+        json.dump(cases, handle)
+        cases_path = handle.name
+    proc = subprocess.run(
+        ["node", str(adapter), str(src), class_for_problem(problem), cases_path],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if not proc.stdout.strip():
+        raise RuntimeError(proc.stderr or "typescript adapter produced no output")
+    payload = json.loads(proc.stdout.splitlines()[-1])
+    failed = [
+        Fail(
+            row["case"],
+            row["index"],
+            row["method"],
+            [],
+            row["expected"],
+            row["actual"],
+        )
+        for row in payload.get("failed", [])
+    ]
+    return Report(problem, "typescript", level, int(payload.get("passed", 0)), failed)
+
+
 def run(
     problem: str,
     lang_id: str,
@@ -371,6 +402,8 @@ def run(
         return run_rust(problem, level, kind)
     if row["id"] == "java":
         return run_java(problem, level, kind)
+    if row["id"] == "typescript":
+        return run_typescript(problem, level, kind)
     raise NotImplementedError(
         f"runner for {lang_id} is a factory job (adapter={row.get('adapter')})"
     )
