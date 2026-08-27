@@ -521,6 +521,19 @@ def run_coffeescript(problem: str, level: int, kind: str = "solution") -> Report
     )
 
 
+def run_bash(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "bash" / "problems" / problem
+    src = pack / ("solution.sh" if kind == "solution" else "stub.sh")
+    adapter = repo_root() / "langs" / "bash" / "adapter.sh"
+    return run_script(
+        problem,
+        "bash",
+        level,
+        kind,
+        ["bash", str(adapter), str(src), class_for_problem(problem)],
+    )
+
+
 def run_groovy(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "groovy" / "problems" / problem
     src = pack / ("solution.groovy" if kind == "solution" else "stub.groovy")
@@ -987,6 +1000,7 @@ _RUNNERS = {
     "d": run_d,
     "julia": run_julia,
     "coffeescript": run_coffeescript,
+    "bash": run_bash,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,
