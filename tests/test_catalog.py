@@ -78,3 +78,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("scala")["ci"] is True
     assert language("d")["adapter"] == "gdc"
     assert language("d")["ci"] is True
+    assert language("julia")["adapter"] == "julia"
+    assert language("julia")["ci"] is True
