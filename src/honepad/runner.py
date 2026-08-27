@@ -478,6 +478,26 @@ def run_dart(problem: str, level: int, kind: str = "solution") -> Report:
     )
 
 
+def _julia() -> str:
+    path = shutil.which("julia")
+    if path:
+        return path
+    raise RuntimeError("julia not found")
+
+
+def run_julia(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "julia" / "problems" / problem
+    src = pack / ("solution.jl" if kind == "solution" else "stub.jl")
+    adapter = repo_root() / "langs" / "julia" / "adapter.jl"
+    return run_script(
+        problem,
+        "julia",
+        level,
+        kind,
+        [_julia(), str(adapter), str(src), class_for_problem(problem)],
+    )
+
+
 def run_groovy(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "groovy" / "problems" / problem
     src = pack / ("solution.groovy" if kind == "solution" else "stub.groovy")
@@ -942,6 +962,7 @@ _RUNNERS = {
     "ocaml": run_ocaml,
     "scala": run_scala,
     "d": run_d,
+    "julia": run_julia,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,
