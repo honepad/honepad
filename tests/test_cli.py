@@ -6,6 +6,18 @@ def test_langs(capsys) -> None:
     out = capsys.readouterr().out
     assert "python3" in out
     assert "javascript" in out
+    lang_lines = [
+        line for line in out.splitlines() if line.strip() and not line.endswith(" languages")
+    ]
+    assert lang_lines
+    python3 = next(line for line in lang_lines if line.split()[0] == "python3")
+    assert "no-runner" not in python3.split()
+    assert "runner" in python3.split()
+    fortran = next(line for line in lang_lines if line.split()[0] == "fortran")
+    assert "no-runner" in fortran.split()
+    for line in lang_lines:
+        markers = [tok for tok in line.split() if tok in ("runner", "no-runner")]
+        assert len(markers) == 1, line
 
 
 def test_run_bank(capsys) -> None:
