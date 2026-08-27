@@ -509,6 +509,73 @@ def run_kotlin(problem: str, level: int, kind: str = "solution") -> Report:
     return Report(problem, "kotlin", level, int(payload.get("passed", 0)), failed)
 
 
+def cpp_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "cpp" / "problems" / problem
+    name = "solution.cpp" if kind == "solution" else "stub.cpp"
+    return pack / name
+
+
+def _cxx() -> str:
+    for name in ("c++", "g++", "clang++"):
+        path = shutil.which(name)
+        if path:
+            return path
+    raise RuntimeError("c++ compiler not found")
+
+
+def run_cpp(problem: str, level: int, kind: str = "solution") -> Report:
+    src = cpp_entry(problem, kind)
+    cpp_dir = repo_root() / "langs" / "cpp"
+    ctor_name = class_for_problem(problem)
+    cases = load_cases(problem, level)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpdir = Path(tmp)
+        shutil.copy(cpp_dir / "adapter.cpp", tmpdir / "adapter.cpp")
+        shutil.copy(cpp_dir / "minijson.hpp", tmpdir / "minijson.hpp")
+        shutil.copy(cpp_dir / "harness.hpp", tmpdir / "harness.hpp")
+        shutil.copy(src, tmpdir / "solution.cpp")
+        (tmpdir / "ctor.cpp").write_text(
+            '#include "harness.hpp"\n'
+            '#include "solution.cpp"\n\n'
+            f"Harness* new_target() {{ return new {ctor_name}(); }}\n",
+            encoding="utf-8",
+        )
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(cases, handle)
+            cases_path = handle.name
+        compiled = subprocess.run(
+            [_cxx(), "-std=c++17", "-O0", "adapter.cpp", "ctor.cpp", "solution.cpp", "-o", "run"],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if compiled.returncode != 0:
+            raise RuntimeError(compiled.stderr or compiled.stdout or "c++ compile failed")
+        proc = subprocess.run(
+            [str(tmpdir / "run"), cases_path],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+    if not proc.stdout.strip():
+        raise RuntimeError(proc.stderr or "cpp adapter produced no output")
+    payload = json.loads(proc.stdout.splitlines()[-1])
+    failed = [
+        Fail(
+            row["case"],
+            row["index"],
+            row["method"],
+            [],
+            row["expected"],
+            row["actual"],
+        )
+        for row in payload.get("failed", [])
+    ]
+    return Report(problem, "cpp", level, int(payload.get("passed", 0)), failed)
+
+
 def run(
     problem: str,
     lang_id: str,
@@ -536,6 +603,8 @@ def run(
         return run_csharp(problem, level, kind)
     if row["id"] == "kotlin":
         return run_kotlin(problem, level, kind)
+    if row["id"] == "cpp":
+        return run_cpp(problem, level, kind)
     raise NotImplementedError(
         f"runner for {lang_id} is a factory job (adapter={row.get('adapter')})"
     )

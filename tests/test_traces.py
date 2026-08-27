@@ -128,3 +128,14 @@ def test_kotlin_all_problems() -> None:
     ):
         report = run(problem, "kotlin", level, "solution")
         assert report.ok, report.failed
+
+
+def test_cpp_all_problems() -> None:
+    for problem, level in (
+        ("bank_system", 4),
+        ("in_memory_database", 4),
+        ("file_storage", 4),
+        ("workers", 3),
+    ):
+        report = run(problem, "cpp", level, "solution")
+        assert report.ok, report.failed
