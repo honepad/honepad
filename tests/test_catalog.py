@@ -26,7 +26,16 @@ def test_gca_and_ica_present() -> None:
     ):
         assert lang in ids
         assert "ica" in language(lang)["suites"]
-    for lang in ("clojure", "haskell", "ocaml", "nim", "fortran", "fsharp", "smalltalk"):
+    for lang in (
+        "clojure",
+        "haskell",
+        "ocaml",
+        "nim",
+        "fortran",
+        "fsharp",
+        "smalltalk",
+        "freepascal",
+    ):
         assert lang in ids
         assert "gca" in language(lang)["suites"]
     for lang in ("mysql", "postgresql", "mssql", "react-ts", "vue-js", "angular-ts"):
@@ -90,5 +99,7 @@ def test_python3_is_import_adapter() -> None:
     assert language("fortran")["ci"] is True
     assert language("fsharp")["adapter"] == "dotnet"
     assert language("fsharp")["ci"] is True
-    assert language("smalltalk")["adapter"] == "gst"
-    assert language("smalltalk")["ci"] is True
+    assert language("freepascal")["adapter"] == "fpc"
+    assert language("freepascal")["ci"] is True
+    assert language("smalltalk")["adapter"] == "stub"
+    assert language("smalltalk")["ci"] is False

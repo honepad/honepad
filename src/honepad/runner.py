@@ -541,34 +541,6 @@ def _sbcl() -> str:
     raise RuntimeError("sbcl not found")
 
 
-def _gst() -> str:
-    path = shutil.which("gst")
-    if path:
-        return path
-    raise RuntimeError("gst not found")
-
-
-def run_smalltalk(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "smalltalk" / "problems" / problem
-    src = pack / ("solution.st" if kind == "solution" else "stub.st")
-    adapter = repo_root() / "langs" / "smalltalk" / "adapter.st"
-    return run_script(
-        problem,
-        "smalltalk",
-        level,
-        kind,
-        [
-            _gst(),
-            "-q",
-            "--no-user-files",
-            str(adapter),
-            "-a",
-            str(src),
-            class_for_problem(problem),
-        ],
-    )
-
-
 def run_common_lisp(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "common-lisp" / "problems" / problem
     src = pack / ("solution.lisp" if kind == "solution" else "stub.lisp")
@@ -785,6 +757,41 @@ def run_fsharp(problem: str, level: int, kind: str = "solution") -> Report:
         return ["dotnet", "run", "--quiet", "--", cases_path, class_name]
 
     return run_compiled(problem, "fsharp", level, prepare)
+
+
+def freepascal_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "freepascal" / "problems" / problem
+    name = "solution.pas" if kind == "solution" else "stub.pas"
+    return pack / name
+
+
+def _fpc() -> str:
+    path = shutil.which("fpc")
+    if path:
+        return path
+    raise RuntimeError("fpc not found")
+
+
+def run_freepascal(problem: str, level: int, kind: str = "solution") -> Report:
+    src = freepascal_entry(problem, kind)
+    fpc_dir = repo_root() / "langs" / "freepascal"
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
+        shutil.copy(fpc_dir / "adapter.pas", tmpdir / "adapter.pas")
+        shutil.copy(fpc_dir / "minijson.pas", tmpdir / "minijson.pas")
+        shutil.copy(src, tmpdir / "solution.pas")
+        compiled = subprocess.run(
+            [_fpc(), "-O-", "-orun", "adapter.pas"],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if compiled.returncode != 0:
+            raise RuntimeError(compiled.stderr or compiled.stdout or "fpc compile failed")
+        return [str(tmpdir / "run"), cases_path]
+
+    return run_compiled(problem, "freepascal", level, prepare)
 
 
 def run_typescript(problem: str, level: int, kind: str = "solution") -> Report:
@@ -1132,7 +1139,7 @@ _RUNNERS = {
     "coffeescript": run_coffeescript,
     "bash": run_bash,
     "common-lisp": run_common_lisp,
-    "smalltalk": run_smalltalk,
+    "freepascal": run_freepascal,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,

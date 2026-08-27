@@ -6,6 +6,6 @@
   "suites": [
     "gca"
   ],
-  "ci": true,
-  "adapter": "gst"
+  "ci": false,
+  "adapter": "stub"
 }
