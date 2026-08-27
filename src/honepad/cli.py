@@ -43,7 +43,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         level = unlocked if args.level is None else args.level
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
-    except (KeyError, ValueError) as exc:
+    except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
         msg = exc.args[0] if exc.args else str(exc)
         print(f"FAIL: {msg}")
         return 1

@@ -135,6 +135,21 @@ def test_start_help_mentions_fail_for_unimplemented(capsys) -> None:
     assert "unimplemented" in out.lower()
 
 
+def test_start_missing_stub_prints_fail(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+
+    def _missing(*_args, **_kwargs):
+        raise FileNotFoundError("missing stub")
+
+    monkeypatch.setattr("honepad.cli.ensure_work_copy", _missing)
+    assert main(["start", "bank_system", "python3"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "missing stub" in out
+    assert "Traceback" not in out
+
+
 def test_start_unknown_lang_id_exits(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     code = main(["start", "bank_system", "notalang"])
