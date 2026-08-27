@@ -54,3 +54,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("lua")["adapter"] == "lua"
     assert language("c")["adapter"] == "gcc"
     assert language("c")["ci"] is True
+    assert language("tcl")["adapter"] == "tclsh"
+    assert language("tcl")["ci"] is True

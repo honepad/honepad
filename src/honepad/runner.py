@@ -195,6 +195,27 @@ def _lua() -> str:
     raise RuntimeError("lua not found")
 
 
+def _tclsh() -> str:
+    for name in ("tclsh", "tclsh8.6", "tclsh8.7"):
+        path = shutil.which(name)
+        if path:
+            return path
+    raise RuntimeError("tclsh not found")
+
+
+def run_tcl(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "tcl" / "problems" / problem
+    src = pack / ("solution.tcl" if kind == "solution" else "stub.tcl")
+    adapter = repo_root() / "langs" / "tcl" / "adapter.tcl"
+    return run_script(
+        problem,
+        "tcl",
+        level,
+        kind,
+        [_tclsh(), str(adapter), str(src), class_for_problem(problem)],
+    )
+
+
 def run_lua(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "lua" / "problems" / problem
     src = pack / ("solution.lua" if kind == "solution" else "stub.lua")
@@ -569,6 +590,7 @@ _RUNNERS = {
     "php": run_php,
     "perl": run_perl,
     "lua": run_lua,
+    "tcl": run_tcl,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,

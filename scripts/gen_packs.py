@@ -100,6 +100,7 @@ ADAPTERS = {
     "kotlin": "kotlinc",
     "cpp": "g++",
     "swift": "swiftc",
+    "tcl": "tclsh",
 }
 
 CI = {
@@ -118,6 +119,7 @@ CI = {
     "csharp",
     "kotlin",
     "swift",
+    "tcl",
 }
 
 BANK_METHODS = [
