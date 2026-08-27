@@ -71,6 +71,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
         with:
           toolchain: stable
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: "8.3"
+          coverage: none
       - run: python3 -m pip install -e ".[dev]"
       - run: python3 -m pytest
       - run: python3 -m honepad.cli run bank_system --lang python3 --level 4
@@ -78,6 +82,7 @@ jobs:
       - run: python3 -m honepad.cli run bank_system --lang go --level 4
       - run: python3 -m honepad.cli run bank_system --lang rust --level 4
       - run: python3 -m honepad.cli run bank_system --lang ruby --level 4
+      - run: python3 -m honepad.cli run bank_system --lang php --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 

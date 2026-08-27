@@ -93,6 +93,7 @@ ADAPTERS = {
     "go": "go-run",
     "rust": "cargo-run",
     "ruby": "ruby",
+    "php": "php",
 }
 
 CI = {
