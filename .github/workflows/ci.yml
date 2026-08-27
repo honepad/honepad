@@ -141,7 +141,19 @@ jobs:
           fi
           pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
       - run: bash factory/scripts/write-ledger.sh --self-test
-      - run: bash factory/scripts/next-job.sh
+      - name: Next job respects human_gate
+        run: |
+          python3 - <<'PY'
+          import json, subprocess, sys
+
+          state = json.load(open("factory/STATE.json"))
+          result = subprocess.run(
+              ["bash", "factory/scripts/next-job.sh"], check=False
+          )
+          if state.get("human_gate"):
+              sys.exit(0 if result.returncode == 2 else 1)
+          sys.exit(0 if result.returncode == 0 else 1)
+          PY
 
   ci:
     name: CI
