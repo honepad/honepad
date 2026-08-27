@@ -90,5 +90,6 @@ Priority (first match wins):
 - `pr-74` next improve MPI (expand: skip frontend/sql/objc/vb unless cheap; next is QA on langs column vs _RUNNERS)
 - `pr-75` next improve MPI (Developer: _RUNNERS keys vs langs/*/meta.json adapter=stub rows)
 - `pr-76` next improve MPI (Maintainer: Test job wall clock; drop unused prove lines or cache apt)
+- `pr-77` next improve MPI (QA: honepad langs --help or start --help mentions FAIL for unimplemented langs)
 
 `--concurrency 1`. One ready PR.

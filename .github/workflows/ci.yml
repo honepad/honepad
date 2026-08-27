@@ -122,47 +122,13 @@ jobs:
       - run: python3 -m pip install -e ".[dev]"
       - run: npm install -g coffeescript@2.7.0
       - run: python3 -m pytest
+      # pytest covers the matrix; these are CLI smokes.
       - run: python3 -m honepad.cli run bank_system --lang python3 --level 4
       - run: python3 -m honepad.cli run in_memory_database --lang python3 --level 4
       - run: python3 -m honepad.cli run file_storage --lang python3 --level 4
       - run: python3 -m honepad.cli run workers --lang python3 --level 3
       - run: python3 -m honepad.cli run bank_system --lang go --level 4
-      - run: python3 -m honepad.cli run in_memory_database --lang go --level 4
-      - run: python3 -m honepad.cli run file_storage --lang go --level 4
-      - run: python3 -m honepad.cli run workers --lang go --level 3
-      - run: python3 -m honepad.cli run bank_system --lang rust --level 4
-      - run: python3 -m honepad.cli run bank_system --lang ruby --level 4
-      - run: python3 -m honepad.cli run bank_system --lang php --level 4
-      - run: python3 -m honepad.cli run bank_system --lang java --level 4
-      - run: python3 -m honepad.cli run bank_system --lang typescript --level 4
-      - run: python3 -m honepad.cli run bank_system --lang csharp --level 4
-      - run: python3 -m honepad.cli run bank_system --lang kotlin --level 4
-      - run: python3 -m honepad.cli run bank_system --lang cpp --level 4
-      - run: python3 -m honepad.cli run bank_system --lang swift --level 4
       - run: python3 -m honepad.cli run bank_system --lang perl --level 4
-      - run: python3 -m honepad.cli run bank_system --lang lua --level 4
-      - run: python3 -m honepad.cli run bank_system --lang c --level 4
-      - run: python3 -m honepad.cli run bank_system --lang tcl --level 4
-      - run: python3 -m honepad.cli run bank_system --lang r --level 4
-      - run: python3 -m honepad.cli run bank_system --lang octave --level 4
-      - run: python3 -m honepad.cli run bank_system --lang nim --level 4
-      - run: python3 -m honepad.cli run bank_system --lang groovy --level 4
-      - run: python3 -m honepad.cli run bank_system --lang dart --level 4
-      - run: python3 -m honepad.cli run bank_system --lang elixir --level 4
-      - run: python3 -m honepad.cli run bank_system --lang erlang --level 4
-      - run: python3 -m honepad.cli run bank_system --lang haskell --level 4
-      - run: python3 -m honepad.cli run bank_system --lang ocaml --level 4
-      - run: python3 -m honepad.cli run bank_system --lang scala --level 4
-      - run: python3 -m honepad.cli run bank_system --lang d --level 4
-      - run: python3 -m honepad.cli run bank_system --lang julia --level 4
-      - run: python3 -m honepad.cli run bank_system --lang coffeescript --level 4
-      - run: python3 -m honepad.cli run bank_system --lang bash --level 4
-      - run: python3 -m honepad.cli run bank_system --lang common-lisp --level 4
-      - run: python3 -m honepad.cli run bank_system --lang fortran --level 4
-      - run: python3 -m honepad.cli run bank_system --lang fsharp --level 4
-      - run: python3 -m honepad.cli run bank_system --lang smalltalk --level 4
-      - run: python3 -m honepad.cli run bank_system --lang freepascal --level 4
-      - run: python3 -m honepad.cli run bank_system --lang clojure --level 4
       - name: Install PowerShell
         run: |
           set -euo pipefail
@@ -174,8 +140,6 @@ jobs:
             sudo apt-get install -f -y
           fi
           pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
-      - run: python3 -m honepad.cli run bank_system --lang powershell --level 4
-      - run: python3 -m honepad.cli run bank_system --lang shell --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 
