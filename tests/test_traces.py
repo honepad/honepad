@@ -1,3 +1,4 @@
+from honepad.catalog import language
 from honepad.runner import run, run_python
 from honepad.traces import load_cases
 
@@ -243,9 +244,13 @@ def test_prove_python3_and_go_all_problems() -> None:
 
 
 def test_run_unknown_language_is_not_implemented() -> None:
+    adapter = language("fortran")["adapter"]
     try:
         run("bank_system", "fortran", 1, "stub")
     except NotImplementedError as exc:
-        assert "fortran" in str(exc)
+        msg = str(exc)
+        assert "fortran" in msg
+        assert "adapter=" in msg
+        assert f"adapter={adapter}" in msg
         return
     raise AssertionError("expected NotImplementedError")

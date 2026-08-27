@@ -57,5 +57,6 @@ Priority (first match wins):
 - `pr-41` switch factory source to improve after perl and lua
 - `pr-42` first improve MPI (Developer: runner dispatch table)
 - `pr-43` next improve MPI (QA: unknown lang error mentions adapter)
+- `pr-44` next improve MPI (Maintainer: next-job.sh after improve still prints one job)
 
 `--concurrency 1`. One ready PR.
