@@ -90,3 +90,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("fortran")["ci"] is True
     assert language("fsharp")["adapter"] == "dotnet"
     assert language("fsharp")["ci"] is True
+    assert language("smalltalk")["adapter"] == "gst"
+    assert language("smalltalk")["ci"] is True
