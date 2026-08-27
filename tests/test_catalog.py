@@ -60,3 +60,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("r")["ci"] is True
     assert language("octave")["adapter"] == "octave"
     assert language("octave")["ci"] is True
+    assert language("nim")["adapter"] == "nim"
+    assert language("nim")["ci"] is True

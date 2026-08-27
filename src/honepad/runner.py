@@ -547,6 +547,47 @@ def _cc() -> str:
     raise RuntimeError("c compiler not found")
 
 
+def nim_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "nim" / "problems" / problem
+    name = "solution.nim" if kind == "solution" else "stub.nim"
+    return pack / name
+
+
+def _nim() -> str:
+    path = shutil.which("nim")
+    if path:
+        return path
+    raise RuntimeError("nim not found")
+
+
+def run_nim(problem: str, level: int, kind: str = "solution") -> Report:
+    src = nim_entry(problem, kind)
+    adapter = repo_root() / "langs" / "nim" / "adapter.nim"
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
+        shutil.copy(adapter, tmpdir / "adapter.nim")
+        shutil.copy(src, tmpdir / "solution.nim")
+        compiled = subprocess.run(
+            [
+                _nim(),
+                "c",
+                "--hints:off",
+                "--warnings:off",
+                "-o:run",
+                "adapter.nim",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if compiled.returncode != 0:
+            raise RuntimeError(compiled.stderr or compiled.stdout or "nim compile failed")
+        return [str(tmpdir / "run"), cases_path]
+
+    return run_compiled(problem, "nim", level, prepare)
+
+
 def run_c(problem: str, level: int, kind: str = "solution") -> Report:
     src = c_entry(problem, kind)
     c_dir = repo_root() / "langs" / "c"
@@ -655,6 +696,7 @@ _RUNNERS = {
     "cpp": run_cpp,
     "c": run_c,
     "swift": run_swift,
+    "nim": run_nim,
 }
 
 
