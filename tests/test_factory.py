@@ -30,7 +30,7 @@ def test_next_job_prints_one_improve_job() -> None:
     job = json.loads(picked)
     assert job["work_source"] == state.get("next_work_source", "improve")
     assert job.get("job_id")
-    assert job["pr_plan_cursor"] == "pr-76"
+    assert job["pr_plan_cursor"] == "pr-77"
 
 
 def test_ci_test_job_splits_apt_install() -> None:
@@ -66,9 +66,21 @@ def test_ci_test_job_splits_apt_install() -> None:
     assert "Install jvm/beam langs" in text
     assert "Install GNU Smalltalk" in text
     assert "gnu-smalltalk_${ver}_amd64.deb" in text
-    assert "python3 -m honepad.cli run bank_system --lang lua --level 4" in text
-    assert "python3 -m honepad.cli run bank_system --lang smalltalk --level 4" in text
-    assert "python3 -m honepad.cli run bank_system --lang freepascal --level 4" in text
-    assert "python3 -m honepad.cli run bank_system --lang clojure --level 4" in text
-    assert "python3 -m honepad.cli run bank_system --lang powershell --level 4" in text
-    assert "python3 -m honepad.cli run bank_system --lang shell --level 4" in text
+    assert "Install PowerShell" in text
+
+
+def test_ci_test_job_keeps_short_cli_smoke() -> None:
+    text = (ROOT / ".github/workflows/ci.yml").read_text()
+    assert "pytest covers the matrix; these are CLI smokes" in text
+    runs = [line.strip() for line in text.splitlines() if "honepad.cli run" in line]
+    assert runs == [
+        "- run: python3 -m honepad.cli run bank_system --lang python3 --level 4",
+        "- run: python3 -m honepad.cli run in_memory_database --lang python3 --level 4",
+        "- run: python3 -m honepad.cli run file_storage --lang python3 --level 4",
+        "- run: python3 -m honepad.cli run workers --lang python3 --level 3",
+        "- run: python3 -m honepad.cli run bank_system --lang go --level 4",
+        "- run: python3 -m honepad.cli run bank_system --lang perl --level 4",
+    ]
+    assert "python3 -m pytest" in text
+    assert "name: Stealth" in text
+    assert "name: Lint" in text
