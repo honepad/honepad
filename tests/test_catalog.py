@@ -62,3 +62,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("octave")["ci"] is True
     assert language("nim")["adapter"] == "nim"
     assert language("nim")["ci"] is True
+    assert language("groovy")["adapter"] == "groovy"
+    assert language("groovy")["ci"] is True
