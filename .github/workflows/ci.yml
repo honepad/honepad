@@ -75,6 +75,10 @@ jobs:
         with:
           php-version: "8.3"
           coverage: none
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: "21"
       - run: python3 -m pip install -e ".[dev]"
       - run: python3 -m pytest
       - run: python3 -m honepad.cli run bank_system --lang python3 --level 4
@@ -83,6 +87,7 @@ jobs:
       - run: python3 -m honepad.cli run bank_system --lang rust --level 4
       - run: python3 -m honepad.cli run bank_system --lang ruby --level 4
       - run: python3 -m honepad.cli run bank_system --lang php --level 4
+      - run: python3 -m honepad.cli run bank_system --lang java --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 

@@ -25,5 +25,6 @@ Priority (first match wins):
 - `pr-9` php ICA runner for the same traces
 - `pr-10` java ICA runner for the same traces
 - `pr-11` typescript ICA runner for the same traces
+- `pr-12` csharp ICA runner for the same traces
 
 `--concurrency 1`. One ready PR.

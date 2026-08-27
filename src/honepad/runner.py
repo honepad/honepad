@@ -298,6 +298,58 @@ def run_rust(problem: str, level: int, kind: str = "solution") -> Report:
     return Report(problem, "rust", level, int(payload.get("passed", 0)), failed)
 
 
+def java_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "java" / "problems" / problem
+    name = "solution.java" if kind == "solution" else "stub.java"
+    return pack / name
+
+
+def run_java(problem: str, level: int, kind: str = "solution") -> Report:
+    src = java_entry(problem, kind)
+    java_dir = repo_root() / "langs" / "java"
+    class_name = class_for_problem(problem)
+    cases = load_cases(problem, level)
+    with tempfile.TemporaryDirectory() as tmp:
+        tmpdir = Path(tmp)
+        shutil.copy(java_dir / "Adapter.java", tmpdir / "Adapter.java")
+        shutil.copy(java_dir / "MiniJson.java", tmpdir / "MiniJson.java")
+        shutil.copy(src, tmpdir / f"{class_name}.java")
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
+            json.dump(cases, handle)
+            cases_path = handle.name
+        compiled = subprocess.run(
+            ["javac", "Adapter.java", "MiniJson.java", f"{class_name}.java"],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if compiled.returncode != 0:
+            raise RuntimeError(compiled.stderr or compiled.stdout or "javac failed")
+        proc = subprocess.run(
+            ["java", "Adapter", cases_path, class_name],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+    if not proc.stdout.strip():
+        raise RuntimeError(proc.stderr or "java adapter produced no output")
+    payload = json.loads(proc.stdout.splitlines()[-1])
+    failed = [
+        Fail(
+            row["case"],
+            row["index"],
+            row["method"],
+            [],
+            row["expected"],
+            row["actual"],
+        )
+        for row in payload.get("failed", [])
+    ]
+    return Report(problem, "java", level, int(payload.get("passed", 0)), failed)
+
+
 def run(
     problem: str,
     lang_id: str,
@@ -317,6 +369,8 @@ def run(
         return run_go(problem, level, kind)
     if row["id"] == "rust":
         return run_rust(problem, level, kind)
+    if row["id"] == "java":
+        return run_java(problem, level, kind)
     raise NotImplementedError(
         f"runner for {lang_id} is a factory job (adapter={row.get('adapter')})"
     )
