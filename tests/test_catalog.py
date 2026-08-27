@@ -101,5 +101,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("fsharp")["ci"] is True
     assert language("freepascal")["adapter"] == "fpc"
     assert language("freepascal")["ci"] is True
-    assert language("smalltalk")["adapter"] == "stub"
-    assert language("smalltalk")["ci"] is False
+    assert language("smalltalk")["adapter"] == "gst"
+    assert language("smalltalk")["ci"] is True

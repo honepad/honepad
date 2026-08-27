@@ -541,6 +541,34 @@ def _sbcl() -> str:
     raise RuntimeError("sbcl not found")
 
 
+def _gst() -> str:
+    path = shutil.which("gst")
+    if path:
+        return path
+    raise RuntimeError("gst not found")
+
+
+def run_smalltalk(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "smalltalk" / "problems" / problem
+    src = pack / ("solution.st" if kind == "solution" else "stub.st")
+    adapter = repo_root() / "langs" / "smalltalk" / "adapter.st"
+    return run_script(
+        problem,
+        "smalltalk",
+        level,
+        kind,
+        [
+            _gst(),
+            "-q",
+            "--no-user-files",
+            str(adapter),
+            "-a",
+            str(src),
+            class_for_problem(problem),
+        ],
+    )
+
+
 def run_common_lisp(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "common-lisp" / "problems" / problem
     src = pack / ("solution.lisp" if kind == "solution" else "stub.lisp")
@@ -1139,6 +1167,7 @@ _RUNNERS = {
     "coffeescript": run_coffeescript,
     "bash": run_bash,
     "common-lisp": run_common_lisp,
+    "smalltalk": run_smalltalk,
     "freepascal": run_freepascal,
     "go": run_go,
     "rust": run_rust,
