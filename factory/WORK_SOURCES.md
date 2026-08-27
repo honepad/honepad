@@ -47,5 +47,6 @@ Priority (first match wins):
 - `pr-31` share temp-dir compile for go rust java csharp kotlin cpp swift
 - `pr-32` next MPI (QA: go stub fails bank traces)
 - `pr-33` next MPI (QA: rust stub fails bank traces)
+- `pr-34` next MPI (QA: java stub fails bank traces)
 
 `--concurrency 1`. One ready PR.
