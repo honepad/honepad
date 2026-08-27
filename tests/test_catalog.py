@@ -70,3 +70,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("elixir")["ci"] is True
     assert language("erlang")["adapter"] == "escript"
     assert language("erlang")["ci"] is True
+    assert language("haskell")["adapter"] == "ghc"
+    assert language("haskell")["ci"] is True
