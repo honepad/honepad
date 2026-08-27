@@ -44,6 +44,11 @@ def test_kotlin_stub_fails() -> None:
     assert not report.ok
 
 
+def test_cpp_stub_fails() -> None:
+    report = run("bank_system", "cpp", 1, "stub")
+    assert not report.ok
+
+
 def test_javascript_bank_and_db() -> None:
     bank = run("bank_system", "javascript", 4, "solution")
     assert bank.ok, bank.failed
