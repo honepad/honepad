@@ -39,5 +39,6 @@ Priority (first match wins):
 - `pr-23` next MPI (start different problem replaces session)
 - `pr-24` next MPI (start same problem keeps unlock)
 - `pr-25` next MPI (expired timer remaining_s is 0)
+- `pr-26` next MPI (CLI run --kind stub does not unlock)
 
 `--concurrency 1`. One ready PR.
