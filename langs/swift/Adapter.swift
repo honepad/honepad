@@ -52,8 +52,11 @@ func jsonEqual(_ left: Any, _ right: Any) -> Bool {
   if left is NSNull, right is NSNull {
     return true
   }
-  if isJSONBool(left), isJSONBool(right) {
-    return ((left as? Bool) ?? false) == ((right as? Bool) ?? false)
+  if isJSONBool(left) || isJSONBool(right) {
+    guard let leftFlag = coerceBool(left), let rightFlag = coerceBool(right) else {
+      return false
+    }
+    return leftFlag == rightFlag
   }
   if let leftText = left as? String, let rightText = right as? String {
     return leftText == rightText

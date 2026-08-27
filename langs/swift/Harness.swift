@@ -30,6 +30,23 @@ func isJSONBool(_ value: Any) -> Bool {
   return type(of: value) == Bool.self
 }
 
+func coerceBool(_ value: Any) -> Bool? {
+  if isJSONBool(value) {
+    if let flag = value as? Bool {
+      return flag
+    }
+    return (value as? NSNumber)?.boolValue
+  }
+  // Linux JSONSerialization boxes JSON true/false as NSNumber 1/0.
+  if let number = value as? NSNumber {
+    let whole = number.int64Value
+    if (whole == 0 || whole == 1), number.doubleValue == Double(whole) {
+      return whole == 1
+    }
+  }
+  return nil
+}
+
 func asInt64(_ value: Any) -> Int64? {
   if isJSONBool(value) {
     return nil
