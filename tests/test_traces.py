@@ -58,6 +58,12 @@ def test_ruby_stub_fails() -> None:
     assert not report.ok
 
 
+def test_script_stubs_fail() -> None:
+    for lang in ("javascript", "php", "typescript"):
+        report = run("bank_system", lang, 1, "stub")
+        assert not report.ok, lang
+
+
 def test_go_all_problems() -> None:
     for problem, level in (
         ("bank_system", 4),
