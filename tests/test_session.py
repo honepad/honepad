@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from honepad.cli import main
@@ -46,3 +47,27 @@ def test_timer_reads_session(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "NEXT:" in out
     left = int(out.split("remaining_s=")[1].split()[0])
     assert 0 < left <= 5400
+
+
+def test_timer_remaining_after_mocked_clock(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    started = 1_700_000_000
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": started,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("honepad.session.time.time", lambda: started + 120)
+    assert main(["timer"]) == 0
+    out = capsys.readouterr().out
+    assert "remaining_s=5280" in out
+    assert "started_at=1700000000" in out

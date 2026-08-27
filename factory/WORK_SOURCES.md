@@ -34,5 +34,6 @@ Priority (first match wins):
 - `pr-18` first MPI pass on the runner
 - `pr-19` next MPI (QA: stub fails for every script lang)
 - `pr-20` next MPI (timer remaining_s after mocked clock)
+- `pr-21` next MPI (unlock does not skip a level)
 
 `--concurrency 1`. One ready PR.
