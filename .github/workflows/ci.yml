@@ -100,6 +100,7 @@ jobs:
       - name: Install Lua
         run: sudo apt-get update && sudo apt-get install -y lua5.4 tcl r-base r-cran-jsonlite octave nim groovy elixir ghc ocaml gdc
       - run: python3 -m pip install -e ".[dev]"
+      - run: npm install -g coffeescript@2.7.0
       - run: python3 -m pytest
       - run: python3 -m honepad.cli run bank_system --lang python3 --level 4
       - run: python3 -m honepad.cli run in_memory_database --lang python3 --level 4
@@ -134,6 +135,7 @@ jobs:
       - run: python3 -m honepad.cli run bank_system --lang scala --level 4
       - run: python3 -m honepad.cli run bank_system --lang d --level 4
       - run: python3 -m honepad.cli run bank_system --lang julia --level 4
+      - run: python3 -m honepad.cli run bank_system --lang coffeescript --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 

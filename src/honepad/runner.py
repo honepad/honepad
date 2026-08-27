@@ -498,6 +498,29 @@ def run_julia(problem: str, level: int, kind: str = "solution") -> Report:
     )
 
 
+def _coffee() -> list[str]:
+    path = shutil.which("coffee")
+    if path:
+        return [path]
+    npx = shutil.which("npx")
+    if npx:
+        return [npx, "--yes", "-p", "coffeescript@2.7.0", "coffee"]
+    raise RuntimeError("coffee not found")
+
+
+def run_coffeescript(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "coffeescript" / "problems" / problem
+    src = pack / ("solution.coffee" if kind == "solution" else "stub.coffee")
+    adapter = repo_root() / "langs" / "coffeescript" / "adapter.coffee"
+    return run_script(
+        problem,
+        "coffeescript",
+        level,
+        kind,
+        [*_coffee(), str(adapter), str(src), class_for_problem(problem)],
+    )
+
+
 def run_groovy(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "groovy" / "problems" / problem
     src = pack / ("solution.groovy" if kind == "solution" else "stub.groovy")
@@ -963,6 +986,7 @@ _RUNNERS = {
     "scala": run_scala,
     "d": run_d,
     "julia": run_julia,
+    "coffeescript": run_coffeescript,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,
