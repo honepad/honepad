@@ -64,3 +64,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("nim")["ci"] is True
     assert language("groovy")["adapter"] == "groovy"
     assert language("groovy")["ci"] is True
+    assert language("dart")["adapter"] == "dart"
+    assert language("dart")["ci"] is True
