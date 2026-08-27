@@ -30,5 +30,7 @@ Priority (first match wins):
 - `pr-14` cpp ICA runner for the same traces
 - `pr-15` swift ICA runner for the same traces
 - `pr-16` prove python3+go on all problems
+- `pr-17` auto-approve on ready_for_review
+- `pr-18` first MPI pass on the runner
 
 `--concurrency 1`. One ready PR.
