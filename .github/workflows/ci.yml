@@ -97,8 +97,16 @@ jobs:
       - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32 # v3.0.2
         with:
           version: "1.10"
-      - name: Install Lua
-        run: sudo apt-get update && sudo apt-get install -y lua5.4 tcl r-base r-cran-jsonlite octave nim groovy elixir ghc ocaml gdc sbcl gfortran fp-compiler
+      - name: Update apt
+        run: sudo apt-get update
+      - name: Install script langs
+        run: sudo apt-get install -y lua5.4 tcl
+      - name: Install stats langs
+        run: sudo apt-get install -y r-base r-cran-jsonlite octave
+      - name: Install compiled langs
+        run: sudo apt-get install -y nim gdc gfortran fp-compiler ghc ocaml
+      - name: Install jvm/beam langs
+        run: sudo apt-get install -y groovy elixir sbcl
       - name: Install GNU Smalltalk
         run: |
           set -euo pipefail
