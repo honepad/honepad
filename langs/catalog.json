@@ -609,8 +609,8 @@
       "suites": [
         "extra"
       ],
-      "ci": false,
-      "adapter": "stub"
+      "ci": true,
+      "adapter": "bash"
     },
     {
       "id": "powershell",
