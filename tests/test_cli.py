@@ -37,3 +37,32 @@ def test_run_unknown_lang_id_exits(capsys) -> None:
     assert code in (1, 2)
     assert "notalang" in out
     assert "Traceback" not in out
+
+
+def test_start_unimplemented_catalog_lang_exits(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["start", "bank_system", "fortran"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code in (1, 2)
+    assert "FAIL" in out
+    assert "fortran" in out
+    assert "adapter=" in out
+    assert "OK: unlocked=" not in out
+    assert "Bank system level" not in out
+    assert "STUB:" not in out
+    assert "Traceback" not in out
+
+
+def test_start_unknown_lang_id_exits(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["start", "bank_system", "notalang"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code in (1, 2)
+    assert "FAIL" in out
+    assert "notalang" in out
+    assert "OK: unlocked=" not in out
+    assert "Bank system level" not in out
+    assert "STUB:" not in out
+    assert "Traceback" not in out

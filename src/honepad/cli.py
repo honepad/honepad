@@ -9,7 +9,7 @@ import time
 from typing import Any
 
 from honepad.catalog import language, languages, problems
-from honepad.runner import run
+from honepad.runner import _RUNNERS, run
 from honepad.session import (
     ensure_session,
     load_session,
@@ -30,6 +30,15 @@ def cmd_langs(_args: argparse.Namespace) -> int:
 
 
 def cmd_start(args: argparse.Namespace) -> int:
+    try:
+        row = language(args.lang)
+    except KeyError as exc:
+        msg = exc.args[0] if exc.args else str(exc)
+        print(f"FAIL: {msg}")
+        return 1
+    if row["id"] not in _RUNNERS:
+        print(f"FAIL: runner for {row['id']} is a factory job (adapter={row.get('adapter')})")
+        return 1
     session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=args.reset)
     unlocked = int(session["unlocked"])
     level = unlocked if args.level is None else args.level
@@ -41,7 +50,6 @@ def cmd_start(args: argparse.Namespace) -> int:
         print(f"FAIL: missing spec {spec}")
         return 1
     print(spec.read_text(encoding="utf-8"))
-    row = language(args.lang)
     stub = (
         problem_dir(args.problem).parent.parent
         / "langs"
