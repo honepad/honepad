@@ -43,3 +43,4 @@ def test_python3_is_import_adapter() -> None:
     assert language("php")["adapter"] == "php"
     assert language("java")["adapter"] == "javac"
     assert language("typescript")["adapter"] == "node"
+    assert language("csharp")["adapter"] == "dotnet"
