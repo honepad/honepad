@@ -101,6 +101,7 @@ ADAPTERS = {
     "cpp": "g++",
     "swift": "swiftc",
     "tcl": "tclsh",
+    "r": "Rscript",
 }
 
 CI = {
@@ -120,6 +121,7 @@ CI = {
     "kotlin",
     "swift",
     "tcl",
+    "r",
 }
 
 BANK_METHODS = [

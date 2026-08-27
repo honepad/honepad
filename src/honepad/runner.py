@@ -216,6 +216,26 @@ def run_tcl(problem: str, level: int, kind: str = "solution") -> Report:
     )
 
 
+def _rscript() -> str:
+    path = shutil.which("Rscript")
+    if path:
+        return path
+    raise RuntimeError("Rscript not found")
+
+
+def run_r(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "r" / "problems" / problem
+    src = pack / ("solution.R" if kind == "solution" else "stub.R")
+    adapter = repo_root() / "langs" / "r" / "adapter.R"
+    return run_script(
+        problem,
+        "r",
+        level,
+        kind,
+        [_rscript(), str(adapter), str(src), class_for_problem(problem)],
+    )
+
+
 def run_lua(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "lua" / "problems" / problem
     src = pack / ("solution.lua" if kind == "solution" else "stub.lua")
@@ -591,6 +611,7 @@ _RUNNERS = {
     "perl": run_perl,
     "lua": run_lua,
     "tcl": run_tcl,
+    "r": run_r,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,
