@@ -534,6 +534,26 @@ def run_bash(problem: str, level: int, kind: str = "solution") -> Report:
     )
 
 
+def _sbcl() -> str:
+    path = shutil.which("sbcl")
+    if path:
+        return path
+    raise RuntimeError("sbcl not found")
+
+
+def run_common_lisp(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "common-lisp" / "problems" / problem
+    src = pack / ("solution.lisp" if kind == "solution" else "stub.lisp")
+    adapter = repo_root() / "langs" / "common-lisp" / "adapter.lisp"
+    return run_script(
+        problem,
+        "common-lisp",
+        level,
+        kind,
+        [_sbcl(), "--script", str(adapter), str(src), class_for_problem(problem)],
+    )
+
+
 def run_groovy(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "groovy" / "problems" / problem
     src = pack / ("solution.groovy" if kind == "solution" else "stub.groovy")
@@ -1001,6 +1021,7 @@ _RUNNERS = {
     "julia": run_julia,
     "coffeescript": run_coffeescript,
     "bash": run_bash,
+    "common-lisp": run_common_lisp,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,
