@@ -103,3 +103,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("freepascal")["ci"] is True
     assert language("smalltalk")["adapter"] == "gst"
     assert language("smalltalk")["ci"] is True
+    assert language("clojure")["adapter"] == "clojure"
+    assert language("clojure")["ci"] is True

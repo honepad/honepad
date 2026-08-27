@@ -106,7 +106,7 @@ jobs:
       - name: Install compiled langs
         run: sudo apt-get install -y nim gdc gfortran fp-compiler ghc ocaml
       - name: Install jvm/beam langs
-        run: sudo apt-get install -y groovy elixir sbcl
+        run: sudo apt-get install -y groovy elixir sbcl clojure
       - name: Install GNU Smalltalk
         run: |
           set -euo pipefail
@@ -162,6 +162,7 @@ jobs:
       - run: python3 -m honepad.cli run bank_system --lang fsharp --level 4
       - run: python3 -m honepad.cli run bank_system --lang smalltalk --level 4
       - run: python3 -m honepad.cli run bank_system --lang freepascal --level 4
+      - run: python3 -m honepad.cli run bank_system --lang clojure --level 4
       - run: bash factory/scripts/write-ledger.sh --self-test
       - run: bash factory/scripts/next-job.sh
 

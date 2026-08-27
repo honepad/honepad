@@ -84,5 +84,6 @@ Priority (first match wins):
 - `pr-68` next improve MPI (expand: next cheap GCA language after smalltalk: freepascal)
 - `pr-69` next improve MPI (Maintainer: CI Test apt/deb install is too long; split or cache)
 - `pr-70` next improve MPI (expand: next remaining catalog lang Ubuntu can run, or skip to expand_cursor if none cheap)
+- `pr-71` next improve MPI (expand: powershell extra via pwsh if cheap on Ubuntu, else skip frontend/sql)
 
 `--concurrency 1`. One ready PR.
