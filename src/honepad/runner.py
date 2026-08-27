@@ -94,22 +94,25 @@ def run_python(
     return Report(problem, "python3", level, passed, failed)
 
 
-def run_javascript(problem: str, level: int, kind: str = "solution") -> Report:
-    pack = repo_root() / "langs" / "javascript" / "problems" / problem
-    src = pack / ("solution.js" if kind == "solution" else "stub.js")
-    adapter = repo_root() / "langs" / "javascript" / "adapter.js"
+def run_script(
+    problem: str,
+    lang_id: str,
+    level: int,
+    kind: str,
+    argv: list[str],
+) -> Report:
     cases = load_cases(problem, level)
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
         json.dump(cases, handle)
         cases_path = handle.name
     proc = subprocess.run(
-        ["node", str(adapter), str(src), class_for_problem(problem), cases_path],
+        [*argv, cases_path],
         check=False,
         capture_output=True,
         text=True,
     )
     if not proc.stdout.strip():
-        raise RuntimeError(proc.stderr or "javascript adapter produced no output")
+        raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
     payload = json.loads(proc.stdout.splitlines()[-1])
     failed = [
         Fail(
@@ -122,69 +125,46 @@ def run_javascript(problem: str, level: int, kind: str = "solution") -> Report:
         )
         for row in payload.get("failed", [])
     ]
-    return Report(problem, "javascript", level, int(payload.get("passed", 0)), failed)
+    return Report(problem, lang_id, level, int(payload.get("passed", 0)), failed)
+
+
+def run_javascript(problem: str, level: int, kind: str = "solution") -> Report:
+    pack = repo_root() / "langs" / "javascript" / "problems" / problem
+    src = pack / ("solution.js" if kind == "solution" else "stub.js")
+    adapter = repo_root() / "langs" / "javascript" / "adapter.js"
+    return run_script(
+        problem,
+        "javascript",
+        level,
+        kind,
+        ["node", str(adapter), str(src), class_for_problem(problem)],
+    )
 
 
 def run_ruby(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "ruby" / "problems" / problem
     src = pack / ("solution.rb" if kind == "solution" else "stub.rb")
     adapter = repo_root() / "langs" / "ruby" / "adapter.rb"
-    cases = load_cases(problem, level)
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-        json.dump(cases, handle)
-        cases_path = handle.name
-    proc = subprocess.run(
-        ["ruby", str(adapter), str(src), class_for_problem(problem), cases_path],
-        check=False,
-        capture_output=True,
-        text=True,
+    return run_script(
+        problem,
+        "ruby",
+        level,
+        kind,
+        ["ruby", str(adapter), str(src), class_for_problem(problem)],
     )
-    if not proc.stdout.strip():
-        raise RuntimeError(proc.stderr or "ruby adapter produced no output")
-    payload = json.loads(proc.stdout.splitlines()[-1])
-    failed = [
-        Fail(
-            row["case"],
-            row["index"],
-            row["method"],
-            [],
-            row["expected"],
-            row["actual"],
-        )
-        for row in payload.get("failed", [])
-    ]
-    return Report(problem, "ruby", level, int(payload.get("passed", 0)), failed)
 
 
 def run_php(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "php" / "problems" / problem
     src = pack / ("solution.php" if kind == "solution" else "stub.php")
     adapter = repo_root() / "langs" / "php" / "adapter.php"
-    cases = load_cases(problem, level)
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-        json.dump(cases, handle)
-        cases_path = handle.name
-    proc = subprocess.run(
-        ["php", str(adapter), str(src), class_for_problem(problem), cases_path],
-        check=False,
-        capture_output=True,
-        text=True,
+    return run_script(
+        problem,
+        "php",
+        level,
+        kind,
+        ["php", str(adapter), str(src), class_for_problem(problem)],
     )
-    if not proc.stdout.strip():
-        raise RuntimeError(proc.stderr or "php adapter produced no output")
-    payload = json.loads(proc.stdout.splitlines()[-1])
-    failed = [
-        Fail(
-            row["case"],
-            row["index"],
-            row["method"],
-            [],
-            row["expected"],
-            row["actual"],
-        )
-        for row in payload.get("failed", [])
-    ]
-    return Report(problem, "php", level, int(payload.get("passed", 0)), failed)
 
 
 def go_entry(problem: str, kind: str) -> Path:
@@ -403,31 +383,13 @@ def run_typescript(problem: str, level: int, kind: str = "solution") -> Report:
     pack = repo_root() / "langs" / "typescript" / "problems" / problem
     src = pack / ("solution.ts" if kind == "solution" else "stub.ts")
     adapter = repo_root() / "langs" / "javascript" / "adapter.js"
-    cases = load_cases(problem, level)
-    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as handle:
-        json.dump(cases, handle)
-        cases_path = handle.name
-    proc = subprocess.run(
-        ["node", str(adapter), str(src), class_for_problem(problem), cases_path],
-        check=False,
-        capture_output=True,
-        text=True,
+    return run_script(
+        problem,
+        "typescript",
+        level,
+        kind,
+        ["node", str(adapter), str(src), class_for_problem(problem)],
     )
-    if not proc.stdout.strip():
-        raise RuntimeError(proc.stderr or "typescript adapter produced no output")
-    payload = json.loads(proc.stdout.splitlines()[-1])
-    failed = [
-        Fail(
-            row["case"],
-            row["index"],
-            row["method"],
-            [],
-            row["expected"],
-            row["actual"],
-        )
-        for row in payload.get("failed", [])
-    ]
-    return Report(problem, "typescript", level, int(payload.get("passed", 0)), failed)
 
 
 def kotlin_entry(problem: str, kind: str) -> Path:
