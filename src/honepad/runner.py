@@ -504,7 +504,7 @@ def _coffee() -> list[str]:
         return [path]
     npx = shutil.which("npx")
     if npx:
-        return [npx, "--yes", "coffeescript@2.7.0"]
+        return [npx, "--yes", "-p", "coffeescript@2.7.0", "coffee"]
     raise RuntimeError("coffee not found")
 
 
