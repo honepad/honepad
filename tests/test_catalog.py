@@ -76,3 +76,5 @@ def test_python3_is_import_adapter() -> None:
     assert language("ocaml")["ci"] is True
     assert language("scala")["adapter"] == "scalac"
     assert language("scala")["ci"] is True
+    assert language("d")["adapter"] == "gdc"
+    assert language("d")["ci"] is True

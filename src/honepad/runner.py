@@ -388,6 +388,48 @@ def run_scala(problem: str, level: int, kind: str = "solution") -> Report:
     return run_compiled(problem, "scala", level, prepare)
 
 
+def d_entry(problem: str, kind: str) -> Path:
+    pack = repo_root() / "langs" / "d" / "problems" / problem
+    name = "solution.d" if kind == "solution" else "stub.d"
+    return pack / name
+
+
+def _d_compiler() -> str:
+    for name in ("gdc", "ldc2", "dmd"):
+        path = shutil.which(name)
+        if path:
+            return path
+    raise RuntimeError("d compiler not found")
+
+
+def _d_compile_cmd(compiler: str) -> list[str]:
+    name = Path(compiler).name.lower()
+    if name == "gdc" or name.startswith("gdc-"):
+        return [compiler, "-O0", "-o", "run", "adapter.d", "solution.d"]
+    return [compiler, "-O0", "-of=run", "adapter.d", "solution.d"]
+
+
+def run_d(problem: str, level: int, kind: str = "solution") -> Report:
+    src = d_entry(problem, kind)
+    d_dir = repo_root() / "langs" / "d"
+
+    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
+        shutil.copy(d_dir / "adapter.d", tmpdir / "adapter.d")
+        shutil.copy(src, tmpdir / "solution.d")
+        compiled = subprocess.run(
+            _d_compile_cmd(_d_compiler()),
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tmpdir,
+        )
+        if compiled.returncode != 0:
+            raise RuntimeError(compiled.stderr or compiled.stdout or "d compile failed")
+        return [str(tmpdir / "run"), cases_path]
+
+    return run_compiled(problem, "d", level, prepare)
+
+
 def run_ocaml(problem: str, level: int, kind: str = "solution") -> Report:
     src = ocaml_entry(problem, kind)
     ocaml_dir = repo_root() / "langs" / "ocaml"
@@ -899,6 +941,7 @@ _RUNNERS = {
     "haskell": run_haskell,
     "ocaml": run_ocaml,
     "scala": run_scala,
+    "d": run_d,
     "go": run_go,
     "rust": run_rust,
     "java": run_java,
