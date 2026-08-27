@@ -18,3 +18,22 @@ def test_timer_does_not_sleep(capsys) -> None:
     out = capsys.readouterr().out
     assert "remaining_s=5400" in out
     assert "NEXT:" in out
+
+
+def test_run_unimplemented_catalog_lang_exits(capsys) -> None:
+    code = main(["run", "bank_system", "--lang", "fortran", "--level", "1"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code in (1, 2)
+    assert "fortran" in out
+    assert "adapter=" in out
+    assert "Traceback" not in out
+
+
+def test_run_unknown_lang_id_exits(capsys) -> None:
+    code = main(["run", "bank_system", "--lang", "notalang", "--level", "1"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code in (1, 2)
+    assert "notalang" in out
+    assert "Traceback" not in out

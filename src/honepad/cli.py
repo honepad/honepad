@@ -65,7 +65,12 @@ def cmd_run(args: argparse.Namespace) -> int:
         level = int(session["unlocked"]) if practice and session is not None else 4
     else:
         level = args.level
-    report = run(args.problem, lang, level, kind=args.kind)
+    try:
+        report = run(args.problem, lang, level, kind=args.kind)
+    except (NotImplementedError, KeyError) as exc:
+        msg = exc.args[0] if exc.args else str(exc)
+        print(f"FAIL: {msg}")
+        return 1
     print(f"{report.problem} {report.lang} level<={report.level} passed={report.passed}")
     if report.failed:
         fail = report.failed[0]

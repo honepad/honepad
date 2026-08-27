@@ -59,5 +59,6 @@ Priority (first match wins):
 - `pr-43` next improve MPI (QA: unknown lang error mentions adapter)
 - `pr-44` next improve MPI (Maintainer: next-job.sh after improve still prints one job)
 - `pr-45` next improve MPI (adversary: honepad run unknown lang exits 2 or 1 via CLI if applicable; else skip to expand)
+- `pr-46` next improve MPI (End User: honepad start with an unimplemented catalog lang prints FAIL and exits 1)
 
 `--concurrency 1`. One ready PR.
