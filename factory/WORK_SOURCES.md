@@ -36,5 +36,6 @@ Priority (first match wins):
 - `pr-20` next MPI (timer remaining_s after mocked clock)
 - `pr-21` next MPI (unlock does not skip a level)
 - `pr-22` next MPI (start --reset clears unlock)
+- `pr-23` next MPI (start different problem replaces session)
 
 `--concurrency 1`. One ready PR.
