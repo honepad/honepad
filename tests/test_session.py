@@ -7,6 +7,7 @@ from honepad.session import load_session, remaining_s
 
 def test_remaining_s_floors_at_zero() -> None:
     assert remaining_s(started_at=100, minutes=1, now=100) == 60
+    assert remaining_s(started_at=100, minutes=1, now=161) == 0
     assert remaining_s(started_at=100, minutes=1, now=200) == 0
 
 
@@ -141,3 +142,26 @@ def test_timer_remaining_after_mocked_clock(monkeypatch, tmp_path: Path, capsys)
     out = capsys.readouterr().out
     assert "remaining_s=5280" in out
     assert "started_at=1700000000" in out
+
+
+def test_timer_expired_remaining_is_zero(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    started = 1_700_000_000
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": started,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("honepad.session.time.time", lambda: started + 90 * 60 + 5)
+    assert main(["timer"]) == 0
+    out = capsys.readouterr().out
+    assert "remaining_s=0" in out
