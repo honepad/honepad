@@ -41,3 +41,4 @@ def test_python3_is_import_adapter() -> None:
     assert language("rust")["adapter"] == "cargo-run"
     assert language("ruby")["adapter"] == "ruby"
     assert language("php")["adapter"] == "php"
+    assert language("java")["adapter"] == "javac"

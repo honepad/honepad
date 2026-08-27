@@ -248,7 +248,7 @@
         "ica"
       ],
       "ci": true,
-      "adapter": "stub"
+      "adapter": "javac"
     },
     {
       "id": "javascript",
