@@ -16,11 +16,12 @@ from honepad.session import (
     ensure_work_copy,
     load_session,
     max_level,
+    note_clock_restarted,
     remaining_s,
     unlock_next,
     work_src,
 )
-from honepad.term import file_link, work_line
+from honepad.term import file_link, start_next, work_line
 from honepad.traces import load_cases, method_name, problem_dir
 from honepad.workspace import write_workspace
 
@@ -50,23 +51,23 @@ def cmd_default(_args: argparse.Namespace) -> int:
 
 def _print_start_usage() -> None:
     print("FAIL: no session")
-    print("NEXT: honepad start bank_system java")
+    print(start_next())
     print("problems: " + ", ".join(problems()))
 
 
 def cmd_start(args: argparse.Namespace) -> int:
     if not args.problem or not args.lang:
         print("FAIL: start needs a problem and a language")
-        print("NEXT: honepad start bank_system java")
+        print(start_next())
         print("problems: " + ", ".join(problems()))
         return 1
     try:
         row = language(args.lang)
         if row["id"] not in _RUNNERS:
-            print(f"FAIL: runner for {row['id']} is a factory job (adapter={row.get('adapter')})")
+            print(f"FAIL: no runner for {row['id']}")
+            print(start_next())
             return 1
         session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=args.reset)
-        restarted = bool(session.pop("clock_restarted", False))
         unlocked = int(session["unlocked"])
         work = ensure_work_copy(args.problem, row["id"], reset=args.reset, level=unlocked)
         level = unlocked if args.level is None else args.level
@@ -93,12 +94,11 @@ def cmd_start(args: argparse.Namespace) -> int:
         "You are not expected to finish every level."
     )
     print("NOTE: honepad console opens a live menu (run, submit, reset, vscode).")
-    if restarted:
-        print("NOTE: previous clock was 0. New clock started. Work file kept.")
+    note_clock_restarted(session)
     left = remaining_s(started_at, minutes)
     print(f"OK: unlocked={unlocked} remaining_s={left}")
     if not getattr(args, "no_console", False) and sys.stdin.isatty() and sys.stdout.isatty():
-        return loop_console(session)
+        return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
     return 0
 
 

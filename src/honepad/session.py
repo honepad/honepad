@@ -179,6 +179,11 @@ def ensure_session(
     return current
 
 
+def note_clock_restarted(session: dict[str, Any]) -> None:
+    if session.pop("clock_restarted", False):
+        print("NOTE: previous clock was 0. New clock started. Work file kept.")
+
+
 def unlock_next(session: dict[str, Any]) -> int | None:
     nxt = int(session["unlocked"]) + 1
     if nxt > max_level(str(session["problem"])):

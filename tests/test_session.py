@@ -1,4 +1,6 @@
+import io
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -682,10 +684,86 @@ def test_start_after_expiry_restarts_clock_keeps_work(monkeypatch, tmp_path: Pat
     assert after is not None
     assert after["unlocked"] == 2
     assert after["started_at"] == now
-    assert remaining_s(int(after["started_at"]), int(after["minutes"]), now) > 0
+    assert remaining_s(int(after["started_at"]), int(after["minutes"]), now) == 5400
     assert "keep-me" in work.read_text(encoding="utf-8")
-    assert "previous clock" in out.lower() or "new clock" in out.lower()
-    assert "remaining_s=5400" in out or "remaining_s=90" in out
+    assert "NOTE: previous clock was 0. New clock started. Work file kept." in out
+    assert "remaining_s=5400" in out
+    on_disk = json.loads(session_file.read_text(encoding="utf-8"))
+    assert "clock_restarted" not in after
+    assert "clock_restarted" not in on_disk
+
+
+def test_start_while_time_remains_keeps_started_at(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    first = load_session()
+    assert first is not None
+    started = int(first["started_at"])
+    assert started == 1_700_000_000
+    clock["now"] = started + 30
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    capsys.readouterr()
+    after = load_session()
+    assert after is not None
+    assert after["started_at"] == started
+    assert after["unlocked"] == 1
+
+
+def _expired_session_with_edited_work(
+    monkeypatch, tmp_path: Path, capsys, *, lang: str = "java"
+) -> tuple[Path, int]:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    assert main(["start", "bank_system", lang, "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    if lang == "java":
+        work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+        work.write_text(
+            work.read_text(encoding="utf-8").replace(
+                "return false;", "return false; // keep-me", 1
+            ),
+            encoding="utf-8",
+        )
+    else:
+        work = tmp_path / "work" / "bank_system" / lang / "work.py"
+        work.write_text(work.read_text(encoding="utf-8") + "# keep-me\n", encoding="utf-8")
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 2
+    session["started_at"] = 1_700_000_000
+    session_file.write_text(json.dumps(session, indent=2) + "\n", encoding="utf-8")
+    now = 1_700_000_000 + 90 * 60 + 5
+    monkeypatch.setattr("honepad.session.time.time", lambda: now)
+    return work, now
+
+
+@pytest.mark.parametrize("argv", (["console"], ["vscode", "--no-open"], []))
+def test_resume_restarts_dead_clock_keeps_work(
+    monkeypatch, tmp_path: Path, capsys, argv: list[str]
+) -> None:
+    work, now = _expired_session_with_edited_work(monkeypatch, tmp_path, capsys)
+    if argv != ["vscode", "--no-open"]:
+        monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
+    assert main(argv) == 0
+    out = capsys.readouterr().out
+    after = load_session()
+    assert after is not None
+    assert after["unlocked"] == 2
+    assert after["started_at"] == now
+    assert remaining_s(int(after["started_at"]), int(after["minutes"]), now) == 5400
+    assert "keep-me" in work.read_text(encoding="utf-8")
+    assert "NOTE: previous clock was 0. New clock started. Work file kept." in out
+    assert "clock_restarted" not in after
+    if argv != ["vscode", "--no-open"]:
+        assert "remaining_s=5400" in out
+        assert "TIME UP" not in out
 
 
 def test_start_writes_spec_beside_work(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -709,6 +787,23 @@ def test_bare_honepad_no_session_prints_next(monkeypatch, tmp_path: Path, capsys
     assert "NEXT:" in out
     assert "honepad start" in out
     assert "bank_system" in out
+
+
+def test_bare_honepad_next_uses_argv0(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    monkeypatch.setattr(sys, "argv", ["./honepad"])
+    assert main([]) == 1
+    out = capsys.readouterr().out
+    assert "NEXT: ./honepad start bank_system java" in out
+
+
+def test_bare_honepad_next_uses_module_form(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    monkeypatch.setattr(sys, "argv", [str(Path("src") / "honepad" / "__main__.py")])
+    assert main([]) == 1
+    out = capsys.readouterr().out
+    exe = Path(sys.executable).name or "python3"
+    assert f"NEXT: {exe} -m honepad start bank_system java" in out
 
 
 def test_start_without_args_prints_next(monkeypatch, tmp_path: Path, capsys) -> None:

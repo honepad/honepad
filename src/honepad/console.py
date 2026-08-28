@@ -14,14 +14,15 @@ from honepad.session import (
     ensure_session,
     ensure_work_copy,
     load_session,
+    note_clock_restarted,
     remaining_s,
     work_src,
 )
-from honepad.term import file_link, format_clock, work_line
+from honepad.term import file_link, format_clock, invocation, start_next, work_line
 from honepad.traces import problem_dir
-from honepad.workspace import open_vscode, public_test_file, write_workspace
+from honepad.workspace import open_vscode, public_test_file, workspace_dir, write_workspace
 
-_MENU = "1 run  2 submit (local)  3 reset  4 spec  5 vscode  q quit"
+_MENU = "1 run  2 submit (local)  3 reset work  4 spec  5 vscode  q quit"
 
 
 def render_banner(session: dict[str, Any], now: int | None = None) -> str:
@@ -37,6 +38,7 @@ def render_banner(session: dict[str, Any], now: int | None = None) -> str:
     ]
     if left == 0:
         lines.append("TIME UP: submit will not unlock.")
+        lines.append("NOTE: a new clock is quit then start (keeps work). 3 deletes the file.")
     return "\n".join(lines)
 
 
@@ -50,7 +52,7 @@ def cmd_console(args: argparse.Namespace) -> int:
             level=int(session["unlocked"]),
         )
     except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
-        print(f"FAIL: {exc}")
+        _print_fail(exc)
         return 1
     return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
 
@@ -70,13 +72,14 @@ def cmd_vscode(args: argparse.Namespace) -> int:
             int(session["unlocked"]),
         )
         print(f"WORKSPACE: {file_link(path)}")
+        _print_spec_link(str(session["problem"]), str(session["lang"]))
         _print_tests(str(session["problem"]), str(session["lang"]))
         if args.no_open:
             print("OK: wrote workspace")
             return 0
         return open_vscode(path)
     except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
-        print(f"FAIL: {exc}")
+        _print_fail(exc)
         return 1
 
 
@@ -104,6 +107,16 @@ def loop_console(
                 return 0
             if choice == "":
                 continue
+            if choice in {"3", "reset"}:
+                confirmed = _confirm_reset(session, stdin, stdout)
+                if confirmed is None:
+                    return last
+                if confirmed == "quit":
+                    stdout.write("OK: quit\n")
+                    stdout.flush()
+                    return 0
+                if confirmed is False:
+                    continue
             last = dispatch(choice, session, stdout)
     except KeyboardInterrupt:
         stdout.write("\nOK: quit\n")
@@ -133,6 +146,9 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
             ensure_work_copy(problem, lang, reset=False, level=unlocked)
             path = write_workspace(problem, lang, unlocked)
             stdout.write(f"WORKSPACE: {file_link(path)}\n")
+            spec = _spec_output(problem, lang)
+            if spec is not None:
+                stdout.write(spec + "\n")
             tests = _tests_output(problem, lang)
             if tests is not None:
                 stdout.write(tests + "\n")
@@ -154,10 +170,50 @@ def _tests_output(problem: str, lang: str) -> str | None:
     return f"TESTS: {file_link(path)}"
 
 
+def _spec_output(problem: str, lang: str) -> str | None:
+    root = workspace_dir(problem, lang) / "public"
+    current = root / "spec" / "current.md"
+    if current.is_file():
+        return f"SPEC: {file_link(current)}"
+    public_spec = root / "spec.md"
+    if public_spec.is_file():
+        return f"SPEC: {file_link(public_spec)}"
+    return None
+
+
 def _print_tests(problem: str, lang: str) -> None:
     line = _tests_output(problem, lang)
     if line is not None:
         print(line)
+
+
+def _print_spec_link(problem: str, lang: str) -> None:
+    line = _spec_output(problem, lang)
+    if line is not None:
+        print(line)
+
+
+def _print_fail(exc: BaseException) -> None:
+    print(f"FAIL: {exc}")
+    if str(exc).startswith("no runner for "):
+        print(start_next())
+
+
+def _confirm_reset(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> bool | str | None:
+    stdout.write("Type yes to wipe the work file.\n")
+    left = remaining_s(int(session["started_at"]), int(session["minutes"]))
+    if left == 0:
+        stdout.write("NEXT: quit then start starts a new clock and keeps work.\n")
+    stdout.flush()
+    line = stdin.readline()
+    if line == "":
+        return None
+    confirm = line.strip().lower()
+    if confirm == "yes":
+        return True
+    if confirm in {"q", "quit"}:
+        return "quit"
+    return False
 
 
 def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:
@@ -168,14 +224,17 @@ def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:
     if problem is None:
         session = load_session()
         if session is None:
-            raise ValueError("no session. Start with: honepad start bank_system java")
+            raise ValueError(f"no session. Start with: {invocation()} start bank_system java")
         minutes = int(session["minutes"])
-        return ensure_session(str(session["problem"]), str(session["lang"]), minutes=minutes)
-    row = language(str(lang))
-    if row["id"] not in _RUNNERS:
-        raise ValueError(f"runner for {row['id']} is a factory job (adapter={row.get('adapter')})")
-    minutes = int(getattr(args, "minutes", 90) or 90)
-    return ensure_session(str(problem), row["id"], minutes=minutes, reset=False)
+        session = ensure_session(str(session["problem"]), str(session["lang"]), minutes=minutes)
+    else:
+        row = language(str(lang))
+        if row["id"] not in _RUNNERS:
+            raise ValueError(f"no runner for {row['id']}")
+        minutes = int(getattr(args, "minutes", 90) or 90)
+        session = ensure_session(str(problem), row["id"], minutes=minutes, reset=False)
+    note_clock_restarted(session)
+    return session
 
 
 def _run_work(problem: str, lang: str) -> int:

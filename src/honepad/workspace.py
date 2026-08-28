@@ -46,6 +46,7 @@ def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
     row = language(lang)
     if row["id"] == "java":
         _write_java_public(public, work, problem, cases, unlocked)
+        _write_work_java_settings(work.parent)
     elif row["id"] == "python3":
         _write_python_public(public, work, problem, cases)
     _write_readme(public, problem, lang, unlocked, work)
@@ -53,9 +54,8 @@ def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
     folders = [
         {"name": "spec", "path": str(spec_folder.resolve())},
         {"name": "public-tests", "path": str(public.resolve())},
+        {"name": "work", "path": str(work.parent.resolve())},
     ]
-    if row["id"] != "java":
-        folders.append({"name": "work", "path": str(work.parent.resolve())})
     payload = {
         "folders": folders,
         "settings": _workspace_settings(row["id"]),
@@ -73,7 +73,13 @@ def open_vscode(path: Path) -> int:
         print("NOTE: macOS Command Palette \"Shell Command: Install 'code' command in PATH\"")
         print(f"WORKSPACE: {file_link(path)}")
         return 1
-    subprocess.Popen([*cmd, "--new-window", str(path)])
+    subprocess.Popen(
+        [*cmd, "--new-window", str(path)],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
     print(f"OK: {file_link(path)}")
     return 0
 
@@ -108,7 +114,33 @@ def _workspace_settings(lang: str) -> dict[str, object]:
     if lang == "java":
         settings["java.configuration.updateBuildConfiguration"] = "automatic"
         settings["java.import.maven.enabled"] = True
+        settings["java.project.explorer.showNonJavaResources"] = True
+        # work/ is a multi-root folder and is also linked under public/src.
+        # Exclude it so JDT does not import two Simulation copies.
+        settings["java.import.exclusions"] = [
+            "**/node_modules/**",
+            "**/.metadata/**",
+            "**/archetype-resources/**",
+            "**/META-INF/maven/**",
+            "**/work/**",
+        ]
     return settings
+
+
+def _write_work_java_settings(work_dir: Path) -> None:
+    vscode = work_dir / ".vscode"
+    vscode.mkdir(parents=True, exist_ok=True)
+    (vscode / "settings.json").write_text(
+        json.dumps(
+            {
+                "java.import.maven.enabled": False,
+                "java.import.gradle.enabled": False,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 
 def _write_extensions(public: Path, ids: list[str]) -> None:
@@ -250,6 +282,7 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
             "problemMatcher": [],
         }
     ]
+    public_cwd = "${workspaceFolder:public-tests}"
     if lang == "java":
         tasks.append(
             {
@@ -258,7 +291,7 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
                 "command": "mvn",
                 "args": ["-q", "test"],
                 "group": "test",
-                "options": {"cwd": "${workspaceFolder}"},
+                "options": {"cwd": public_cwd},
                 "problemMatcher": [],
             }
         )
@@ -266,9 +299,9 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
             {
                 "label": "Run public tests (javac)",
                 "type": "shell",
-                "command": "${workspaceFolder}/run-public.sh",
+                "command": f"{public_cwd}/run-public.sh",
                 "group": "test",
-                "options": {"cwd": "${workspaceFolder}"},
+                "options": {"cwd": public_cwd},
                 "problemMatcher": [],
             }
         )
@@ -280,7 +313,7 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
                 "command": sys.executable,
                 "args": ["-m", "pytest", "test_public.py"],
                 "group": "test",
-                "options": {"cwd": "${workspaceFolder}"},
+                "options": {"cwd": public_cwd},
                 "problemMatcher": [],
             }
         )
