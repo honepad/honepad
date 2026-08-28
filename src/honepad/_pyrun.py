@@ -23,6 +23,7 @@ def main(argv: list[str] | None = None) -> int:
                 "case": row.case,
                 "index": row.index,
                 "method": row.method,
+                "args": row.args,
                 "expected": row.expected,
                 "actual": row.actual,
             }

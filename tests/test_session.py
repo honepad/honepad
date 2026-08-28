@@ -330,6 +330,9 @@ def test_run_with_session_uses_work_file(monkeypatch, tmp_path: Path, capsys) ->
     assert main(["run", "bank_system"]) == 1
     first = capsys.readouterr().out
     assert "UNLOCKED" not in first
+    assert "createAccount(1, 'acc1')" in first or 'createAccount(1, "acc1")' in first
+    assert "expected=True" in first or "expected=true" in first
+    assert "WORK:" in first
     assert load_session()["unlocked"] == 1
     work = tmp_path / "work" / "bank_system" / "java" / "work.java"
     solution = (
