@@ -1,4 +1,4 @@
-"""CLI: langs, start, run, timer."""
+"""CLI: langs, start, run, timer, console, vscode."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import time
 from typing import Any
 
 from honepad.catalog import language, languages, problems
+from honepad.console import cmd_console, cmd_vscode
 from honepad.runner import _RUNNERS, run
 from honepad.session import (
     ensure_session,
@@ -18,6 +19,7 @@ from honepad.session import (
     unlock_next,
     work_src,
 )
+from honepad.term import work_line
 from honepad.traces import load_cases, method_name, problem_dir
 
 
@@ -49,18 +51,19 @@ def cmd_start(args: argparse.Namespace) -> int:
         return 1
     if level > unlocked:
         print(f"LOCKED: level {level} (unlocked={unlocked})")
-        print(f"WORK: {work}")
+        print(work_line(work))
         return 1
     spec = problem_dir(args.problem) / "spec" / f"level{level}.md"
     if not spec.is_file():
         print(f"FAIL: missing spec {spec}")
         return 1
     print(spec.read_text(encoding="utf-8"))
-    print(f"\nWORK: {work}")
+    print(f"\n{work_line(work)}")
     print(
         f"NOTE: {minutes} minutes measures how far you get. "
         "You are not expected to finish every level."
     )
+    print("NOTE: honepad console opens a live menu (run, submit, reset, vscode).")
     left = remaining_s(started_at, minutes)
     print(f"OK: unlocked={unlocked} remaining_s={left}")
     return 0
@@ -116,7 +119,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             f"expected={fail.expected!r} actual={fail.actual!r}"
         )
         if kind == "work":
-            print(f"WORK: {work_src(args.problem, lang)}")
+            print(work_line(work_src(args.problem, lang)))
         return 1
     if report.passed == 0:
         print("FAIL: no cases")
@@ -203,6 +206,33 @@ def build_parser() -> argparse.ArgumentParser:
     cases.add_argument("problem", choices=problems())
     cases.add_argument("--level", type=int, default=4)
     cases.set_defaults(func=cmd_cases)
+
+    console = sub.add_parser(
+        "console",
+        help="live practice menu",
+        description=(
+            "Live menu with remaining_s clock. 1 run tests, 2 submit (local), "
+            "3 reset work, 4 spec, 5 vscode workspace. Paths use OSC 8 file:// links."
+        ),
+    )
+    console.add_argument("problem", nargs="?", choices=problems())
+    console.add_argument("lang", nargs="?")
+    console.add_argument("--minutes", type=int, default=90)
+    console.set_defaults(func=cmd_console)
+
+    vscode = sub.add_parser(
+        "vscode",
+        help="open work plus public tests in VS Code",
+        description=(
+            "Write a VS Code workspace with the work file and unlocked public traces, "
+            "then open it with `code` when on PATH."
+        ),
+    )
+    vscode.add_argument("problem", nargs="?", choices=problems())
+    vscode.add_argument("lang", nargs="?")
+    vscode.add_argument("--minutes", type=int, default=90)
+    vscode.add_argument("--no-open", action="store_true")
+    vscode.set_defaults(func=cmd_vscode)
     return p
 
 
