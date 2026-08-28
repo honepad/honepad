@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from honepad.cli import main
-from honepad.session import load_session, remaining_s, work_src
+from honepad.session import ensure_work_copy, load_session, remaining_s, work_src
 
 
 def test_remaining_s_floors_at_zero() -> None:
@@ -312,6 +312,30 @@ def test_legacy_java_leftover_dropped_when_dest_exists(monkeypatch, tmp_path: Pa
     found = work_src("bank_system", "java")
     assert found == dest
     assert dest.read_text(encoding="utf-8") == "live-marker\n"
+    assert not leftover.exists()
+
+
+def test_legacy_java_rename_oserror_copies_then_unlinks(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    dest_dir = tmp_path / "work" / "bank_system" / "java"
+    dest_dir.mkdir(parents=True)
+    leftover = dest_dir / "work.java"
+    dest = dest_dir / "Simulation.java"
+    leftover.write_text("marker-rename-fallback\n", encoding="utf-8")
+    assert not dest.exists()
+
+    def _fail_rename(self: Path, target: object) -> Path:
+        raise OSError("cross-device")
+
+    monkeypatch.setattr(Path, "rename", _fail_rename)
+    found = work_src("bank_system", "java")
+    assert found == dest
+    assert dest.is_file()
+    assert dest.read_text(encoding="utf-8") == "marker-rename-fallback\n"
+    assert not leftover.exists()
+    copied = ensure_work_copy("bank_system", "java", reset=False, level=1)
+    assert copied == dest
+    assert dest.read_text(encoding="utf-8") == "marker-rename-fallback\n"
     assert not leftover.exists()
 
 

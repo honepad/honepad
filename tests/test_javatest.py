@@ -41,6 +41,8 @@ def test_render_junit_l1_hides_later_methods() -> None:
     assert "assertNull(" in text
     assert 'assertEquals((Object) 500, sim.deposit(2, "acc1", 500));' in text
     assert "assertEquals(500, sim.deposit" not in text
+    assert "(Object) true" in text
+    assert 'assertEquals((Object) true, sim.createAccount(1, "acc1"));' in text
 
 
 def test_render_case_object_cast_and_assert_null() -> None:
@@ -67,6 +69,7 @@ def test_render_junit_l2_uses_list_of() -> None:
         assert java_ident(case["id"]) in text
     assert "topSpenders" in text
     assert "List.of(" in text
+    assert "(Object) List.of" in text
     assert "import java.util.List;" in text
 
 
