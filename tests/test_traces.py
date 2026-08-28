@@ -195,6 +195,14 @@ def test_java_stubs_declare_methods() -> None:
     assert "public String copyFile(String source, String dest)" in files
     workers = (root / "workers" / "stub.java").read_text(encoding="utf-8")
     assert "public String addWorker(String workerId, String position, int compensation)" in workers
+    assert "/**" in bank
+    assert "id(outgoing)" in bank
+    assert "/**" in db
+    assert "field(value)" in db
+    assert "/**" in files
+    assert "name(size)" in files
+    assert "/**" in workers
+    assert "id(time)" in workers
 
 
 def test_csharp_stub_fails() -> None:
