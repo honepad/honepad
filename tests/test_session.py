@@ -618,6 +618,146 @@ def test_corrupt_session_run_prints_fail(monkeypatch, tmp_path: Path, capsys) ->
     assert "Traceback" not in out
 
 
+def test_start_javascript_work_hides_later_methods(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "javascript", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "javascript" / "work.js"
+    text = work.read_text(encoding="utf-8")
+    assert "createAccount(" in text
+    assert "deposit(" in text
+    assert "transfer(" in text
+    assert "topSpenders(" not in text
+    assert "mergeAccounts(" not in text
+    assert "module.exports" in text
+
+
+def test_start_typescript_work_hides_later_methods(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "typescript", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "typescript" / "work.ts"
+    text = work.read_text(encoding="utf-8")
+    assert "createAccount(" in text
+    assert "topSpenders(" not in text
+    assert "getBalance(" not in text
+    assert "module.exports" in text
+
+
+def test_unlock_javascript_appends_next_methods(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "javascript", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "javascript" / "work.js"
+    text = work.read_text(encoding="utf-8")
+    work.write_text(text.replace("not implemented", "keep-me", 1), encoding="utf-8")
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED: level 2" in out
+    after = work.read_text(encoding="utf-8")
+    assert "keep-me" in after
+    assert "topSpenders(" in after
+    assert "mergeAccounts(" not in after
+    assert "module.exports" in after
+
+
+def test_existing_java_work_gets_missing_docs(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    dest_dir = tmp_path / "work" / "bank_system" / "java"
+    dest_dir.mkdir(parents=True)
+    work = dest_dir / "Simulation.java"
+    work.write_text(
+        """public class Simulation {
+    public Simulation() {}
+
+    public boolean createAccount(int timestamp, String accountId) {
+        return true;
+    }
+
+    public Integer deposit(int timestamp, String accountId, int amount) {
+        return amount;
+    }
+
+    public Integer transfer(
+            int timestamp, String sourceAccountId, String targetAccountId, int amount) {
+        return null;
+    }
+}
+""",
+        encoding="utf-8",
+    )
+    copied = ensure_work_copy("bank_system", "java", reset=False, level=1)
+    text = copied.read_text(encoding="utf-8")
+    assert "return true;" in text
+    assert "return amount;" in text
+    assert "Returns true if created" in text
+    assert "Add funds" in text
+    assert "topSpenders" not in text
+
+
+def test_existing_python_work_gets_missing_docs(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    dest_dir = tmp_path / "work" / "bank_system" / "python3"
+    dest_dir.mkdir(parents=True)
+    work = dest_dir / "work.py"
+    work.write_text(
+        """class Simulation:
+    def __init__(self):
+        pass
+
+    def create_account(self, timestamp, account_id):
+        return True
+
+    def deposit(self, timestamp, account_id, amount):
+        return amount
+
+    def transfer(self, timestamp, source_account_id, target_account_id, amount):
+        return None
+""",
+        encoding="utf-8",
+    )
+    copied = ensure_work_copy("bank_system", "python3", reset=False, level=1)
+    text = copied.read_text(encoding="utf-8")
+    assert "return True" in text
+    assert "return amount" in text
+    assert '"""Create an account.' in text
+    assert "def top_spenders(" not in text
+
+
+def test_existing_docs_are_not_replaced(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    dest_dir = tmp_path / "work" / "bank_system" / "java"
+    dest_dir.mkdir(parents=True)
+    work = dest_dir / "Simulation.java"
+    work.write_text(
+        """public class Simulation {
+    public Simulation() {}
+
+    /** Candidate note. */
+    public boolean createAccount(int timestamp, String accountId) {
+        return true;
+    }
+
+    public Integer deposit(int timestamp, String accountId, int amount) {
+        return amount;
+    }
+
+    public Integer transfer(
+            int timestamp, String sourceAccountId, String targetAccountId, int amount) {
+        return null;
+    }
+}
+""",
+        encoding="utf-8",
+    )
+    copied = ensure_work_copy("bank_system", "java", reset=False, level=1)
+    text = copied.read_text(encoding="utf-8")
+    assert "Candidate note." in text
+    assert "Returns true if created" not in text
+    assert "Add funds" in text
+    assert "return true;" in text
+
+
 def test_corrupt_session_start_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))

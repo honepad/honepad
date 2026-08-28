@@ -26,21 +26,28 @@ def slice_stub(text: str, ext: str, allowed: set[str], class_name: str) -> str:
         return _slice_java(text, allowed, class_name)
     if ext == "py":
         return _slice_python(text, allowed)
+    if ext in {"js", "ts"}:
+        return _slice_js(text, allowed, class_name)
     return text
 
 
 def merge_unlocked_methods(work: str, full: str, ext: str, allowed: set[str]) -> str:
     missing = [name for name in sorted(allowed) if not _declares(work, ext, name)]
-    if not missing:
-        return work
     if ext == "java":
         extras = "".join(_java_method(full, name) or "" for name in missing)
-        return _ensure_java_imports(_insert_before_last_brace(work, extras), full, extras)
+        if extras:
+            work = _ensure_java_imports(_insert_before_last_brace(work, extras), full, extras)
+        return _inject_java_docs(work, full, allowed)
     if ext == "py":
         extras = "".join(_python_method(full, name) or "" for name in missing)
-        if not extras:
-            return work
-        return work.rstrip() + "\n\n" + extras.lstrip("\n")
+        if extras:
+            work = work.rstrip() + "\n\n" + extras.lstrip("\n")
+        return _inject_python_docs(work, full, allowed)
+    if ext in {"js", "ts"}:
+        extras = "".join(_js_method(full, name) or "" for name in missing)
+        if extras:
+            return _insert_before_js_class_close(work, extras)
+        return work
     return work
 
 
@@ -53,7 +60,7 @@ def naming_for(lang_id: str) -> str:
 
 
 def _declares(text: str, ext: str, name: str) -> bool:
-    if ext == "java":
+    if ext == "java" or ext in {"js", "ts"}:
         return f"{name}(" in text
     if ext == "py":
         return f"def {name}(" in text
@@ -247,3 +254,203 @@ def _python_method(text: str, name: str) -> str | None:
             end = j
             break
     return "".join(lines[start:end])
+
+
+def _inject_java_docs(work: str, full: str, allowed: set[str]) -> str:
+    inserts: list[tuple[int, str]] = []
+    for name in allowed:
+        start = _java_method_start(work, name)
+        if start is None:
+            continue
+        pub = work.find("public ", start)
+        if pub < 0 or start < pub:
+            continue
+        stub_start = _java_method_start(full, name)
+        if stub_start is None:
+            continue
+        stub_pub = full.find("public ", stub_start)
+        if stub_pub < 0 or stub_start >= stub_pub:
+            continue
+        doc = full[stub_start:stub_pub]
+        if "/**" not in doc:
+            continue
+        inserts.append((pub, doc))
+    for pos, doc in sorted(inserts, reverse=True):
+        work = work[:pos] + doc + work[pos:]
+    return work
+
+
+def _python_has_doc(block: str) -> bool:
+    lines = block.splitlines()
+    i = 0
+    while i < len(lines) and not lines[i].lstrip().startswith("def "):
+        i += 1
+    while i < len(lines) and not lines[i].rstrip().endswith(":"):
+        i += 1
+    i += 1
+    while i < len(lines) and not lines[i].strip():
+        i += 1
+    if i >= len(lines):
+        return False
+    stripped = lines[i].lstrip()
+    return stripped.startswith('"""') or stripped.startswith("'''")
+
+
+def _python_doc_lines(full: str, name: str) -> str | None:
+    block = _python_method(full, name)
+    if block is None:
+        return None
+    lines = block.splitlines()
+    i = 0
+    while i < len(lines) and not lines[i].lstrip().startswith("def "):
+        i += 1
+    while i < len(lines) and not lines[i].rstrip().endswith(":"):
+        i += 1
+    i += 1
+    while i < len(lines) and not lines[i].strip():
+        i += 1
+    if i >= len(lines):
+        return None
+    stripped = lines[i].lstrip()
+    if not (stripped.startswith('"""') or stripped.startswith("'''")):
+        return None
+    quote = stripped[:3]
+    start = i
+    if stripped.count(quote) >= 2 and len(stripped) > 3:
+        return lines[i]
+    i += 1
+    while i < len(lines):
+        if quote in lines[i]:
+            return "\n".join(lines[start : i + 1])
+        i += 1
+    return None
+
+
+def _inject_python_docs(work: str, full: str, allowed: set[str]) -> str:
+    lines = work.splitlines(keepends=True)
+    inserts: list[tuple[int, list[str]]] = []
+    i = 0
+    while i < len(lines):
+        stripped = lines[i].lstrip()
+        if stripped.startswith("def "):
+            name = stripped[4:].split("(")[0]
+            if name in allowed:
+                block = _python_method(work, name)
+                if block is not None and not _python_has_doc(block):
+                    doc = _python_doc_lines(full, name)
+                    if doc:
+                        j = i
+                        while j < len(lines) and not lines[j].rstrip().endswith(":"):
+                            j += 1
+                        inserts.append((j + 1, [ln + "\n" for ln in doc.splitlines()]))
+        i += 1
+    for idx, chunk in sorted(inserts, reverse=True):
+        lines[idx:idx] = chunk
+    return "".join(lines)
+
+
+def _slice_js(text: str, allowed: set[str], class_name: str) -> str:
+    ctor = _js_method(text, "constructor") or "  constructor() {}\n"
+    methods = []
+    for name in _js_method_order(text):
+        if name == "constructor" or name not in allowed:
+            continue
+        block = _js_method(text, name)
+        if block:
+            methods.append(block)
+    body = ctor if ctor.endswith("\n") else ctor + "\n"
+    for block in methods:
+        body += block if block.endswith("\n") else block + "\n"
+    return _js_header(text, class_name) + body + _js_footer(text)
+
+
+def _js_header(text: str, class_name: str) -> str:
+    marker = f"class {class_name}"
+    idx = text.find(marker)
+    if idx < 0:
+        raise ValueError(f"missing {marker}")
+    brace = text.find("{", idx)
+    return text[: brace + 1] + "\n"
+
+
+def _js_footer(text: str) -> str:
+    for needle in ("module.exports", "export "):
+        idx = text.find(needle)
+        if idx >= 0:
+            tail = text[idx:]
+            if not tail.endswith("\n"):
+                tail += "\n"
+            return "}\n" + tail
+    return "}\n"
+
+
+def _js_method_order(text: str) -> list[str]:
+    names: list[str] = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if "(" not in stripped:
+            continue
+        if stripped.startswith(("class ", "module.exports", "export ")):
+            continue
+        name = stripped.split("(")[0].strip()
+        if name.isidentifier():
+            names.append(name)
+    return names
+
+
+def _js_method_start(text: str, name: str) -> int | None:
+    idx = 0
+    needle = f"{name}("
+    while True:
+        pos = text.find(needle, idx)
+        if pos < 0:
+            return None
+        if pos > 0 and (text[pos - 1].isalnum() or text[pos - 1] in "._"):
+            idx = pos + 1
+            continue
+        return text.rfind("\n", 0, pos) + 1
+
+
+def _js_method(text: str, name: str) -> str | None:
+    start = _js_method_start(text, name)
+    if start is None:
+        return None
+    return _brace_block(text, start)
+
+
+def _insert_before_js_class_close(text: str, extra: str) -> str:
+    if not extra:
+        return text
+    class_name = _js_class_name(text)
+    if class_name is None:
+        return text
+    close = _js_class_close(text, class_name)
+    prefix = text[:close].rstrip() + "\n"
+    return prefix + extra.lstrip("\n") + text[close:]
+
+
+def _js_class_name(text: str) -> str | None:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("class "):
+            return stripped[6:].split("{")[0].strip()
+    return None
+
+
+def _js_class_close(text: str, class_name: str) -> int:
+    marker = f"class {class_name}"
+    idx = text.find(marker)
+    if idx < 0:
+        raise ValueError(f"missing {marker}")
+    brace = text.find("{", idx)
+    depth = 0
+    i = brace
+    while i < len(text):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return i
+        i += 1
+    raise ValueError("unbalanced braces")
