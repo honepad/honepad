@@ -1,7 +1,11 @@
 import io
 import json
+import shutil
+import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 from honepad.cli import main
 from honepad.term import file_link, file_uri, format_clock
@@ -122,19 +126,45 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert "file://" in out
     payload = json.loads(dest.read_text(encoding="utf-8"))
     names = [folder["name"] for folder in payload["folders"]]
-    assert names == ["work", "public-tests"]
+    assert names == ["public-tests", "work"]
+    assert "vscjava.vscode-java-pack" in payload["extensions"]["recommendations"]
     public = dest.parent / "public"
     cases = json.loads((public / "cases.json").read_text(encoding="utf-8"))
     assert cases
     assert all(int(case["level"]) <= 1 for case in cases)
     assert (public / "Adapter.java").is_file()
     assert (public / "MiniJson.java").is_file()
-    assert (public / "Simulation.java").is_file()
+    assert (public / "src" / "main" / "java" / "Simulation.java").is_file()
+    assert (public / "src" / "test" / "java" / "PublicTracesTest.java").is_file()
+    junit = (public / "src" / "test" / "java" / "PublicTracesTest.java").read_text(encoding="utf-8")
+    assert "@Test" in junit
+    assert "org.junit.jupiter.api.Test" in junit
+    assert "createAccount" in junit
+    assert "mergeAccounts" not in junit
+    assert (public / "pom.xml").is_file()
+    pom = (public / "pom.xml").read_text(encoding="utf-8")
+    assert "junit-jupiter" in pom
     assert (public / "run-public.sh").is_file()
     assert (public / "spec.md").is_file()
     tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
     labels = [task["label"] for task in tasks["tasks"]]
     assert "Run public tests" in labels
+    assert "Run JUnit tests" in labels
+
+
+@pytest.mark.skipif(shutil.which("mvn") is None, reason="mvn not installed")
+def test_java_junit_project_compiles(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    dest = write_workspace("bank_system", "java", 1)
+    public = dest.parent / "public"
+    result = subprocess.run(
+        ["mvn", "-q", "-f", str(public / "pom.xml"), "test-compile"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_workspace_python_skips_java_adapter(monkeypatch, tmp_path: Path) -> None:
@@ -145,6 +175,12 @@ def test_workspace_python_skips_java_adapter(monkeypatch, tmp_path: Path) -> Non
     assert (public / "cases.json").is_file()
     assert not (public / "Adapter.java").exists()
     assert not (public / "run-public.sh").exists()
+    assert not (public / "pom.xml").exists()
+    assert (public / "test_public.py").is_file()
+    pytest_src = (public / "test_public.py").read_text(encoding="utf-8")
+    assert "def test_l1_create()" in pytest_src
+    assert "create_account" in pytest_src
+    assert "merge_accounts" not in pytest_src
 
 
 def test_vscode_missing_code_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
