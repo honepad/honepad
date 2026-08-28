@@ -126,7 +126,7 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
         return _print_spec(problem, unlocked, stdout)
     if choice in {"5", "vscode", "code"}:
         path = write_workspace(problem, lang, unlocked)
-        stdout.write(f"WORKSPACE: {path}\n")
+        stdout.write(f"WORKSPACE: {file_link(path)}\n")
         stdout.flush()
         return open_vscode(path)
     stdout.write(f"FAIL: unknown option {choice!r}\n")
