@@ -14,6 +14,7 @@ from honepad.session import (
     ensure_session,
     ensure_work_copy,
     load_session,
+    note_clock_restarted,
     remaining_s,
     work_src,
 )
@@ -170,12 +171,17 @@ def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:
         if session is None:
             raise ValueError("no session. Start with: honepad start bank_system java")
         minutes = int(session["minutes"])
-        return ensure_session(str(session["problem"]), str(session["lang"]), minutes=minutes)
-    row = language(str(lang))
-    if row["id"] not in _RUNNERS:
-        raise ValueError(f"runner for {row['id']} is a factory job (adapter={row.get('adapter')})")
-    minutes = int(getattr(args, "minutes", 90) or 90)
-    return ensure_session(str(problem), row["id"], minutes=minutes, reset=False)
+        session = ensure_session(str(session["problem"]), str(session["lang"]), minutes=minutes)
+    else:
+        row = language(str(lang))
+        if row["id"] not in _RUNNERS:
+            raise ValueError(
+                f"runner for {row['id']} is a factory job (adapter={row.get('adapter')})"
+            )
+        minutes = int(getattr(args, "minutes", 90) or 90)
+        session = ensure_session(str(problem), row["id"], minutes=minutes, reset=False)
+    note_clock_restarted(session)
+    return session
 
 
 def _run_work(problem: str, lang: str) -> int:

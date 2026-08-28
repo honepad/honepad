@@ -759,6 +759,8 @@ def test_resume_restarts_dead_clock_keeps_work(
     assert after["started_at"] == now
     assert remaining_s(int(after["started_at"]), int(after["minutes"]), now) == 5400
     assert "keep-me" in work.read_text(encoding="utf-8")
+    assert "NOTE: previous clock was 0. New clock started. Work file kept." in out
+    assert "clock_restarted" not in after
     if argv != ["vscode", "--no-open"]:
         assert "remaining_s=5400" in out
         assert "TIME UP" not in out

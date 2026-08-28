@@ -16,6 +16,7 @@ from honepad.session import (
     ensure_work_copy,
     load_session,
     max_level,
+    note_clock_restarted,
     remaining_s,
     unlock_next,
     work_src,
@@ -66,7 +67,6 @@ def cmd_start(args: argparse.Namespace) -> int:
             print(f"FAIL: runner for {row['id']} is a factory job (adapter={row.get('adapter')})")
             return 1
         session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=args.reset)
-        restarted = bool(session.pop("clock_restarted", False))
         unlocked = int(session["unlocked"])
         work = ensure_work_copy(args.problem, row["id"], reset=args.reset, level=unlocked)
         level = unlocked if args.level is None else args.level
@@ -93,8 +93,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         "You are not expected to finish every level."
     )
     print("NOTE: honepad console opens a live menu (run, submit, reset, vscode).")
-    if restarted:
-        print("NOTE: previous clock was 0. New clock started. Work file kept.")
+    note_clock_restarted(session)
     left = remaining_s(started_at, minutes)
     print(f"OK: unlocked={unlocked} remaining_s={left}")
     if not getattr(args, "no_console", False) and sys.stdin.isatty() and sys.stdout.isatty():
