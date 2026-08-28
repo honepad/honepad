@@ -30,11 +30,14 @@ def render_banner(session: dict[str, Any], now: int | None = None) -> str:
     unlocked = int(session["unlocked"])
     left = remaining_s(int(session["started_at"]), int(session["minutes"]), now)
     work = work_src(problem, lang)
-    return (
+    lines = [
         f"honepad  {problem}  {lang}  unlocked={unlocked}  "
-        f"remaining_s={left}  [{format_clock(left)}]\n"
-        f"{work_line(work)}"
-    )
+        f"remaining_s={left}  [{format_clock(left)}]",
+        work_line(work),
+    ]
+    if left == 0:
+        lines.append("TIME UP: submit will not unlock.")
+    return "\n".join(lines)
 
 
 def cmd_console(args: argparse.Namespace) -> int:
@@ -165,8 +168,9 @@ def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:
     if problem is None:
         session = load_session()
         if session is None:
-            raise ValueError("no session. Start with: honepad console bank_system java")
-        return session
+            raise ValueError("no session. Start with: honepad start bank_system java")
+        minutes = int(session["minutes"])
+        return ensure_session(str(session["problem"]), str(session["lang"]), minutes=minutes)
     row = language(str(lang))
     if row["id"] not in _RUNNERS:
         raise ValueError(f"runner for {row['id']} is a factory job (adapter={row.get('adapter')})")

@@ -45,7 +45,7 @@ def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
     spec_folder = _write_specs(public, problem, unlocked)
     row = language(lang)
     if row["id"] == "java":
-        _write_java_public(public, work, problem, cases)
+        _write_java_public(public, work, problem, cases, unlocked)
     elif row["id"] == "python3":
         _write_python_public(public, work, problem, cases)
     _write_readme(public, problem, lang, unlocked, work)
@@ -121,7 +121,11 @@ def _write_extensions(public: Path, ids: list[str]) -> None:
 
 
 def _write_java_public(
-    public: Path, work: Path, problem: str, cases: list[dict[str, object]]
+    public: Path,
+    work: Path,
+    problem: str,
+    cases: list[dict[str, object]],
+    unlocked: int,
 ) -> None:
     if not work.is_file():
         raise ValueError(f"work file missing: {work}")
@@ -134,6 +138,9 @@ def _write_java_public(
     test_java.mkdir(parents=True, exist_ok=True)
     class_name = class_name_for(problem)
     _link_or_copy(work, main_java / f"{class_name}.java")
+    spec = problem_dir(problem) / "spec" / f"level{unlocked}.md"
+    if spec.is_file():
+        (main_java / "spec.md").write_text(spec.read_text(encoding="utf-8"), encoding="utf-8")
     (test_java / "PublicTracesTest.java").write_text(render_junit(problem, cases), encoding="utf-8")
     (public / "pom.xml").write_text(render_pom(problem, "java"), encoding="utf-8")
     _write_extensions(public, ["vscjava.vscode-java-pack"])

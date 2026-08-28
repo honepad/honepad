@@ -655,7 +655,69 @@ def test_expired_run_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> Non
     out = capsys.readouterr().out
     assert "remaining_s=0" in out
     assert "UNLOCKED" not in out
+    assert "TIME UP" in out
     assert load_session()["unlocked"] == 1
+
+
+def test_start_after_expiry_restarts_clock_keeps_work(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    work.write_text(
+        work.read_text(encoding="utf-8").replace("return false;", "return false; // keep-me", 1),
+        encoding="utf-8",
+    )
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 2
+    session["started_at"] = 1_700_000_000
+    session_file.write_text(json.dumps(session, indent=2) + "\n", encoding="utf-8")
+    now = 1_700_000_000 + 90 * 60 + 5
+    monkeypatch.setattr("honepad.session.time.time", lambda: now)
+    assert main(["start", "bank_system", "java"]) == 0
+    out = capsys.readouterr().out
+    after = load_session()
+    assert after is not None
+    assert after["unlocked"] == 2
+    assert after["started_at"] == now
+    assert remaining_s(int(after["started_at"]), int(after["minutes"]), now) > 0
+    assert "keep-me" in work.read_text(encoding="utf-8")
+    assert "previous clock" in out.lower() or "new clock" in out.lower()
+    assert "remaining_s=5400" in out or "remaining_s=90" in out
+
+
+def test_start_writes_spec_beside_work(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    capsys.readouterr()
+    spec = tmp_path / "work" / "bank_system" / "java" / "spec.md"
+    assert spec.is_file()
+    text = spec.read_text(encoding="utf-8")
+    assert "create_account" in text
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    capsys.readouterr()
+    assert "top_spenders" in spec.read_text(encoding="utf-8")
+
+
+def test_bare_honepad_no_session_prints_next(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    assert main([]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "NEXT:" in out
+    assert "honepad start" in out
+    assert "bank_system" in out
+
+
+def test_start_without_args_prints_next(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "NEXT:" in out
+    assert "bank_system" in out
 
 
 def test_run_level_zero_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:

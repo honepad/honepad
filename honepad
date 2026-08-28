@@ -1,0 +1,10 @@
+#!/bin/sh
+# Run the venv CLI from a clone. System python cannot see this package.
+set -e
+ROOT=$(CDPATH= cd -- "$(dirname "$0")" && pwd)
+if [ -x "$ROOT/.venv/bin/honepad" ]; then
+  exec "$ROOT/.venv/bin/honepad" "$@"
+fi
+echo "FAIL: missing $ROOT/.venv/bin/honepad"
+echo "NEXT: python3 -m venv .venv && .venv/bin/pip install -e ."
+exit 1

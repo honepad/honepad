@@ -1,3 +1,6 @@
+import subprocess
+import sys
+
 import pytest
 
 from honepad.catalog import languages
@@ -11,6 +14,17 @@ UNIMPLEMENTED_CATALOG_LANG = "vb"
 
 def test_unimplemented_catalog_lang_not_in_runners() -> None:
     assert UNIMPLEMENTED_CATALOG_LANG not in _RUNNERS
+
+
+def test_python_module_honepad_langs() -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", "honepad", "langs"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "languages" in result.stdout
 
 
 def _langs_header_and_rows(out: str) -> tuple[str, list[str]]:
