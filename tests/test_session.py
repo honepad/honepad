@@ -275,8 +275,38 @@ def test_start_copies_work_file_away_from_pack(monkeypatch, tmp_path: Path, caps
     assert work.is_file()
     assert f"WORK: {work}" in out
     assert "createAccount" in work.read_text(encoding="utf-8")
+    assert "mergeAccounts" not in work.read_text(encoding="utf-8")
+    assert "topSpenders" not in work.read_text(encoding="utf-8")
     assert not (work.parent / "solution.java").exists()
     assert "not expected to finish every level" in out.lower()
+
+
+def test_start_python_work_hides_later_methods(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    text = work.read_text(encoding="utf-8")
+    assert "def create_account(" in text
+    assert "def merge_accounts(" not in text
+    assert "def top_spenders(" not in text
+
+
+def test_unlock_appends_next_level_methods(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    text = work.read_text(encoding="utf-8")
+    work.write_text(text.replace("return false;", "return false; // keep-me", 1), encoding="utf-8")
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED: level 2" in out
+    after = work.read_text(encoding="utf-8")
+    assert "keep-me" in after
+    assert "topSpenders" in after
+    assert "import java.util.List" in after
+    assert "mergeAccounts" not in after
 
 
 def test_start_keeps_edited_work_unless_reset(monkeypatch, tmp_path: Path, capsys) -> None:

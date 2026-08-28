@@ -10,6 +10,13 @@ from typing import Any
 
 from honepad.catalog import language, repo_root
 from honepad.traces import problem_dir
+from honepad.workstub import (
+    class_name_for,
+    merge_unlocked_methods,
+    methods_through_level,
+    naming_for,
+    slice_stub,
+)
 
 
 def session_path() -> Path:
@@ -24,14 +31,25 @@ def work_src(problem: str, lang_id: str) -> Path:
     return session_path().parent / "work" / problem / lang_id / f"work.{ext}"
 
 
-def ensure_work_copy(problem: str, lang_id: str, *, reset: bool) -> Path:
+def ensure_work_copy(problem: str, lang_id: str, *, reset: bool, level: int) -> Path:
     dest = work_src(problem, lang_id)
     dest.parent.mkdir(parents=True, exist_ok=True)
-    if dest.is_file() and not reset:
-        return dest
     row = language(lang_id)
-    stub = repo_root() / "langs" / lang_id / "problems" / problem / f"stub.{row['ext']}"
-    dest.write_bytes(stub.read_bytes())
+    ext = str(row["ext"])
+    stub = repo_root() / "langs" / lang_id / "problems" / problem / f"stub.{ext}"
+    full = stub.read_text(encoding="utf-8")
+    naming = naming_for(lang_id)
+    allowed = methods_through_level(problem, level, naming)
+    if dest.is_file() and not reset:
+        current = dest.read_text(encoding="utf-8")
+        class_name = class_name_for(problem)
+        if class_name in current:
+            merged = merge_unlocked_methods(current, full, ext, allowed)
+            if merged != current:
+                dest.write_text(merged, encoding="utf-8")
+        return dest
+    sliced = slice_stub(full, ext, allowed, class_name_for(problem))
+    dest.write_text(sliced, encoding="utf-8")
     return dest
 
 
