@@ -39,6 +39,24 @@ def test_render_junit_l1_hides_later_methods() -> None:
     assert "import java.util.List;" not in text
     assert "import static org.junit.jupiter.api.Assertions.assertNull;" in text
     assert "assertNull(" in text
+    assert 'assertEquals((Object) 500, sim.deposit(2, "acc1", 500));' in text
+    assert "assertEquals(500, sim.deposit" not in text
+
+
+def test_render_case_object_cast_and_assert_null() -> None:
+    from honepad.javatest import _render_case
+
+    case = {
+        "id": "l1-deposit",
+        "level": 1,
+        "calls": [
+            {"m": "deposit", "a": [2, "acc1", 500], "e": 500},
+            {"m": "deposit", "a": [4, "non_existent", 100], "e": None},
+        ],
+    }
+    text = _render_case("Simulation", case)
+    assert 'assertEquals((Object) 500, sim.deposit(2, "acc1", 500));' in text
+    assert 'assertNull(sim.deposit(4, "non_existent", 100));' in text
 
 
 def test_render_junit_l2_uses_list_of() -> None:

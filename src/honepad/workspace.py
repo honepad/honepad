@@ -58,11 +58,11 @@ def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
         _write_python_public(public, work, problem, cases)
     _write_readme(public, problem, lang, unlocked, work)
     _write_tasks(public, problem, lang)
+    folders = [{"name": "public-tests", "path": str(public.resolve())}]
+    if row["id"] != "java":
+        folders.append({"name": "work", "path": str(work.parent.resolve())})
     payload = {
-        "folders": [
-            {"name": "public-tests", "path": str(public.resolve())},
-            {"name": "work", "path": str(work.parent.resolve())},
-        ],
+        "folders": folders,
         "settings": _workspace_settings(row["id"]),
         "extensions": {"recommendations": _recommended_extensions(row["id"])},
     }

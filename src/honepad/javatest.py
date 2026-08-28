@@ -138,6 +138,6 @@ def _render_case(class_name: str, case: dict[str, Any]) -> str:
         if expected is None:
             lines.append(f"        assertNull({expr});")
         else:
-            lines.append(f"        assertEquals({java_expr(expected)}, {expr});")
+            lines.append(f"        assertEquals((Object) {java_expr(expected)}, {expr});")
     lines.append("    }")
     return "\n".join(lines)

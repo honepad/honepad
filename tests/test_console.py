@@ -240,7 +240,7 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert "PublicTracesTest.java" in out
     payload = json.loads(dest.read_text(encoding="utf-8"))
     names = [folder["name"] for folder in payload["folders"]]
-    assert names == ["public-tests", "work"]
+    assert names == ["public-tests"]
     assert "vscjava.vscode-java-pack" in payload["extensions"]["recommendations"]
     public = dest.parent / "public"
     cases = json.loads((public / "cases.json").read_text(encoding="utf-8"))
@@ -260,6 +260,8 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert "mergeAccounts" not in junit
     assert "import static org.junit.jupiter.api.Assertions.assertNull;" in junit
     assert "assertNull(" in junit
+    assert 'assertEquals((Object) 500, sim.deposit(2, "acc1", 500));' in junit
+    assert "assertEquals(500, sim.deposit" not in junit
     assert (public / "pom.xml").is_file()
     pom = (public / "pom.xml").read_text(encoding="utf-8")
     assert "junit-jupiter" in pom
@@ -333,6 +335,9 @@ def test_workspace_python_skips_java_adapter(monkeypatch, tmp_path: Path) -> Non
     assert "create_account" in pytest_src
     assert "merge_accounts" not in pytest_src
     payload = dest.read_text(encoding="utf-8")
+    folders = json.loads(payload)["folders"]
+    names = [folder["name"] for folder in folders]
+    assert names == ["public-tests", "work"]
     assert "java.import.maven" not in payload
     tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
     labels = [task["label"] for task in tasks["tasks"]]
