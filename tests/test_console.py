@@ -179,6 +179,53 @@ def test_dispatch_write_workspace_fail_closed(monkeypatch, tmp_path: Path) -> No
     assert "Traceback" not in out
 
 
+def test_dispatch_vscode_recreates_missing_java_work(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    assert work.is_file()
+    work.unlink()
+    session = load_session()
+    assert session is not None
+    monkeypatch.setattr("honepad.console.open_vscode", lambda _path: 0)
+    buf = io.StringIO()
+    assert dispatch("5", session, buf) == 0
+    assert work.is_file()
+    assert "class Simulation" in work.read_text(encoding="utf-8")
+    public_sim = (
+        tmp_path
+        / "workspace"
+        / "bank_system-java"
+        / "public"
+        / "src"
+        / "main"
+        / "java"
+        / "Simulation.java"
+    )
+    assert public_sim.exists()
+    assert "FAIL:" not in buf.getvalue()
+
+
+def test_write_workspace_java_missing_work_fails_closed(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    work.unlink()
+    with pytest.raises(ValueError, match="work file missing"):
+        write_workspace("bank_system", "java", 1)
+    public_sim = (
+        tmp_path
+        / "workspace"
+        / "bank_system-java"
+        / "public"
+        / "src"
+        / "main"
+        / "java"
+        / "Simulation.java"
+    )
+    assert not public_sim.exists()
+
+
 def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0

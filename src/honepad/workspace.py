@@ -128,6 +128,8 @@ def _write_extensions(public: Path, ids: list[str]) -> None:
 def _write_java_public(
     public: Path, work: Path, problem: str, cases: list[dict[str, object]]
 ) -> None:
+    if not work.is_file():
+        raise ValueError(f"work file missing: {work}")
     pack = repo_root() / "langs" / "java"
     shutil.copy(pack / "Adapter.java", public / "Adapter.java")
     shutil.copy(pack / "MiniJson.java", public / "MiniJson.java")
@@ -136,8 +138,7 @@ def _write_java_public(
     main_java.mkdir(parents=True, exist_ok=True)
     test_java.mkdir(parents=True, exist_ok=True)
     class_name = class_name_for(problem)
-    if work.is_file():
-        _link_or_copy(work, main_java / f"{class_name}.java")
+    _link_or_copy(work, main_java / f"{class_name}.java")
     (test_java / "PublicTracesTest.java").write_text(render_junit(problem, cases), encoding="utf-8")
     (public / "pom.xml").write_text(render_pom(problem, "java"), encoding="utf-8")
     _write_extensions(public, ["vscjava.vscode-java-pack"])
