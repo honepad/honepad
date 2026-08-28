@@ -333,6 +333,7 @@ def test_write_workspace_includes_unlocked_level_specs(monkeypatch, tmp_path: Pa
     spec = (public / "spec.md").read_text(encoding="utf-8")
     assert spec.startswith("# Bank system level 2")
     assert "top_spenders" in spec
+    assert '["acc1(500)", "acc2(0)"]' in spec
     assert (public / "level2.md").is_file()
     assert (public / "spec" / "level2.md").read_text(encoding="utf-8") == spec
     payload = json.loads(dest.read_text(encoding="utf-8"))
