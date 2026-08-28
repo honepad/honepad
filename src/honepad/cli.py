@@ -21,6 +21,7 @@ from honepad.session import (
 )
 from honepad.term import work_line
 from honepad.traces import load_cases, method_name, problem_dir
+from honepad.workspace import write_workspace
 
 
 def cmd_langs(_args: argparse.Namespace) -> int:
@@ -130,6 +131,10 @@ def cmd_run(args: argparse.Namespace) -> int:
         if nxt is not None:
             print(f"UNLOCKED: level {nxt}")
             ensure_work_copy(args.problem, lang, reset=False, level=nxt)
+            spec = problem_dir(args.problem) / "spec" / f"level{nxt}.md"
+            if spec.is_file():
+                print(spec.read_text(encoding="utf-8").rstrip() + "\n")
+            write_workspace(args.problem, lang, nxt)
     return 0
 
 

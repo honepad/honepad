@@ -280,11 +280,12 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert "PublicTracesTest.java" in out
     payload = json.loads(dest.read_text(encoding="utf-8"))
     names = [folder["name"] for folder in payload["folders"]]
-    assert names == ["public-tests"]
+    assert names == ["spec", "public-tests"]
     public = dest.parent / "public"
     work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
     folders = payload["folders"]
-    assert folders[0]["path"] == str(public.resolve())
+    assert folders[0]["path"] == str((public / "spec").resolve())
+    assert folders[1]["path"] == str(public.resolve())
     assert all(str(work.parent) not in folder["path"] for folder in folders)
     assert payload["settings"]["java.import.maven.enabled"] is True
     assert "vscjava.vscode-java-pack" in payload["extensions"]["recommendations"]
@@ -314,10 +315,52 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert "junit-jupiter" in pom
     assert (public / "run-public.sh").is_file()
     assert (public / "spec.md").is_file()
+    assert (public / "spec" / "level1.md").is_file()
+    assert not (public / "spec" / "level2.md").exists()
+    assert (public / "spec.md").read_text(encoding="utf-8").startswith("# Bank system level 1")
     tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
     labels = [task["label"] for task in tasks["tasks"]]
     assert "Run public tests" in labels
     assert "Run JUnit tests" in labels
+
+
+def test_write_workspace_includes_unlocked_level_specs(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    ensure_work_copy("bank_system", "java", reset=False, level=2)
+    dest = write_workspace("bank_system", "java", 2)
+    public = dest.parent / "public"
+    spec = (public / "spec.md").read_text(encoding="utf-8")
+    assert spec.startswith("# Bank system level 2")
+    assert "top_spenders" in spec
+    assert (public / "level2.md").is_file()
+    assert (public / "spec" / "level2.md").read_text(encoding="utf-8") == spec
+    payload = json.loads(dest.read_text(encoding="utf-8"))
+    names = [folder["name"] for folder in payload["folders"]]
+    assert names[0] == "spec"
+    assert names[1] == "public-tests"
+    assert payload["folders"][0]["path"] == str((public / "spec").resolve())
+
+
+def test_unlock_prints_spec_and_refreshes_workspace(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    capsys.readouterr()
+    assert main(["vscode", "--no-open"]) == 0
+    capsys.readouterr()
+    public = tmp_path / "workspace" / "bank_system-java" / "public"
+    assert (public / "spec.md").read_text(encoding="utf-8").startswith("# Bank system level 1")
+    assert not (public / "level2.md").exists()
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED: level 2" in out
+    assert "# Bank system level 2" in out
+    assert "top_spenders" in out
+    assert load_session()["unlocked"] == 2
+    spec = (public / "spec.md").read_text(encoding="utf-8")
+    assert spec.startswith("# Bank system level 2")
+    assert (public / "level2.md").is_file()
+    assert (public / "spec" / "level2.md").is_file()
 
 
 def test_workspace_readme_names_public_traces(monkeypatch, tmp_path: Path) -> None:
@@ -330,6 +373,8 @@ def test_workspace_readme_names_public_traces(monkeypatch, tmp_path: Path) -> No
     assert "same public traces honepad run uses" in readme
     assert "no separate hidden suite" in readme
     assert "Hidden tests are not here" not in readme
+    assert "Current spec:" in readme
+    assert "spec/level1.md" in readme
 
 
 @pytest.mark.skipif(shutil.which("mvn") is None, reason="mvn not installed")
@@ -386,7 +431,7 @@ def test_workspace_python_skips_java_adapter(monkeypatch, tmp_path: Path) -> Non
     payload = dest.read_text(encoding="utf-8")
     folders = json.loads(payload)["folders"]
     names = [folder["name"] for folder in folders]
-    assert names == ["public-tests", "work"]
+    assert names == ["spec", "public-tests", "work"]
     assert "java.import.maven" not in payload
     tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
     labels = [task["label"] for task in tasks["tasks"]]
