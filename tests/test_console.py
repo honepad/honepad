@@ -206,6 +206,46 @@ def test_dispatch_vscode_recreates_missing_java_work(monkeypatch, tmp_path: Path
     assert "FAIL:" not in buf.getvalue()
 
 
+def test_cmd_vscode_no_open_recreates_missing_java_work(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    assert work.is_file()
+    work.unlink()
+    assert main(["vscode", "--no-open"]) == 0
+    out = capsys.readouterr().out
+    assert work.is_file()
+    assert "class Simulation" in work.read_text(encoding="utf-8")
+    assert "FAIL:" not in out
+    assert "WORKSPACE:" in out
+
+
+@pytest.mark.skipif(shutil.which("mvn") is None, reason="mvn not installed")
+def test_java_junit_l1_stub_fails_without_npe(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    dest = write_workspace("bank_system", "java", 1)
+    public = dest.parent / "public"
+    result = subprocess.run(
+        ["mvn", "-q", "-f", str(public / "pom.xml"), "test"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    chunks = [result.stdout, result.stderr]
+    surefire = public / "target" / "surefire-reports"
+    if surefire.is_dir():
+        for path in sorted(surefire.iterdir()):
+            if path.is_file():
+                chunks.append(path.read_text(encoding="utf-8", errors="replace"))
+    output = "".join(chunks)
+    assert "NullPointerException" not in output
+
+
 def test_write_workspace_java_missing_work_fails_closed(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
@@ -241,8 +281,13 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     payload = json.loads(dest.read_text(encoding="utf-8"))
     names = [folder["name"] for folder in payload["folders"]]
     assert names == ["public-tests"]
-    assert "vscjava.vscode-java-pack" in payload["extensions"]["recommendations"]
     public = dest.parent / "public"
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    folders = payload["folders"]
+    assert folders[0]["path"] == str(public.resolve())
+    assert all(str(work.parent) not in folder["path"] for folder in folders)
+    assert payload["settings"]["java.import.maven.enabled"] is True
+    assert "vscjava.vscode-java-pack" in payload["extensions"]["recommendations"]
     cases = json.loads((public / "cases.json").read_text(encoding="utf-8"))
     unlocked = load_cases("bank_system", 1)
     assert cases == unlocked
@@ -262,6 +307,8 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert "assertNull(" in junit
     assert 'assertEquals((Object) 500, sim.deposit(2, "acc1", 500));' in junit
     assert "assertEquals(500, sim.deposit" not in junit
+    assert "(Object) true" in junit
+    assert 'assertEquals((Object) true, sim.createAccount(1, "acc1"));' in junit
     assert (public / "pom.xml").is_file()
     pom = (public / "pom.xml").read_text(encoding="utf-8")
     assert "junit-jupiter" in pom
@@ -307,6 +354,8 @@ def test_java_junit_l2_project_compiles(monkeypatch, tmp_path: Path) -> None:
     ensure_work_copy("bank_system", "java", reset=False, level=2)
     dest = write_workspace("bank_system", "java", 2)
     public = dest.parent / "public"
+    junit = (public / "src" / "test" / "java" / "PublicTracesTest.java").read_text(encoding="utf-8")
+    assert "(Object) List.of" in junit
     result = subprocess.run(
         ["mvn", "-q", "-f", str(public / "pom.xml"), "test-compile"],
         check=False,
