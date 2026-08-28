@@ -67,9 +67,20 @@ def ensure_work_copy(problem: str, lang_id: str, *, reset: bool, level: int) -> 
             merged = merge_unlocked_methods(current, full, ext, allowed)
             if merged != current:
                 dest.write_text(merged, encoding="utf-8")
+        write_work_spec(problem, level, dest.parent)
         return dest
     sliced = slice_stub(full, ext, allowed, class_name_for(problem))
     dest.write_text(sliced, encoding="utf-8")
+    write_work_spec(problem, level, dest.parent)
+    return dest
+
+
+def write_work_spec(problem: str, level: int, dest_dir: Path) -> Path | None:
+    src = problem_dir(problem) / "spec" / f"level{level}.md"
+    if not src.is_file():
+        return None
+    dest = dest_dir / "spec.md"
+    dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
     return dest
 
 
@@ -155,8 +166,16 @@ def ensure_session(
         session = new_session(problem, lang, minutes)
         save_session(session)
         return session
+    current.pop("clock_restarted", None)
     current["lang"] = lang
+    left = remaining_s(int(current["started_at"]), int(current["minutes"]))
+    restarted = False
+    if left == 0:
+        current["started_at"] = int(time.time())
+        current["minutes"] = minutes
+        restarted = True
     save_session(current)
+    current["clock_restarted"] = restarted
     return current
 
 

@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from honepad.cli import main
-from honepad.console import dispatch
+from honepad.console import dispatch, render_banner
 from honepad.javatest import java_ident
 from honepad.pythontest import pytest_ident
 from honepad.session import ensure_work_copy, load_session
@@ -40,6 +40,30 @@ def test_start_work_path_is_file_uri(monkeypatch, tmp_path: Path, capsys) -> Non
     assert str(work) in out
     assert "file://" in out
     assert "honepad console" in out
+
+
+def test_banner_time_up_when_remaining_zero() -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 100,
+        "minutes": 90,
+        "unlocked": 1,
+    }
+    text = render_banner(session, now=100 + 90 * 60 + 1)
+    assert "TIME UP" in text
+    assert "will not unlock" in text.lower()
+
+
+def test_bare_honepad_resumes_console(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
+    assert main([]) == 0
+    out = capsys.readouterr().out
+    assert "1 run" in out
+    assert "OK: quit" in out
 
 
 def test_console_no_session_fails(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -315,6 +339,10 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert "junit-jupiter" in pom
     assert (public / "run-public.sh").is_file()
     assert (public / "spec.md").is_file()
+    assert (public / "src" / "main" / "java" / "spec.md").is_file()
+    assert "create_account" in (public / "src" / "main" / "java" / "spec.md").read_text(
+        encoding="utf-8"
+    )
     assert (public / "spec" / "level1.md").is_file()
     assert not (public / "spec" / "level2.md").exists()
     assert (public / "spec.md").read_text(encoding="utf-8").startswith("# Bank system level 1")

@@ -9,17 +9,18 @@ import time
 from typing import Any
 
 from honepad.catalog import language, languages, problems
-from honepad.console import cmd_console, cmd_vscode
+from honepad.console import cmd_console, cmd_vscode, loop_console
 from honepad.runner import _RUNNERS, run
 from honepad.session import (
     ensure_session,
     ensure_work_copy,
     load_session,
+    max_level,
     remaining_s,
     unlock_next,
     work_src,
 )
-from honepad.term import work_line
+from honepad.term import file_link, work_line
 from honepad.traces import load_cases, method_name, problem_dir
 from honepad.workspace import write_workspace
 
@@ -35,13 +36,37 @@ def cmd_langs(_args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_default(_args: argparse.Namespace) -> int:
+    try:
+        session = load_session()
+    except ValueError as exc:
+        print(f"FAIL: {exc}")
+        return 1
+    if session is None:
+        _print_start_usage()
+        return 1
+    return cmd_console(argparse.Namespace(problem=None, lang=None, minutes=90))
+
+
+def _print_start_usage() -> None:
+    print("FAIL: no session")
+    print("NEXT: honepad start bank_system java")
+    print("problems: " + ", ".join(problems()))
+
+
 def cmd_start(args: argparse.Namespace) -> int:
+    if not args.problem or not args.lang:
+        print("FAIL: start needs a problem and a language")
+        print("NEXT: honepad start bank_system java")
+        print("problems: " + ", ".join(problems()))
+        return 1
     try:
         row = language(args.lang)
         if row["id"] not in _RUNNERS:
             print(f"FAIL: runner for {row['id']} is a factory job (adapter={row.get('adapter')})")
             return 1
         session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=args.reset)
+        restarted = bool(session.pop("clock_restarted", False))
         unlocked = int(session["unlocked"])
         work = ensure_work_copy(args.problem, row["id"], reset=args.reset, level=unlocked)
         level = unlocked if args.level is None else args.level
@@ -60,13 +85,20 @@ def cmd_start(args: argparse.Namespace) -> int:
         return 1
     print(spec.read_text(encoding="utf-8"))
     print(f"\n{work_line(work)}")
+    side = work.parent / "spec.md"
+    if side.is_file():
+        print(f"SPEC: {file_link(side)}")
     print(
         f"NOTE: {minutes} minutes measures how far you get. "
         "You are not expected to finish every level."
     )
     print("NOTE: honepad console opens a live menu (run, submit, reset, vscode).")
+    if restarted:
+        print("NOTE: previous clock was 0. New clock started. Work file kept.")
     left = remaining_s(started_at, minutes)
     print(f"OK: unlocked={unlocked} remaining_s={left}")
+    if not getattr(args, "no_console", False) and sys.stdin.isatty() and sys.stdout.isatty():
+        return loop_console(session)
     return 0
 
 
@@ -135,6 +167,11 @@ def cmd_run(args: argparse.Namespace) -> int:
             if spec.is_file():
                 print(spec.read_text(encoding="utf-8").rstrip() + "\n")
             write_workspace(args.problem, lang, nxt)
+    elif practice and session is not None and kind in ("solution", "work") and left == 0:
+        nxt = int(session["unlocked"]) + 1
+        if nxt <= max_level(str(session["problem"])):
+            print("TIME UP: remaining_s=0. Next level stays locked.")
+            print("NOTE: honepad start starts a new clock and keeps your work.")
     return 0
 
 
@@ -175,21 +212,27 @@ def cmd_cases(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="honepad")
-    sub = p.add_subparsers(dest="cmd", required=True)
+    p.set_defaults(func=cmd_default)
+    sub = p.add_subparsers(dest="cmd", required=False)
 
     langs = sub.add_parser("langs", help="list catalog")
     langs.set_defaults(func=cmd_langs)
 
     start = sub.add_parser(
         "start",
-        help="print a level spec",
-        description=("Print a level spec. Unimplemented catalog langs print FAIL and exit 1."),
+        help="start a 90-minute session",
+        description=(
+            "Start a practice session: spec, work file, 90-minute clock. "
+            "On a TTY this opens the live menu. "
+            "Unimplemented catalog langs print FAIL and exit 1."
+        ),
     )
-    start.add_argument("problem", choices=problems())
-    start.add_argument("lang")
+    start.add_argument("problem", nargs="?", choices=problems())
+    start.add_argument("lang", nargs="?")
     start.add_argument("--level", type=int, default=None)
     start.add_argument("--minutes", type=int, default=90)
     start.add_argument("--reset", action="store_true")
+    start.add_argument("--no-console", action="store_true")
     start.set_defaults(func=cmd_start)
 
     run_p = sub.add_parser(
