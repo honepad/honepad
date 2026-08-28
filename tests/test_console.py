@@ -14,7 +14,7 @@ from honepad.pythontest import pytest_ident
 from honepad.session import ensure_work_copy, load_session
 from honepad.term import file_link, file_uri, format_clock
 from honepad.traces import load_cases
-from honepad.workspace import _link_or_copy, write_workspace
+from honepad.workspace import _link_or_copy, open_vscode, write_workspace
 
 
 def test_format_clock_pads_minutes() -> None:
@@ -367,6 +367,12 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert (work.parent / "spec.md").is_file()
     assert payload["settings"]["java.import.maven.enabled"] is True
     assert payload["settings"]["java.project.explorer.showNonJavaResources"] is True
+    assert "**/work/**" in payload["settings"]["java.import.exclusions"]
+    work_settings = json.loads(
+        (work.parent / ".vscode" / "settings.json").read_text(encoding="utf-8")
+    )
+    assert work_settings["java.import.maven.enabled"] is False
+    assert work_settings["java.import.gradle.enabled"] is False
     assert "vscjava.vscode-java-pack" in payload["extensions"]["recommendations"]
     cases = json.loads((public / "cases.json").read_text(encoding="utf-8"))
     unlocked = load_cases("bank_system", 1)
@@ -405,6 +411,13 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     labels = [task["label"] for task in tasks["tasks"]]
     assert "Run public tests" in labels
     assert "Run JUnit tests" in labels
+    by_label = {task["label"]: task for task in tasks["tasks"]}
+    junit = by_label["Run JUnit tests"]
+    javac = by_label["Run public tests (javac)"]
+    assert "public-tests" in junit["options"]["cwd"]
+    assert "public-tests" in javac["options"]["cwd"]
+    assert "public-tests" in javac["command"]
+    assert "workspaceFolder" not in json.dumps(by_label["Run public tests"])
 
 
 def test_write_workspace_includes_unlocked_level_specs(monkeypatch, tmp_path: Path) -> None:
@@ -523,6 +536,10 @@ def test_workspace_python_skips_java_adapter(monkeypatch, tmp_path: Path) -> Non
     tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
     labels = [task["label"] for task in tasks["tasks"]]
     assert any("pytest" in label.lower() for label in labels)
+    by_label = {task["label"]: task for task in tasks["tasks"]}
+    pytest_task = by_label["Run pytest"]
+    assert "public-tests" in pytest_task["options"]["cwd"]
+    assert "public-tests" not in json.dumps(by_label["Run public tests"])
 
 
 def test_link_or_copy_falls_back_on_oserror(tmp_path: Path, monkeypatch) -> None:
@@ -538,6 +555,51 @@ def test_link_or_copy_falls_back_on_oserror(tmp_path: Path, monkeypatch) -> None
     assert dest.is_file()
     assert not dest.is_symlink()
     assert dest.read_text(encoding="utf-8") == "class Simulation {}\n"
+
+
+def test_open_vscode_detaches_from_console_tty(monkeypatch, tmp_path: Path, capsys) -> None:
+    captured: list[dict[str, object]] = []
+
+    def _popen(*_args: object, **kwargs: object) -> object:
+        captured.append(kwargs)
+        return object()
+
+    monkeypatch.setattr(
+        "honepad.workspace.shutil.which",
+        lambda name: "/usr/bin/code" if name == "code" else None,
+    )
+    monkeypatch.setattr("honepad.workspace.subprocess.Popen", _popen)
+    path = tmp_path / "honepad.code-workspace"
+    path.write_text("{}\n", encoding="utf-8")
+    assert open_vscode(path) == 0
+    assert captured
+    kwargs = captured[0]
+    assert kwargs.get("start_new_session") is True or kwargs.get("stdin") is subprocess.DEVNULL
+    assert kwargs["stdin"] is subprocess.DEVNULL
+    assert kwargs["stdout"] is subprocess.DEVNULL
+    assert kwargs["stderr"] is subprocess.DEVNULL
+    assert kwargs["start_new_session"] is True
+    out = capsys.readouterr().out
+    assert "OK:" in out
+    assert "FAIL:" not in out
+    assert "file://" in out
+
+
+def test_write_workspace_task_cwd_is_public_tests(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    dest = write_workspace("bank_system", "java", 1)
+    public = dest.parent / "public"
+    tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
+    for task in tasks["tasks"]:
+        blob = json.dumps(task)
+        if task["label"] == "Run public tests":
+            assert "workspaceFolder:public-tests" not in blob
+            continue
+        assert "public-tests" in blob
+        cwd = task.get("options", {}).get("cwd", "")
+        command = str(task.get("command", ""))
+        assert "public-tests" in cwd or "public-tests" in command
 
 
 def test_vscode_missing_code_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
