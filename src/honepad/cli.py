@@ -38,8 +38,8 @@ def cmd_start(args: argparse.Namespace) -> int:
             print(f"FAIL: runner for {row['id']} is a factory job (adapter={row.get('adapter')})")
             return 1
         session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=args.reset)
-        work = ensure_work_copy(args.problem, row["id"], reset=args.reset)
         unlocked = int(session["unlocked"])
+        work = ensure_work_copy(args.problem, row["id"], reset=args.reset, level=unlocked)
         level = unlocked if args.level is None else args.level
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
@@ -120,6 +120,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         nxt = unlock_next(session)
         if nxt is not None:
             print(f"UNLOCKED: level {nxt}")
+            ensure_work_copy(args.problem, lang, reset=False, level=nxt)
     return 0
 
 
