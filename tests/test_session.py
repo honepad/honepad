@@ -444,6 +444,8 @@ def test_work_missing_method_python_prints_fail(monkeypatch, tmp_path: Path, cap
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL" in out
+    assert "create_account" in out
+    assert "exc:AttributeError" in out
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
 
