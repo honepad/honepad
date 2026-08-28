@@ -30,6 +30,126 @@ def test_bank_level2_spec_shows_worked_example() -> None:
     assert '["acc1(500)", "acc2(500)", "acc3(300)"]' in text
 
 
+@pytest.mark.parametrize(
+    ("problem", "level", "needles"),
+    [
+        (
+            "bank_system",
+            3,
+            (
+                'pay(3, "acc1", 500) -> "payment1"',
+                'get_payment_status(4, "acc1", "payment1") -> "IN_PROGRESS"',
+                'get_payment_status(86400003, "acc1", "payment1") -> "CASHBACK_RECEIVED"',
+                'deposit(100800000, "acc1", 0) -> 510',
+                '["acc1(800)", "acc2(200)"]',
+            ),
+        ),
+        (
+            "bank_system",
+            4,
+            (
+                'merge_accounts(5, "acc2", "acc1") -> true',
+                'get_payment_status(6, "acc2", "payment1") -> "IN_PROGRESS"',
+                'deposit(86400005, "acc2", 0) -> 510',
+                '["acc1(1300)"]',
+                'get_balance(4, "acc1", 3) -> 700',
+                'get_balance(86400005, "acc1", 86400003) -> 706',
+            ),
+        ),
+        (
+            "file_storage",
+            2,
+            (
+                'get_n_largest("/dir", 2) -> "/dir/file2(20), /dir/deeper/file3.mov(9)"',
+                'get_n_largest("/dir/file", 3) -> "/dir/file2(20), /dir/file1.txt(5)"',
+                'get_n_largest("/another_dir", 3) -> ""',
+                'get_n_largest("/", 2) -> "/big_file.mp4(20), /dir/file2(20)"',
+            ),
+        ),
+        (
+            "file_storage",
+            3,
+            (
+                'add_user("user1", 200) -> "true"',
+                'add_file_by("user1", "/dir/file.med", 50) -> "150"',
+                'add_file_by("user1", "/file-small", 20) -> ""',
+                'merge_user("user1", "user2") -> "70"',
+                'copy_file("/x.txt", "/z.txt") -> ""',
+            ),
+        ),
+        (
+            "file_storage",
+            4,
+            (
+                'backup_user("user") -> "2"',
+                'restore_user("user") -> "2"',
+                'restore_user("user") -> "0"',
+                'backup_user("ghost") -> ""',
+            ),
+        ),
+        (
+            "in_memory_database",
+            2,
+            (
+                'scan("user1") -> "abc(123), age(30), city(NY), name(Alice)"',
+                'scan("non_existent") -> ""',
+                'scan_by_prefix("user1", "a") -> "abc(123), age(30)"',
+                'scan_by_prefix("user1", "xyz") -> ""',
+            ),
+        ),
+        (
+            "in_memory_database",
+            3,
+            (
+                'get_at("user1", "name", 105) -> "Alice"',
+                'get_at("user1", "name", 110) -> ""',
+                'scan_at("user1", 105) -> "age(30), city(NY), name(Alice)"',
+                'scan_at("user1", 117) -> ""',
+                'scan("user1") -> "age(30), city(NY), name(Alice)"',
+            ),
+        ),
+        (
+            "in_memory_database",
+            4,
+            (
+                'backup(3) -> "1"',
+                'backup(12) -> "0"',
+                'restore(10, 7) -> ""',
+                'scan_at("A", 15) -> "B(C), D(E)"',
+                'scan_at("A", 16) -> "D(E)"',
+            ),
+        ),
+        (
+            "workers",
+            2,
+            (
+                'top_n_workers(5, "Junior Developer") -> "Jason(50), John(50), Ashley(0)"',
+                'top_n_workers(1, "Junior Developer") -> "Jason(50)"',
+                'top_n_workers(3, "Junior Developer") -> "Jason(350), Ashley(100), John(50)"',
+                'top_n_workers(3, "Middle Developer") -> ""',
+            ),
+        ),
+        (
+            "workers",
+            3,
+            (
+                'promote("John", "Senior Developer", 500, 200) -> "success"',
+                'promote("John", "Senior Developer", 350, 250) -> "invalid_request"',
+                'calc_salary("John", 0, 500) -> "35000"',
+                'top_n_workers(3, "Senior Developer") -> "John(0)"',
+                'calc_salary("John", 900, 1400) -> "0"',
+            ),
+        ),
+    ],
+)
+def test_spec_shows_worked_example(problem: str, level: int, needles: tuple[str, ...]) -> None:
+    text = (repo_root() / "problems" / problem / "spec" / f"level{level}.md").read_text(
+        encoding="utf-8"
+    )
+    missing = [needle for needle in needles if needle not in text]
+    assert missing == []
+
+
 def test_bank_solution_all_levels() -> None:
     report = run_python("bank_system", 4, "solution")
     assert report.ok, report.failed
