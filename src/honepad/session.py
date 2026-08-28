@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from honepad.catalog import language, repo_root
+from honepad.catalog import language, problems, repo_root
 from honepad.traces import problem_dir
 from honepad.workstub import (
     class_name_for,
@@ -28,7 +28,23 @@ def session_path() -> Path:
 
 def work_src(problem: str, lang_id: str) -> Path:
     ext = str(language(lang_id)["ext"])
-    return session_path().parent / "work" / problem / lang_id / f"work.{ext}"
+    parent = session_path().parent / "work" / problem / lang_id
+    if ext == "java":
+        dest = parent / f"{class_name_for(problem)}.java"
+        _migrate_legacy_java_work(parent, dest)
+        return dest
+    return parent / f"work.{ext}"
+
+
+def _migrate_legacy_java_work(parent: Path, dest: Path) -> None:
+    legacy = parent / "work.java"
+    if dest.exists() or dest.is_symlink() or not legacy.is_file():
+        return
+    try:
+        legacy.rename(dest)
+    except OSError:
+        dest.write_text(legacy.read_text(encoding="utf-8"), encoding="utf-8")
+        legacy.unlink()
 
 
 def ensure_work_copy(problem: str, lang_id: str, *, reset: bool, level: int) -> Path:
@@ -86,7 +102,25 @@ def load_session(path: Path | None = None) -> dict[str, Any] | None:
         payload["unlocked"] = int(payload["unlocked"])
     except (TypeError, ValueError) as exc:
         raise ValueError(f"{target} {exc}") from exc
+    problem = str(payload["problem"])
+    lang = str(payload["lang"])
+    if not _single_segment(problem) or problem not in problems():
+        raise ValueError(f"invalid problem {problem!r}")
+    try:
+        language(lang)
+    except KeyError as exc:
+        raise ValueError(f"unknown language: {lang}") from exc
+    payload["problem"] = problem
+    payload["lang"] = lang
     return payload
+
+
+def _single_segment(name: str) -> bool:
+    if not name or name in {".", ".."}:
+        return False
+    if "/" in name or "\\" in name:
+        return False
+    return Path(name).name == name
 
 
 def save_session(session: dict[str, Any], path: Path | None = None) -> Path:

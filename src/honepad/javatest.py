@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from typing import Any
 
@@ -11,6 +10,28 @@ from honepad.workstub import class_name_for
 
 _JUNIT_VERSION = "5.11.4"
 _SUREFIRE_VERSION = "3.5.2"
+
+
+def java_string(value: str) -> str:
+    out: list[str] = ['"']
+    for ch in value:
+        code = ord(ch)
+        if ch == "\\":
+            out.append("\\\\")
+        elif ch == '"':
+            out.append('\\"')
+        elif ch == "\n":
+            out.append("\\n")
+        elif ch == "\r":
+            out.append("\\r")
+        elif ch == "\t":
+            out.append("\\t")
+        elif code < 32:
+            out.append(f"\\u{code:04x}")
+        else:
+            out.append(ch)
+    out.append('"')
+    return "".join(out)
 
 
 def java_expr(value: Any) -> str:
@@ -25,7 +46,7 @@ def java_expr(value: Any) -> str:
     if isinstance(value, float):
         return str(value)
     if isinstance(value, str):
-        return json.dumps(value, ensure_ascii=False)
+        return java_string(value)
     if isinstance(value, list):
         if not value:
             return "List.of()"
@@ -103,10 +124,9 @@ def render_pom(problem: str, lang: str) -> str:
 
 def _render_case(class_name: str, case: dict[str, Any]) -> str:
     ident = java_ident(str(case["id"]))
-    display = str(case["id"]).replace("\\", "\\\\").replace('"', '\\"')
     lines = [
         "    @Test",
-        f'    @DisplayName("{display}")',
+        f"    @DisplayName({java_string(str(case['id']))})",
         f"    void {ident}() {{",
         f"        {class_name} sim = new {class_name}();",
     ]

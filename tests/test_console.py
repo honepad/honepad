@@ -8,8 +8,13 @@ from pathlib import Path
 import pytest
 
 from honepad.cli import main
+from honepad.console import dispatch
+from honepad.javatest import java_ident
+from honepad.pythontest import pytest_ident
+from honepad.session import ensure_work_copy, load_session
 from honepad.term import file_link, file_uri, format_clock
-from honepad.workspace import write_workspace
+from honepad.traces import load_cases
+from honepad.workspace import _link_or_copy, write_workspace
 
 
 def test_format_clock_pads_minutes() -> None:
@@ -30,7 +35,7 @@ def test_start_work_path_is_file_uri(monkeypatch, tmp_path: Path, capsys) -> Non
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
     out = capsys.readouterr().out
-    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
     assert "WORK:" in out
     assert str(work) in out
     assert "file://" in out
@@ -40,6 +45,14 @@ def test_start_work_path_is_file_uri(monkeypatch, tmp_path: Path, capsys) -> Non
 def test_console_no_session_fails(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["console"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "no session" in out
+
+
+def test_vscode_no_session_fails(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["vscode"]) == 1
     out = capsys.readouterr().out
     assert "FAIL:" in out
     assert "no session" in out
@@ -72,6 +85,7 @@ def test_console_quit(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "remaining_s=" in out
     assert "1 run" in out
     assert "2 submit" in out
+    assert "2 submit (local)" in out
     assert "3 reset" in out
     assert "5 vscode" in out
     assert "OK: quit" in out
@@ -86,6 +100,8 @@ def test_console_run_then_quit(monkeypatch, tmp_path: Path, capsys) -> None:
     assert main(["console"]) == 0
     out = capsys.readouterr().out
     assert "FAIL" in out
+    assert "passed=" in out
+    assert "remaining_s=" in out
     assert "OK: quit" in out
 
 
@@ -114,6 +130,53 @@ def test_console_spec(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "create" in out.lower()
 
 
+def test_dispatch_vscode_opens_workspace(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    session = load_session()
+    assert session is not None
+    opened: list[Path] = []
+
+    def _open(path: Path) -> int:
+        opened.append(path)
+        return 0
+
+    popen_calls: list[object] = []
+    monkeypatch.setattr("honepad.console.open_vscode", _open)
+    monkeypatch.setattr(
+        "honepad.workspace.subprocess.Popen",
+        lambda *args, **kwargs: popen_calls.append((args, kwargs)),
+    )
+    buf = io.StringIO()
+    assert dispatch("5", session, buf) == 0
+    expected = tmp_path / "workspace" / "bank_system-python3" / "honepad.code-workspace"
+    assert opened == [expected]
+    assert popen_calls == []
+    out = buf.getvalue()
+    assert "WORKSPACE:" in out
+    assert "file://" in out
+    assert "TESTS:" in out
+    assert "test_public.py" in out
+
+
+def test_dispatch_write_workspace_fail_closed(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    session = load_session()
+    assert session is not None
+
+    def _boom(*_args: object, **_kwargs: object) -> Path:
+        raise ValueError("boom")
+
+    monkeypatch.setattr("honepad.console.write_workspace", _boom)
+    buf = io.StringIO()
+    assert dispatch("5", session, buf) == 1
+    out = buf.getvalue()
+    assert "FAIL:" in out
+    assert "boom" in out
+    assert "Traceback" not in out
+
+
 def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
@@ -124,23 +187,30 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert dest.is_file()
     assert "WORKSPACE:" in out
     assert "file://" in out
+    assert "TESTS:" in out
+    assert "PublicTracesTest.java" in out
     payload = json.loads(dest.read_text(encoding="utf-8"))
     names = [folder["name"] for folder in payload["folders"]]
     assert names == ["public-tests", "work"]
     assert "vscjava.vscode-java-pack" in payload["extensions"]["recommendations"]
     public = dest.parent / "public"
     cases = json.loads((public / "cases.json").read_text(encoding="utf-8"))
-    assert cases
+    unlocked = load_cases("bank_system", 1)
+    assert cases == unlocked
     assert all(int(case["level"]) <= 1 for case in cases)
     assert (public / "Adapter.java").is_file()
     assert (public / "MiniJson.java").is_file()
     assert (public / "src" / "main" / "java" / "Simulation.java").is_file()
     assert (public / "src" / "test" / "java" / "PublicTracesTest.java").is_file()
     junit = (public / "src" / "test" / "java" / "PublicTracesTest.java").read_text(encoding="utf-8")
-    assert "@Test" in junit
+    assert junit.count("@Test") == len(unlocked)
+    for case in unlocked:
+        assert java_ident(case["id"]) in junit
     assert "org.junit.jupiter.api.Test" in junit
     assert "createAccount" in junit
     assert "mergeAccounts" not in junit
+    assert "import static org.junit.jupiter.api.Assertions.assertNull;" in junit
+    assert "assertNull(" in junit
     assert (public / "pom.xml").is_file()
     pom = (public / "pom.xml").read_text(encoding="utf-8")
     assert "junit-jupiter" in pom
@@ -152,11 +222,39 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert "Run JUnit tests" in labels
 
 
+def test_workspace_readme_names_public_traces(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    dest = write_workspace("bank_system", "java", 1)
+    readme = (dest.parent / "public" / "README.md").read_text(encoding="utf-8")
+    assert "public traces" in readme
+    assert "honepad run" in readme
+    assert "same public traces honepad run uses" in readme
+    assert "no separate hidden suite" in readme
+    assert "Hidden tests are not here" not in readme
+
+
 @pytest.mark.skipif(shutil.which("mvn") is None, reason="mvn not installed")
 def test_java_junit_project_compiles(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
     dest = write_workspace("bank_system", "java", 1)
+    public = dest.parent / "public"
+    result = subprocess.run(
+        ["mvn", "-q", "-f", str(public / "pom.xml"), "test-compile"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.skipif(shutil.which("mvn") is None, reason="mvn not installed")
+def test_java_junit_l2_project_compiles(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    ensure_work_copy("bank_system", "java", reset=False, level=2)
+    dest = write_workspace("bank_system", "java", 2)
     public = dest.parent / "public"
     result = subprocess.run(
         ["mvn", "-q", "-f", str(public / "pom.xml"), "test-compile"],
@@ -178,9 +276,33 @@ def test_workspace_python_skips_java_adapter(monkeypatch, tmp_path: Path) -> Non
     assert not (public / "pom.xml").exists()
     assert (public / "test_public.py").is_file()
     pytest_src = (public / "test_public.py").read_text(encoding="utf-8")
+    unlocked = load_cases("bank_system", 1)
+    assert pytest_src.count("def test_") == len(unlocked)
+    for case in unlocked:
+        assert pytest_ident(case["id"]) in pytest_src
     assert "def test_l1_create()" in pytest_src
     assert "create_account" in pytest_src
     assert "merge_accounts" not in pytest_src
+    payload = dest.read_text(encoding="utf-8")
+    assert "java.import.maven" not in payload
+    tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
+    labels = [task["label"] for task in tasks["tasks"]]
+    assert any("pytest" in label.lower() for label in labels)
+
+
+def test_link_or_copy_falls_back_on_oserror(tmp_path: Path, monkeypatch) -> None:
+    src = tmp_path / "work.java"
+    dest = tmp_path / "Simulation.java"
+    src.write_text("class Simulation {}\n", encoding="utf-8")
+
+    def _fail(self: Path, *args: object, **kwargs: object) -> None:
+        raise OSError("no symlink")
+
+    monkeypatch.setattr(Path, "symlink_to", _fail)
+    _link_or_copy(src, dest)
+    assert dest.is_file()
+    assert not dest.is_symlink()
+    assert dest.read_text(encoding="utf-8") == "class Simulation {}\n"
 
 
 def test_vscode_missing_code_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -193,3 +315,5 @@ def test_vscode_missing_code_prints_fail(monkeypatch, tmp_path: Path, capsys) ->
     assert "FAIL:" in out
     assert "code" in out
     assert "file://" in out
+    assert "Install" in out
+    assert "PATH" in out

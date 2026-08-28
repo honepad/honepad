@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from honepad.cli import main
 from honepad.session import load_session, remaining_s
 
@@ -271,8 +273,9 @@ def test_start_copies_work_file_away_from_pack(monkeypatch, tmp_path: Path, caps
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
     out = capsys.readouterr().out
-    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
     assert work.is_file()
+    assert not (work.parent / "work.java").exists()
     assert "WORK:" in out
     assert str(work) in out
     assert "file://" in out
@@ -281,6 +284,21 @@ def test_start_copies_work_file_away_from_pack(monkeypatch, tmp_path: Path, caps
     assert "topSpenders" not in work.read_text(encoding="utf-8")
     assert not (work.parent / "solution.java").exists()
     assert "not expected to finish every level" in out.lower()
+
+
+def test_legacy_java_work_file_migrates_to_class_name(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    dest_dir = tmp_path / "work" / "bank_system" / "java"
+    dest_dir.mkdir(parents=True)
+    legacy = dest_dir / "work.java"
+    dest = dest_dir / "Simulation.java"
+    legacy.write_text("marker-keep-me\npublic class Simulation {}\n", encoding="utf-8")
+    assert not dest.exists()
+    assert main(["start", "bank_system", "java"]) == 0
+    capsys.readouterr()
+    assert dest.is_file()
+    assert "marker-keep-me" in dest.read_text(encoding="utf-8")
+    assert not legacy.exists()
 
 
 def test_start_python_work_hides_later_methods(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -298,7 +316,7 @@ def test_unlock_appends_next_level_methods(monkeypatch, tmp_path: Path, capsys) 
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
     capsys.readouterr()
-    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
     text = work.read_text(encoding="utf-8")
     work.write_text(text.replace("return false;", "return false; // keep-me", 1), encoding="utf-8")
     assert main(["run", "bank_system", "--kind", "solution"]) == 0
@@ -315,7 +333,7 @@ def test_start_keeps_edited_work_unless_reset(monkeypatch, tmp_path: Path, capsy
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
     capsys.readouterr()
-    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
     work.write_text("edited-by-candidate\n", encoding="utf-8")
     assert main(["start", "bank_system", "java"]) == 0
     capsys.readouterr()
@@ -336,7 +354,7 @@ def test_run_with_session_uses_work_file(monkeypatch, tmp_path: Path, capsys) ->
     assert "expected=True" in first or "expected=true" in first
     assert "WORK:" in first
     assert load_session()["unlocked"] == 1
-    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
     solution = (
         Path(__file__).resolve().parents[1]
         / "langs"
@@ -357,7 +375,7 @@ def test_locked_start_still_creates_work_file(monkeypatch, tmp_path: Path, capsy
     assert main(["start", "bank_system", "java", "--level", "2"]) == 1
     out = capsys.readouterr().out
     assert "LOCKED: level 2" in out
-    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
     assert work.is_file()
     assert main(["run", "bank_system"]) == 1
     run_out = capsys.readouterr().out
@@ -369,7 +387,7 @@ def test_missing_work_file_does_not_run_solution(monkeypatch, tmp_path: Path, ca
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
     capsys.readouterr()
-    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
     work.unlink()
     assert main(["run", "bank_system"]) == 1
     out = capsys.readouterr().out
@@ -382,13 +400,13 @@ def test_work_compile_error_prints_fail(monkeypatch, tmp_path: Path, capsys) -> 
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
     capsys.readouterr()
-    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
     work.write_text("this is not java\n", encoding="utf-8")
     assert main(["run", "bank_system"]) == 1
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
-    assert "work.java" in out
+    assert "Simulation.java" in out
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
 
@@ -397,7 +415,7 @@ def test_work_timeout_java_prints_fail(monkeypatch, tmp_path: Path, capsys) -> N
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
     capsys.readouterr()
-    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
     work.write_text(
         """import java.util.List;
 
@@ -611,3 +629,51 @@ def test_run_level_zero_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None
     assert "\nOK\n" not in out
     assert not out.strip().endswith("OK")
     assert "UNLOCKED" not in out
+
+
+def test_load_session_rejects_path_escape_problem(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "../../pwn",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    escaped = (tmp_path / "work" / "../../pwn").resolve()
+    sibling = tmp_path.parent / "pwn"
+    assert main(["console"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert not escaped.exists()
+    assert not sibling.exists()
+    assert not (tmp_path / "work").exists()
+    with pytest.raises(ValueError, match="problem"):
+        load_session()
+
+
+def test_load_session_rejects_unknown_lang(monkeypatch, tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "not-a-lang",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises((ValueError, KeyError), match="lang|language"):
+        load_session()
