@@ -21,7 +21,7 @@ from honepad.session import (
     unlock_next,
     work_src,
 )
-from honepad.term import file_link, work_line
+from honepad.term import file_link, start_next, work_line
 from honepad.traces import load_cases, method_name, problem_dir
 from honepad.workspace import write_workspace
 
@@ -51,20 +51,21 @@ def cmd_default(_args: argparse.Namespace) -> int:
 
 def _print_start_usage() -> None:
     print("FAIL: no session")
-    print("NEXT: honepad start bank_system java")
+    print(start_next())
     print("problems: " + ", ".join(problems()))
 
 
 def cmd_start(args: argparse.Namespace) -> int:
     if not args.problem or not args.lang:
         print("FAIL: start needs a problem and a language")
-        print("NEXT: honepad start bank_system java")
+        print(start_next())
         print("problems: " + ", ".join(problems()))
         return 1
     try:
         row = language(args.lang)
         if row["id"] not in _RUNNERS:
-            print(f"FAIL: runner for {row['id']} is a factory job (adapter={row.get('adapter')})")
+            print(f"FAIL: no runner for {row['id']}")
+            print(start_next())
             return 1
         session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=args.reset)
         unlocked = int(session["unlocked"])

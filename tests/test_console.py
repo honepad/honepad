@@ -53,6 +53,8 @@ def test_banner_time_up_when_remaining_zero() -> None:
     text = render_banner(session, now=100 + 90 * 60 + 1)
     assert "TIME UP" in text
     assert "will not unlock" in text.lower()
+    assert "quit then start" in text.lower()
+    assert "keeps work" in text.lower()
 
 
 def test_start_on_tty_opens_live_menu(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -123,7 +125,11 @@ def test_console_unimplemented_lang_fails(monkeypatch, tmp_path: Path, capsys) -
     out = capsys.readouterr().out
     assert "FAIL:" in out
     assert "vb" in out
-    assert "adapter=" in out
+    assert "no runner" in out
+    assert "adapter=" not in out
+    assert "factory job" not in out
+    assert "NEXT:" in out
+    assert "start bank_system java" in out
 
 
 def test_console_quit(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -137,7 +143,7 @@ def test_console_quit(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "1 run" in out
     assert "2 submit" in out
     assert "2 submit (local)" in out
-    assert "3 reset" in out
+    assert "3 reset work" in out
     assert "5 vscode" in out
     assert "OK: quit" in out
     assert "file://" in out
@@ -164,12 +170,27 @@ def test_console_reset(monkeypatch, tmp_path: Path, capsys) -> None:
     capsys.readouterr()
     work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
     work.write_text("edited-by-candidate\n", encoding="utf-8")
-    monkeypatch.setattr(sys, "stdin", io.StringIO("3\nq\n"))
+    monkeypatch.setattr(sys, "stdin", io.StringIO("3\nyes\nq\n"))
     assert main(["console"]) == 0
     out = capsys.readouterr().out
+    assert "Type yes" in out
     assert "OK: reset" in out
     assert "def create_account(" in work.read_text(encoding="utf-8")
     assert "edited-by-candidate" not in work.read_text(encoding="utf-8")
+
+
+def test_console_reset_without_yes_keeps_work(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text("edited-by-candidate\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "stdin", io.StringIO("3\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "Type yes" in out
+    assert "OK: reset" not in out
+    assert work.read_text(encoding="utf-8") == "edited-by-candidate\n"
 
 
 def test_console_spec(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -208,6 +229,8 @@ def test_dispatch_vscode_opens_workspace(monkeypatch, tmp_path: Path) -> None:
     out = buf.getvalue()
     assert "WORKSPACE:" in out
     assert "file://" in out
+    assert "SPEC:" in out
+    assert "current.md" in out
     assert "TESTS:" in out
     assert "test_public.py" in out
 
@@ -272,6 +295,7 @@ def test_cmd_vscode_no_open_recreates_missing_java_work(
     assert "class Simulation" in work.read_text(encoding="utf-8")
     assert "FAIL:" not in out
     assert "WORKSPACE:" in out
+    assert "SPEC:" in out
 
 
 @pytest.mark.skipif(shutil.which("mvn") is None, reason="mvn not installed")
@@ -327,18 +351,22 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert dest.is_file()
     assert "WORKSPACE:" in out
     assert "file://" in out
+    assert "SPEC:" in out
+    assert "current.md" in out
     assert "TESTS:" in out
     assert "PublicTracesTest.java" in out
     payload = json.loads(dest.read_text(encoding="utf-8"))
     names = [folder["name"] for folder in payload["folders"]]
-    assert names == ["spec", "public-tests"]
+    assert names == ["spec", "public-tests", "work"]
     public = dest.parent / "public"
     work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
     folders = payload["folders"]
     assert folders[0]["path"] == str((public / "spec").resolve())
     assert folders[1]["path"] == str(public.resolve())
-    assert all(str(work.parent) not in folder["path"] for folder in folders)
+    assert folders[2]["path"] == str(work.parent.resolve())
+    assert (work.parent / "spec.md").is_file()
     assert payload["settings"]["java.import.maven.enabled"] is True
+    assert payload["settings"]["java.project.explorer.showNonJavaResources"] is True
     assert "vscjava.vscode-java-pack" in payload["extensions"]["recommendations"]
     cases = json.loads((public / "cases.json").read_text(encoding="utf-8"))
     unlocked = load_cases("bank_system", 1)

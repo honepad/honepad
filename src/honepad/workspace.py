@@ -53,9 +53,8 @@ def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
     folders = [
         {"name": "spec", "path": str(spec_folder.resolve())},
         {"name": "public-tests", "path": str(public.resolve())},
+        {"name": "work", "path": str(work.parent.resolve())},
     ]
-    if row["id"] != "java":
-        folders.append({"name": "work", "path": str(work.parent.resolve())})
     payload = {
         "folders": folders,
         "settings": _workspace_settings(row["id"]),
@@ -108,6 +107,7 @@ def _workspace_settings(lang: str) -> dict[str, object]:
     if lang == "java":
         settings["java.configuration.updateBuildConfiguration"] = "automatic"
         settings["java.import.maven.enabled"] = True
+        settings["java.project.explorer.showNonJavaResources"] = True
     return settings
 
 

@@ -1,11 +1,13 @@
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
 from honepad.catalog import languages
 from honepad.cli import build_parser, main
 from honepad.runner import _RUNNERS
+from honepad.term import invocation
 
 # Catalog id used by unimplemented-lang CLI tests. Must stay off
 # _RUNNERS so start/run keep failing with FAIL: instead of succeeding.
@@ -14,6 +16,16 @@ UNIMPLEMENTED_CATALOG_LANG = "vb"
 
 def test_unimplemented_catalog_lang_not_in_runners() -> None:
     assert UNIMPLEMENTED_CATALOG_LANG not in _RUNNERS
+
+
+def test_invocation_from_argv0() -> None:
+    exe = Path(sys.executable).name or "python3"
+    assert invocation("./honepad") == "./honepad"
+    assert invocation("honepad") == "honepad"
+    assert invocation("/tmp/clone/honepad") == "/tmp/clone/honepad"
+    assert invocation("__main__.py") == f"{exe} -m honepad"
+    assert invocation("/opt/honepad/src/honepad/__main__.py") == f"{exe} -m honepad"
+    assert invocation("pytest") == "honepad"
 
 
 def test_python_module_honepad_langs() -> None:
@@ -131,7 +143,11 @@ def test_start_unimplemented_catalog_lang_exits(monkeypatch, tmp_path, capsys) -
     assert code in (1, 2)
     assert "FAIL" in out
     assert UNIMPLEMENTED_CATALOG_LANG in out
-    assert "adapter=" in out
+    assert "no runner" in out
+    assert "adapter=" not in out
+    assert "factory job" not in out
+    assert "NEXT:" in out
+    assert "start bank_system java" in out
     assert "OK: unlocked=" not in out
     assert "Bank system level" not in out
     assert "STUB:" not in out

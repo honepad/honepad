@@ -789,6 +789,23 @@ def test_bare_honepad_no_session_prints_next(monkeypatch, tmp_path: Path, capsys
     assert "bank_system" in out
 
 
+def test_bare_honepad_next_uses_argv0(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    monkeypatch.setattr(sys, "argv", ["./honepad"])
+    assert main([]) == 1
+    out = capsys.readouterr().out
+    assert "NEXT: ./honepad start bank_system java" in out
+
+
+def test_bare_honepad_next_uses_module_form(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    monkeypatch.setattr(sys, "argv", [str(Path("src") / "honepad" / "__main__.py")])
+    assert main([]) == 1
+    out = capsys.readouterr().out
+    exe = Path(sys.executable).name or "python3"
+    assert f"NEXT: {exe} -m honepad start bank_system java" in out
+
+
 def test_start_without_args_prints_next(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start"]) == 1
