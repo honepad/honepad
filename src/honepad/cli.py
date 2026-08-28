@@ -98,7 +98,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     left = remaining_s(started_at, minutes)
     print(f"OK: unlocked={unlocked} remaining_s={left}")
     if not getattr(args, "no_console", False) and sys.stdin.isatty() and sys.stdout.isatty():
-        return loop_console(session)
+        return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
     return 0
 
 

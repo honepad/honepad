@@ -55,6 +55,33 @@ def test_banner_time_up_when_remaining_zero() -> None:
     assert "will not unlock" in text.lower()
 
 
+def test_start_on_tty_opens_live_menu(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    fake_in = io.StringIO("q\n")
+    monkeypatch.setattr(fake_in, "isatty", lambda: True)
+    monkeypatch.setattr(sys, "stdin", fake_in)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    # StringIO has no fileno; stay on the readline menu path.
+    monkeypatch.setattr("honepad.console._use_live", lambda *_a, **_k: False)
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    out = capsys.readouterr().out
+    assert "1 run" in out
+    assert "OK: quit" in out
+
+
+def test_start_no_console_skips_menu_on_tty(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    fake_in = io.StringIO("q\n")
+    monkeypatch.setattr(fake_in, "isatty", lambda: True)
+    monkeypatch.setattr(sys, "stdin", fake_in)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert "1 run" not in out
+    assert "OK: quit" not in out
+    assert fake_in.read() == "q\n"
+
+
 def test_bare_honepad_resumes_console(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
@@ -388,6 +415,9 @@ def test_unlock_prints_spec_and_refreshes_workspace(monkeypatch, tmp_path: Path,
     assert load_session()["unlocked"] == 2
     spec = (public / "spec.md").read_text(encoding="utf-8")
     assert spec.startswith("# Bank system level 2")
+    java_spec = public / "src" / "main" / "java" / "spec.md"
+    assert java_spec.is_file()
+    assert java_spec.read_text(encoding="utf-8").startswith("# Bank system level 2")
     assert (public / "level2.md").is_file()
     assert (public / "spec" / "level2.md").is_file()
 
