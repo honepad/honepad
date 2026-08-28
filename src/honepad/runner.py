@@ -90,13 +90,14 @@ def run_python(
     failed: list[Fail] = []
     passed = 0
     for case in cases:
-        obj = cls()
         for i, call in enumerate(case["calls"]):
             method = call["m"]
             args = list(call["a"])
             expected = call["e"]
-            fn = getattr(obj, method)
             try:
+                if i == 0:
+                    obj = cls()
+                fn = getattr(obj, method)
                 actual = fn(*args)
             except Exception as exc:  # noqa: BLE001 - user pack
                 failed.append(
