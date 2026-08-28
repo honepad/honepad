@@ -184,10 +184,12 @@ def test_start_unknown_lang_id_exits(monkeypatch, tmp_path, capsys) -> None:
 def test_corrupt_cases_prints_fail(monkeypatch, tmp_path, capsys) -> None:
     cases_dir = tmp_path / "cases"
     cases_dir.mkdir()
-    (cases_dir / "level1.json").write_text("{", encoding="utf-8")
+    cases_path = cases_dir / "level1.json"
+    cases_path.write_text("{", encoding="utf-8")
     monkeypatch.setattr("honepad.traces.problem_dir", lambda _problem: tmp_path)
     assert main(["cases", "bank_system", "--level", "1"]) == 1
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
+    assert str(cases_path) in out or "level1.json" in out
     assert "Traceback" not in out

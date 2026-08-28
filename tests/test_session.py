@@ -231,6 +231,42 @@ def test_run_without_session_defaults_to_python3_level4(
     assert load_session() is None
 
 
+def test_run_kind_work_without_session(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    assert main(["run", "bank_system", "--kind", "work", "--lang", "python3"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "work file missing" in out or "work.py" in out
+    assert "UNLOCKED" not in out
+    assert "\nOK\n" not in out
+    assert not out.strip().endswith("OK")
+    assert "level<=4 passed=" not in out
+    assert load_session() is None
+
+
+def test_run_kind_work_problem_mismatch(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "workers", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    assert session["problem"] == "workers"
+    unlocked = session["unlocked"]
+    assert main(["run", "bank_system", "--kind", "work"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "work file missing" in out
+    assert "bank_system" in out
+    assert "UNLOCKED" not in out
+    assert "\nOK\n" not in out
+    assert not out.strip().endswith("OK")
+    assert "level<=4 passed=" not in out
+    after = load_session()
+    assert after is not None
+    assert after["problem"] == "workers"
+    assert after["unlocked"] == unlocked
+
+
 def test_start_copies_work_file_away_from_pack(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
@@ -377,6 +413,7 @@ public class Simulation {
     out = captured.out + captured.err
     assert "FAIL:" in out
     assert "timed out" in out
+    assert "java" in out
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
 
