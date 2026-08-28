@@ -176,7 +176,7 @@ def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Pa
     lines = [
         f"# {problem} public tests (unlocked through L{unlocked})",
         "",
-        "These are the public traces honepad runs. Hidden tests are not here.",
+        "These are the same public traces honepad run uses (no separate hidden suite).",
         "",
         f"Work file: {work}",
         f"URI: {file_uri(work)}",

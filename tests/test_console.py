@@ -35,7 +35,7 @@ def test_start_work_path_is_file_uri(monkeypatch, tmp_path: Path, capsys) -> Non
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
     out = capsys.readouterr().out
-    work = tmp_path / "work" / "bank_system" / "java" / "work.java"
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
     assert "WORK:" in out
     assert str(work) in out
     assert "file://" in out
@@ -220,6 +220,18 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     labels = [task["label"] for task in tasks["tasks"]]
     assert "Run public tests" in labels
     assert "Run JUnit tests" in labels
+
+
+def test_workspace_readme_names_public_traces(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    dest = write_workspace("bank_system", "java", 1)
+    readme = (dest.parent / "public" / "README.md").read_text(encoding="utf-8")
+    assert "public traces" in readme
+    assert "honepad run" in readme
+    assert "same public traces honepad run uses" in readme
+    assert "no separate hidden suite" in readme
+    assert "Hidden tests are not here" not in readme
 
 
 @pytest.mark.skipif(shutil.which("mvn") is None, reason="mvn not installed")
