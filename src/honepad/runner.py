@@ -7,6 +7,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -80,7 +81,7 @@ def class_for_problem(problem: str) -> str:
     }[problem]
 
 
-def run_python(
+def run_python_body(
     problem: str,
     level: int,
     kind: str = "solution",
@@ -110,6 +111,30 @@ def run_python(
         else:
             passed += 1
     return Report(problem, "python3", level, passed, failed)
+
+
+def run_python(
+    problem: str,
+    level: int,
+    kind: str = "solution",
+) -> Report:
+    python_entry(problem, kind)
+    env = os.environ.copy()
+    src_dir = str(repo_root() / "src")
+    prior = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = src_dir if not prior else src_dir + os.pathsep + prior
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "honepad._pyrun", problem, str(level), kind],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=RUN_TIMEOUT_S,
+            env=env,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"python3 timed out after {RUN_TIMEOUT_S}s") from exc
+    return report_from_proc(proc, problem, "python3", level)
 
 
 def report_from_proc(

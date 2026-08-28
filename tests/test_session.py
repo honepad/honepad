@@ -418,6 +418,26 @@ public class Simulation {
     assert "UNLOCKED" not in out
 
 
+def test_work_timeout_python_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text(
+        "class Simulation:\n    def __init__(self):\n        while True:\n            pass\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("honepad.runner.RUN_TIMEOUT_S", 1)
+    assert main(["run", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "timed out" in out
+    assert "python3" in out
+    assert "Traceback" not in out
+    assert "UNLOCKED" not in out
+
+
 def test_work_syntax_error_python_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
