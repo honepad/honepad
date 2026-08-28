@@ -85,6 +85,7 @@ def test_console_quit(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "remaining_s=" in out
     assert "1 run" in out
     assert "2 submit" in out
+    assert "2 submit (local)" in out
     assert "3 reset" in out
     assert "5 vscode" in out
     assert "OK: quit" in out
@@ -154,6 +155,8 @@ def test_dispatch_vscode_opens_workspace(monkeypatch, tmp_path: Path) -> None:
     out = buf.getvalue()
     assert "WORKSPACE:" in out
     assert "file://" in out
+    assert "TESTS:" in out
+    assert "test_public.py" in out
 
 
 def test_dispatch_write_workspace_fail_closed(monkeypatch, tmp_path: Path) -> None:
@@ -184,6 +187,8 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert dest.is_file()
     assert "WORKSPACE:" in out
     assert "file://" in out
+    assert "TESTS:" in out
+    assert "PublicTracesTest.java" in out
     payload = json.loads(dest.read_text(encoding="utf-8"))
     names = [folder["name"] for folder in payload["folders"]]
     assert names == ["public-tests", "work"]
@@ -298,3 +303,5 @@ def test_vscode_missing_code_prints_fail(monkeypatch, tmp_path: Path, capsys) ->
     assert "FAIL:" in out
     assert "code" in out
     assert "file://" in out
+    assert "Install" in out
+    assert "PATH" in out

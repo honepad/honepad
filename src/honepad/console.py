@@ -19,9 +19,9 @@ from honepad.session import (
 )
 from honepad.term import file_link, format_clock, work_line
 from honepad.traces import problem_dir
-from honepad.workspace import open_vscode, write_workspace
+from honepad.workspace import open_vscode, public_test_file, write_workspace
 
-_MENU = "1 run  2 submit  3 reset  4 spec  5 vscode  q quit"
+_MENU = "1 run  2 submit (local)  3 reset  4 spec  5 vscode  q quit"
 
 
 def render_banner(session: dict[str, Any], now: int | None = None) -> str:
@@ -67,6 +67,7 @@ def cmd_vscode(args: argparse.Namespace) -> int:
             int(session["unlocked"]),
         )
         print(f"WORKSPACE: {file_link(path)}")
+        _print_tests(str(session["problem"]), str(session["lang"]))
         if args.no_open:
             print("OK: wrote workspace")
             return 0
@@ -128,6 +129,9 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
         if choice in {"5", "vscode", "code"}:
             path = write_workspace(problem, lang, unlocked)
             stdout.write(f"WORKSPACE: {file_link(path)}\n")
+            tests = _tests_output(problem, lang)
+            if tests is not None:
+                stdout.write(tests + "\n")
             stdout.flush()
             return open_vscode(path)
         stdout.write(f"FAIL: unknown option {choice!r}\n")
@@ -137,6 +141,19 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
         stdout.write(f"FAIL: {exc}\n")
         stdout.flush()
         return 1
+
+
+def _tests_output(problem: str, lang: str) -> str | None:
+    path = public_test_file(problem, lang)
+    if path is None:
+        return None
+    return f"TESTS: {file_link(path)}"
+
+
+def _print_tests(problem: str, lang: str) -> None:
+    line = _tests_output(problem, lang)
+    if line is not None:
+        print(line)
 
 
 def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:

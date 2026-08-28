@@ -25,6 +25,16 @@ def workspace_file(problem: str, lang: str) -> Path:
     return workspace_dir(problem, lang) / "honepad.code-workspace"
 
 
+def public_test_file(problem: str, lang: str) -> Path | None:
+    ident = language(lang)["id"]
+    public = workspace_dir(problem, lang) / "public"
+    if ident == "java":
+        return public / "src" / "test" / "java" / "PublicTracesTest.java"
+    if ident == "python3":
+        return public / "test_public.py"
+    return None
+
+
 def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
     root = workspace_dir(problem, lang)
     public = root / "public"
@@ -65,6 +75,7 @@ def open_vscode(path: Path) -> int:
     cmd = _code_cmd()
     if cmd is None:
         print("FAIL: vscode 'code' not on PATH")
+        print("NOTE: macOS Command Palette \"Shell Command: Install 'code' command in PATH\"")
         print(f"WORKSPACE: {file_link(path)}")
         return 1
     subprocess.Popen([*cmd, "--new-window", str(path)])
