@@ -42,15 +42,7 @@ def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
     work = work_src(problem, lang)
     cases = load_cases(problem, unlocked)
     (public / "cases.json").write_text(json.dumps(cases, indent=2) + "\n", encoding="utf-8")
-    spec_dir = problem_dir(problem) / "spec"
-    latest = spec_dir / f"level{unlocked}.md"
-    if latest.is_file():
-        (public / "spec.md").write_text(latest.read_text(encoding="utf-8"), encoding="utf-8")
-    for level in range(1, unlocked + 1):
-        src = spec_dir / f"level{level}.md"
-        if src.is_file():
-            dest = public / f"level{level}.md"
-            dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+    spec_folder = _write_specs(public, problem, unlocked)
     row = language(lang)
     if row["id"] == "java":
         _write_java_public(public, work, problem, cases)
@@ -58,7 +50,10 @@ def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
         _write_python_public(public, work, problem, cases)
     _write_readme(public, problem, lang, unlocked, work)
     _write_tasks(public, problem, lang)
-    folders = [{"name": "public-tests", "path": str(public.resolve())}]
+    folders = [
+        {"name": "spec", "path": str(spec_folder.resolve())},
+        {"name": "public-tests", "path": str(public.resolve())},
+    ]
     if row["id"] != "java":
         folders.append({"name": "work", "path": str(work.parent.resolve())})
     payload = {
@@ -173,11 +168,39 @@ def _write_python_public(
     _write_extensions(public, ["ms-python.python"])
 
 
+def _write_specs(public: Path, problem: str, unlocked: int) -> Path:
+    spec_dir = problem_dir(problem) / "spec"
+    spec_folder = public / "spec"
+    spec_folder.mkdir(parents=True, exist_ok=True)
+    latest = spec_dir / f"level{unlocked}.md"
+    if latest.is_file():
+        text = latest.read_text(encoding="utf-8")
+        (public / "spec.md").write_text(text, encoding="utf-8")
+        (spec_folder / "current.md").write_text(text, encoding="utf-8")
+    for level in range(1, unlocked + 1):
+        src = spec_dir / f"level{level}.md"
+        if src.is_file():
+            text = src.read_text(encoding="utf-8")
+            (public / f"level{level}.md").write_text(text, encoding="utf-8")
+            (spec_folder / f"level{level}.md").write_text(text, encoding="utf-8")
+    for extra in list(public.glob("level*.md")) + list(spec_folder.glob("level*.md")):
+        try:
+            n = int(extra.stem.removeprefix("level"))
+        except ValueError:
+            continue
+        if n > unlocked:
+            extra.unlink()
+    return spec_folder
+
+
 def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Path) -> None:
     lines = [
         f"# {problem} public tests (unlocked through L{unlocked})",
         "",
         "These are the same public traces honepad run uses (no separate hidden suite).",
+        "",
+        f"Current spec: spec.md and spec/current.md (L{unlocked}).",
+        "Per-level copies: spec/level1.md, spec/level2.md, ...",
         "",
         f"Work file: {work}",
         f"URI: {file_uri(work)}",
