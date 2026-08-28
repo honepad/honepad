@@ -273,7 +273,9 @@ def test_start_copies_work_file_away_from_pack(monkeypatch, tmp_path: Path, caps
     out = capsys.readouterr().out
     work = tmp_path / "work" / "bank_system" / "java" / "work.java"
     assert work.is_file()
-    assert f"WORK: {work}" in out
+    assert "WORK:" in out
+    assert str(work) in out
+    assert "file://" in out
     assert "createAccount" in work.read_text(encoding="utf-8")
     assert "mergeAccounts" not in work.read_text(encoding="utf-8")
     assert "topSpenders" not in work.read_text(encoding="utf-8")
