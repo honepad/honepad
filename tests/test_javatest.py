@@ -1,6 +1,6 @@
 import pytest
 
-from honepad.javatest import java_expr, java_ident, render_junit
+from honepad.javatest import java_expr, java_ident, java_string, render_junit
 from honepad.traces import load_cases
 
 
@@ -58,11 +58,33 @@ def test_render_junit_empty_cases() -> None:
     assert "class PublicTracesTest {" in text
 
 
+def test_java_string_escapes_real_quote() -> None:
+    emitted = java_expr('foo"bar')
+    assert '\\"' in emitted
+    assert emitted == java_string('foo"bar')
+    assert emitted == '"foo\\"bar"'
+
+
 def test_java_expr_escapes_unicode_quote_breakout() -> None:
     assert java_expr(r"\u0022") == '"\\\\u0022"'
     emitted = java_expr(r"\u0022); evil(); //")
     assert '"); evil' not in emitted
     assert emitted == '"\\\\u0022); evil(); //"'
+    case = {
+        "id": "l1x",
+        "level": 1,
+        "calls": [
+            {
+                "m": "create_account",
+                "a": [1, r"\u0022); System.exit(1); //"],
+                "e": True,
+            }
+        ],
+    }
+    rendered = render_junit("bank_system", [case])
+    assert "\\\\u0022" in rendered
+    assert "System.exit" in rendered
+    assert '"); System.exit' not in rendered
 
 
 def test_render_junit_rejects_hostile_method() -> None:

@@ -677,3 +677,28 @@ def test_load_session_rejects_unknown_lang(monkeypatch, tmp_path: Path) -> None:
     )
     with pytest.raises((ValueError, KeyError), match="lang|language"):
         load_session()
+
+
+def test_load_session_rejects_unknown_problem(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "not-a-problem",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert main(["console"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "invalid problem" in out
+    assert "not-a-problem" in out
+    with pytest.raises(ValueError, match="problem"):
+        load_session()

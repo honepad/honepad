@@ -99,8 +99,10 @@ def test_console_run_then_quit(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setattr(sys, "stdin", io.StringIO("1\nq\n"))
     assert main(["console"]) == 0
     out = capsys.readouterr().out
-    assert "FAIL" in out
+    # cmd_run only prints these after traces actually ran; banner remaining_s= is not enough.
+    assert "create_account" in out or "createAccount" in out
     assert "passed=" in out
+    assert "FAIL " in out or "l1-" in out
     assert "remaining_s=" in out
     assert "OK: quit" in out
 
