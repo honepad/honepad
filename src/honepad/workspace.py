@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 
 from honepad.catalog import language, repo_root
+from honepad.javatest import render_junit, render_pom
+from honepad.pythontest import render_pytest
 from honepad.session import session_path, work_src
 from honepad.term import file_link, file_uri
 from honepad.traces import load_cases, problem_dir
@@ -41,15 +43,22 @@ def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
             dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
     row = language(lang)
     if row["id"] == "java":
-        _write_java_public(public, work, problem)
+        _write_java_public(public, work, problem, cases)
+    elif row["id"] == "python3":
+        _write_python_public(public, work, problem, cases)
     _write_readme(public, problem, lang, unlocked, work)
     _write_tasks(public, problem, lang)
     payload = {
         "folders": [
-            {"name": "work", "path": str(work.parent.resolve())},
             {"name": "public-tests", "path": str(public.resolve())},
+            {"name": "work", "path": str(work.parent.resolve())},
         ],
-        "settings": {"files.exclude": {"**/.DS_Store": True}},
+        "settings": {
+            "files.exclude": {"**/.DS_Store": True},
+            "java.configuration.updateBuildConfiguration": "automatic",
+            "java.import.maven.enabled": True,
+        },
+        "extensions": {"recommendations": _recommended_extensions(row["id"])},
     }
     dest = workspace_file(problem, lang)
     dest.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
@@ -84,13 +93,35 @@ def _link_or_copy(src: Path, dest: Path) -> None:
         dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
 
 
-def _write_java_public(public: Path, work: Path, problem: str) -> None:
+def _recommended_extensions(lang: str) -> list[str]:
+    if lang == "java":
+        return ["vscjava.vscode-java-pack"]
+    if lang == "python3":
+        return ["ms-python.python"]
+    return []
+
+
+def _write_java_public(
+    public: Path, work: Path, problem: str, cases: list[dict[str, object]]
+) -> None:
     pack = repo_root() / "langs" / "java"
     shutil.copy(pack / "Adapter.java", public / "Adapter.java")
     shutil.copy(pack / "MiniJson.java", public / "MiniJson.java")
+    main_java = public / "src" / "main" / "java"
+    test_java = public / "src" / "test" / "java"
+    main_java.mkdir(parents=True, exist_ok=True)
+    test_java.mkdir(parents=True, exist_ok=True)
     class_name = class_name_for(problem)
     if work.is_file():
-        _link_or_copy(work, public / f"{class_name}.java")
+        _link_or_copy(work, main_java / f"{class_name}.java")
+    (test_java / "PublicTracesTest.java").write_text(render_junit(problem, cases), encoding="utf-8")
+    (public / "pom.xml").write_text(render_pom(problem, "java"), encoding="utf-8")
+    vscode = public / ".vscode"
+    vscode.mkdir(exist_ok=True)
+    (vscode / "extensions.json").write_text(
+        json.dumps({"recommendations": ["vscjava.vscode-java-pack"]}, indent=2) + "\n",
+        encoding="utf-8",
+    )
     script = public / "run-public.sh"
     script.write_text(
         "\n".join(
@@ -98,6 +129,11 @@ def _write_java_public(public: Path, work: Path, problem: str) -> None:
                 "#!/bin/sh",
                 "set -e",
                 'cd "$(dirname "$0")"',
+                "if command -v mvn >/dev/null 2>&1; then",
+                "  mvn -q test",
+                "  exit $?",
+                "fi",
+                f"cp src/main/java/{class_name}.java .",
                 f"javac Adapter.java MiniJson.java {class_name}.java",
                 f"java Adapter cases.json {class_name}",
                 "",
@@ -106,6 +142,20 @@ def _write_java_public(public: Path, work: Path, problem: str) -> None:
         encoding="utf-8",
     )
     script.chmod(0o755)
+
+
+def _write_python_public(
+    public: Path, work: Path, problem: str, cases: list[dict[str, object]]
+) -> None:
+    if work.is_file():
+        _link_or_copy(work, public / "work.py")
+    (public / "test_public.py").write_text(render_pytest(problem, cases), encoding="utf-8")
+    vscode = public / ".vscode"
+    vscode.mkdir(exist_ok=True)
+    (vscode / "extensions.json").write_text(
+        json.dumps({"recommendations": ["ms-python.python"]}, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Path) -> None:
@@ -122,8 +172,22 @@ def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Pa
         "",
     ]
     if lang == "java":
-        lines.append("Java without honepad: `./run-public.sh` (Adapter + cases.json).")
-        lines.append("")
+        lines.extend(
+            [
+                "Java tests are JUnit 5 under `src/test/java/PublicTracesTest.java`.",
+                "Open the Testing sidebar after the Java extension pack imports Maven.",
+                "Or: `mvn test` / `./run-public.sh`.",
+                "",
+            ]
+        )
+    if lang == "python3":
+        lines.extend(
+            [
+                "Python tests are pytest in `test_public.py`.",
+                "Open the Testing sidebar after the Python extension loads.",
+                "",
+            ]
+        )
     (public / "README.md").write_text("\n".join(lines), encoding="utf-8")
 
 
@@ -142,6 +206,17 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
         }
     ]
     if lang == "java":
+        tasks.append(
+            {
+                "label": "Run JUnit tests",
+                "type": "shell",
+                "command": "mvn",
+                "args": ["-q", "test"],
+                "group": "test",
+                "options": {"cwd": "${workspaceFolder}"},
+                "problemMatcher": [],
+            }
+        )
         tasks.append(
             {
                 "label": "Run public tests (javac)",
