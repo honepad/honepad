@@ -38,7 +38,11 @@ def work_src(problem: str, lang_id: str) -> Path:
 
 def _migrate_legacy_java_work(parent: Path, dest: Path) -> None:
     legacy = parent / "work.java"
-    if dest.exists() or dest.is_symlink() or not legacy.is_file():
+    if dest.exists() or dest.is_symlink():
+        if legacy.is_file() or legacy.is_symlink():
+            legacy.unlink()
+        return
+    if not legacy.is_file():
         return
     try:
         legacy.rename(dest)

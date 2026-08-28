@@ -127,6 +127,7 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
         if choice in {"4", "spec"}:
             return _print_spec(problem, unlocked, stdout)
         if choice in {"5", "vscode", "code"}:
+            ensure_work_copy(problem, lang, reset=False, level=unlocked)
             path = write_workspace(problem, lang, unlocked)
             stdout.write(f"WORKSPACE: {file_link(path)}\n")
             tests = _tests_output(problem, lang)

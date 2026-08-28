@@ -99,8 +99,10 @@ def test_console_run_then_quit(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setattr(sys, "stdin", io.StringIO("1\nq\n"))
     assert main(["console"]) == 0
     out = capsys.readouterr().out
-    assert "FAIL" in out
+    # cmd_run only prints these after traces actually ran; banner remaining_s= is not enough.
+    assert "create_account" in out or "createAccount" in out
     assert "passed=" in out
+    assert "FAIL " in out or "l1-" in out
     assert "remaining_s=" in out
     assert "OK: quit" in out
 
@@ -177,6 +179,53 @@ def test_dispatch_write_workspace_fail_closed(monkeypatch, tmp_path: Path) -> No
     assert "Traceback" not in out
 
 
+def test_dispatch_vscode_recreates_missing_java_work(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    assert work.is_file()
+    work.unlink()
+    session = load_session()
+    assert session is not None
+    monkeypatch.setattr("honepad.console.open_vscode", lambda _path: 0)
+    buf = io.StringIO()
+    assert dispatch("5", session, buf) == 0
+    assert work.is_file()
+    assert "class Simulation" in work.read_text(encoding="utf-8")
+    public_sim = (
+        tmp_path
+        / "workspace"
+        / "bank_system-java"
+        / "public"
+        / "src"
+        / "main"
+        / "java"
+        / "Simulation.java"
+    )
+    assert public_sim.exists()
+    assert "FAIL:" not in buf.getvalue()
+
+
+def test_write_workspace_java_missing_work_fails_closed(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    work.unlink()
+    with pytest.raises(ValueError, match="work file missing"):
+        write_workspace("bank_system", "java", 1)
+    public_sim = (
+        tmp_path
+        / "workspace"
+        / "bank_system-java"
+        / "public"
+        / "src"
+        / "main"
+        / "java"
+        / "Simulation.java"
+    )
+    assert not public_sim.exists()
+
+
 def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
@@ -191,7 +240,7 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert "PublicTracesTest.java" in out
     payload = json.loads(dest.read_text(encoding="utf-8"))
     names = [folder["name"] for folder in payload["folders"]]
-    assert names == ["public-tests", "work"]
+    assert names == ["public-tests"]
     assert "vscjava.vscode-java-pack" in payload["extensions"]["recommendations"]
     public = dest.parent / "public"
     cases = json.loads((public / "cases.json").read_text(encoding="utf-8"))
@@ -211,6 +260,8 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert "mergeAccounts" not in junit
     assert "import static org.junit.jupiter.api.Assertions.assertNull;" in junit
     assert "assertNull(" in junit
+    assert 'assertEquals((Object) 500, sim.deposit(2, "acc1", 500));' in junit
+    assert "assertEquals(500, sim.deposit" not in junit
     assert (public / "pom.xml").is_file()
     pom = (public / "pom.xml").read_text(encoding="utf-8")
     assert "junit-jupiter" in pom
@@ -284,6 +335,9 @@ def test_workspace_python_skips_java_adapter(monkeypatch, tmp_path: Path) -> Non
     assert "create_account" in pytest_src
     assert "merge_accounts" not in pytest_src
     payload = dest.read_text(encoding="utf-8")
+    folders = json.loads(payload)["folders"]
+    names = [folder["name"] for folder in folders]
+    assert names == ["public-tests", "work"]
     assert "java.import.maven" not in payload
     tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
     labels = [task["label"] for task in tasks["tasks"]]

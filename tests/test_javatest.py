@@ -1,6 +1,6 @@
 import pytest
 
-from honepad.javatest import java_expr, java_ident, render_junit
+from honepad.javatest import java_expr, java_ident, java_string, render_junit
 from honepad.traces import load_cases
 
 
@@ -39,6 +39,24 @@ def test_render_junit_l1_hides_later_methods() -> None:
     assert "import java.util.List;" not in text
     assert "import static org.junit.jupiter.api.Assertions.assertNull;" in text
     assert "assertNull(" in text
+    assert 'assertEquals((Object) 500, sim.deposit(2, "acc1", 500));' in text
+    assert "assertEquals(500, sim.deposit" not in text
+
+
+def test_render_case_object_cast_and_assert_null() -> None:
+    from honepad.javatest import _render_case
+
+    case = {
+        "id": "l1-deposit",
+        "level": 1,
+        "calls": [
+            {"m": "deposit", "a": [2, "acc1", 500], "e": 500},
+            {"m": "deposit", "a": [4, "non_existent", 100], "e": None},
+        ],
+    }
+    text = _render_case("Simulation", case)
+    assert 'assertEquals((Object) 500, sim.deposit(2, "acc1", 500));' in text
+    assert 'assertNull(sim.deposit(4, "non_existent", 100));' in text
 
 
 def test_render_junit_l2_uses_list_of() -> None:
@@ -58,11 +76,33 @@ def test_render_junit_empty_cases() -> None:
     assert "class PublicTracesTest {" in text
 
 
+def test_java_string_escapes_real_quote() -> None:
+    emitted = java_expr('foo"bar')
+    assert '\\"' in emitted
+    assert emitted == java_string('foo"bar')
+    assert emitted == '"foo\\"bar"'
+
+
 def test_java_expr_escapes_unicode_quote_breakout() -> None:
     assert java_expr(r"\u0022") == '"\\\\u0022"'
     emitted = java_expr(r"\u0022); evil(); //")
     assert '"); evil' not in emitted
     assert emitted == '"\\\\u0022); evil(); //"'
+    case = {
+        "id": "l1x",
+        "level": 1,
+        "calls": [
+            {
+                "m": "create_account",
+                "a": [1, r"\u0022); System.exit(1); //"],
+                "e": True,
+            }
+        ],
+    }
+    rendered = render_junit("bank_system", [case])
+    assert "\\\\u0022" in rendered
+    assert "System.exit" in rendered
+    assert '"); System.exit' not in rendered
 
 
 def test_render_junit_rejects_hostile_method() -> None:

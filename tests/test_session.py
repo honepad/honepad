@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from honepad.cli import main
-from honepad.session import load_session, remaining_s
+from honepad.session import load_session, remaining_s, work_src
 
 
 def test_remaining_s_floors_at_zero() -> None:
@@ -299,6 +299,20 @@ def test_legacy_java_work_file_migrates_to_class_name(monkeypatch, tmp_path: Pat
     assert dest.is_file()
     assert "marker-keep-me" in dest.read_text(encoding="utf-8")
     assert not legacy.exists()
+
+
+def test_legacy_java_leftover_dropped_when_dest_exists(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    dest_dir = tmp_path / "work" / "bank_system" / "java"
+    dest_dir.mkdir(parents=True)
+    dest = dest_dir / "Simulation.java"
+    leftover = dest_dir / "work.java"
+    dest.write_text("live-marker\n", encoding="utf-8")
+    leftover.write_text("dead-marker\n", encoding="utf-8")
+    found = work_src("bank_system", "java")
+    assert found == dest
+    assert dest.read_text(encoding="utf-8") == "live-marker\n"
+    assert not leftover.exists()
 
 
 def test_start_python_work_hides_later_methods(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -676,4 +690,29 @@ def test_load_session_rejects_unknown_lang(monkeypatch, tmp_path: Path) -> None:
         encoding="utf-8",
     )
     with pytest.raises((ValueError, KeyError), match="lang|language"):
+        load_session()
+
+
+def test_load_session_rejects_unknown_problem(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "not-a-problem",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert main(["console"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "invalid problem" in out
+    assert "not-a-problem" in out
+    with pytest.raises(ValueError, match="problem"):
         load_session()
