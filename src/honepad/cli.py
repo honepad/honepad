@@ -16,8 +16,9 @@ from honepad.session import (
     load_session,
     remaining_s,
     unlock_next,
+    work_src,
 )
-from honepad.traces import load_cases, problem_dir
+from honepad.traces import load_cases, method_name, problem_dir
 
 
 def cmd_langs(_args: argparse.Namespace) -> int:
@@ -107,10 +108,15 @@ def cmd_run(args: argparse.Namespace) -> int:
     print(summary)
     if report.failed:
         fail = report.failed[0]
+        naming = str(language(lang)["naming"])
+        shown = method_name(fail.method, naming)
+        argv = ", ".join(repr(item) for item in fail.args)
         print(
-            f"FAIL {fail.case} call[{fail.index}] {fail.method}{tuple(fail.args)} "
+            f"FAIL {fail.case} call[{fail.index}] {shown}({argv}) "
             f"expected={fail.expected!r} actual={fail.actual!r}"
         )
+        if kind == "work":
+            print(f"WORK: {work_src(args.problem, lang)}")
         return 1
     if report.passed == 0:
         print("FAIL: no cases")
