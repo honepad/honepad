@@ -156,6 +156,24 @@ def test_dispatch_vscode_opens_workspace(monkeypatch, tmp_path: Path) -> None:
     assert "file://" in out
 
 
+def test_dispatch_write_workspace_fail_closed(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    session = load_session()
+    assert session is not None
+
+    def _boom(*_args: object, **_kwargs: object) -> Path:
+        raise ValueError("boom")
+
+    monkeypatch.setattr("honepad.console.write_workspace", _boom)
+    buf = io.StringIO()
+    assert dispatch("5", session, buf) == 1
+    out = buf.getvalue()
+    assert "FAIL:" in out
+    assert "boom" in out
+    assert "Traceback" not in out
+
+
 def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
@@ -248,6 +266,11 @@ def test_workspace_python_skips_java_adapter(monkeypatch, tmp_path: Path) -> Non
     assert "def test_l1_create()" in pytest_src
     assert "create_account" in pytest_src
     assert "merge_accounts" not in pytest_src
+    payload = dest.read_text(encoding="utf-8")
+    assert "java.import.maven" not in payload
+    tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
+    labels = [task["label"] for task in tasks["tasks"]]
+    assert any("pytest" in label.lower() for label in labels)
 
 
 def test_link_or_copy_falls_back_on_oserror(tmp_path: Path, monkeypatch) -> None:

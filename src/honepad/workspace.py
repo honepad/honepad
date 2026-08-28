@@ -53,11 +53,7 @@ def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
             {"name": "public-tests", "path": str(public.resolve())},
             {"name": "work", "path": str(work.parent.resolve())},
         ],
-        "settings": {
-            "files.exclude": {"**/.DS_Store": True},
-            "java.configuration.updateBuildConfiguration": "automatic",
-            "java.import.maven.enabled": True,
-        },
+        "settings": _workspace_settings(row["id"]),
         "extensions": {"recommendations": _recommended_extensions(row["id"])},
     }
     dest = workspace_file(problem, lang)
@@ -101,6 +97,23 @@ def _recommended_extensions(lang: str) -> list[str]:
     return []
 
 
+def _workspace_settings(lang: str) -> dict[str, object]:
+    settings: dict[str, object] = {"files.exclude": {"**/.DS_Store": True}}
+    if lang == "java":
+        settings["java.configuration.updateBuildConfiguration"] = "automatic"
+        settings["java.import.maven.enabled"] = True
+    return settings
+
+
+def _write_extensions(public: Path, ids: list[str]) -> None:
+    vscode = public / ".vscode"
+    vscode.mkdir(exist_ok=True)
+    (vscode / "extensions.json").write_text(
+        json.dumps({"recommendations": ids}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
 def _write_java_public(
     public: Path, work: Path, problem: str, cases: list[dict[str, object]]
 ) -> None:
@@ -116,12 +129,7 @@ def _write_java_public(
         _link_or_copy(work, main_java / f"{class_name}.java")
     (test_java / "PublicTracesTest.java").write_text(render_junit(problem, cases), encoding="utf-8")
     (public / "pom.xml").write_text(render_pom(problem, "java"), encoding="utf-8")
-    vscode = public / ".vscode"
-    vscode.mkdir(exist_ok=True)
-    (vscode / "extensions.json").write_text(
-        json.dumps({"recommendations": ["vscjava.vscode-java-pack"]}, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    _write_extensions(public, ["vscjava.vscode-java-pack"])
     script = public / "run-public.sh"
     script.write_text(
         "\n".join(
@@ -150,12 +158,7 @@ def _write_python_public(
     if work.is_file():
         _link_or_copy(work, public / "work.py")
     (public / "test_public.py").write_text(render_pytest(problem, cases), encoding="utf-8")
-    vscode = public / ".vscode"
-    vscode.mkdir(exist_ok=True)
-    (vscode / "extensions.json").write_text(
-        json.dumps({"recommendations": ["ms-python.python"]}, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    _write_extensions(public, ["ms-python.python"])
 
 
 def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Path) -> None:
@@ -222,6 +225,18 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
                 "label": "Run public tests (javac)",
                 "type": "shell",
                 "command": "${workspaceFolder}/run-public.sh",
+                "group": "test",
+                "options": {"cwd": "${workspaceFolder}"},
+                "problemMatcher": [],
+            }
+        )
+    if lang == "python3":
+        tasks.append(
+            {
+                "label": "Run pytest",
+                "type": "shell",
+                "command": sys.executable,
+                "args": ["-m", "pytest", "test_public.py"],
                 "group": "test",
                 "options": {"cwd": "${workspaceFolder}"},
                 "problemMatcher": [],

@@ -66,14 +66,14 @@ def cmd_vscode(args: argparse.Namespace) -> int:
             str(session["lang"]),
             int(session["unlocked"]),
         )
+        print(f"WORKSPACE: {file_link(path)}")
+        if args.no_open:
+            print("OK: wrote workspace")
+            return 0
+        return open_vscode(path)
     except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
         print(f"FAIL: {exc}")
         return 1
-    print(f"WORKSPACE: {file_link(path)}")
-    if args.no_open:
-        print("OK: wrote workspace")
-        return 0
-    return open_vscode(path)
 
 
 def loop_console(
@@ -108,30 +108,35 @@ def loop_console(
 
 
 def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
-    problem = str(session["problem"])
-    lang = str(session["lang"])
-    unlocked = int(session["unlocked"])
-    if choice in {"1", "run", "test"}:
-        return _run_work(problem, lang)
-    if choice in {"2", "submit"}:
-        stdout.write("NOTE: local submit. Nothing is sent.\n")
+    try:
+        problem = str(session["problem"])
+        lang = str(session["lang"])
+        unlocked = int(session["unlocked"])
+        if choice in {"1", "run", "test"}:
+            return _run_work(problem, lang)
+        if choice in {"2", "submit"}:
+            stdout.write("NOTE: local submit. Nothing is sent.\n")
+            stdout.flush()
+            return _run_work(problem, lang)
+        if choice in {"3", "reset"}:
+            work = ensure_work_copy(problem, lang, reset=True, level=unlocked)
+            stdout.write(f"OK: reset\n{work_line(work)}\n")
+            stdout.flush()
+            return 0
+        if choice in {"4", "spec"}:
+            return _print_spec(problem, unlocked, stdout)
+        if choice in {"5", "vscode", "code"}:
+            path = write_workspace(problem, lang, unlocked)
+            stdout.write(f"WORKSPACE: {file_link(path)}\n")
+            stdout.flush()
+            return open_vscode(path)
+        stdout.write(f"FAIL: unknown option {choice!r}\n")
         stdout.flush()
-        return _run_work(problem, lang)
-    if choice in {"3", "reset"}:
-        work = ensure_work_copy(problem, lang, reset=True, level=unlocked)
-        stdout.write(f"OK: reset\n{work_line(work)}\n")
+        return 1
+    except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
+        stdout.write(f"FAIL: {exc}\n")
         stdout.flush()
-        return 0
-    if choice in {"4", "spec"}:
-        return _print_spec(problem, unlocked, stdout)
-    if choice in {"5", "vscode", "code"}:
-        path = write_workspace(problem, lang, unlocked)
-        stdout.write(f"WORKSPACE: {file_link(path)}\n")
-        stdout.flush()
-        return open_vscode(path)
-    stdout.write(f"FAIL: unknown option {choice!r}\n")
-    stdout.flush()
-    return 1
+        return 1
 
 
 def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:
