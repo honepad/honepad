@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from honepad.catalog import language, repo_root
+from honepad.catalog import language, problems, repo_root
 from honepad.traces import problem_dir
 from honepad.workstub import (
     class_name_for,
@@ -86,7 +86,25 @@ def load_session(path: Path | None = None) -> dict[str, Any] | None:
         payload["unlocked"] = int(payload["unlocked"])
     except (TypeError, ValueError) as exc:
         raise ValueError(f"{target} {exc}") from exc
+    problem = str(payload["problem"])
+    lang = str(payload["lang"])
+    if not _single_segment(problem) or problem not in problems():
+        raise ValueError(f"invalid problem {problem!r}")
+    try:
+        language(lang)
+    except KeyError as exc:
+        raise ValueError(f"unknown language: {lang}") from exc
+    payload["problem"] = problem
+    payload["lang"] = lang
     return payload
+
+
+def _single_segment(name: str) -> bool:
+    if not name or name in {".", ".."}:
+        return False
+    if "/" in name or "\\" in name:
+        return False
+    return Path(name).name == name
 
 
 def save_session(session: dict[str, Any], path: Path | None = None) -> Path:

@@ -56,3 +56,32 @@ def test_render_junit_empty_cases() -> None:
     text = render_junit("bank_system", [])
     assert text.count("@Test") == 0
     assert "class PublicTracesTest {" in text
+
+
+def test_java_expr_escapes_unicode_quote_breakout() -> None:
+    assert java_expr(r"\u0022") == '"\\\\u0022"'
+    emitted = java_expr(r"\u0022); evil(); //")
+    assert '"); evil' not in emitted
+    assert emitted == '"\\\\u0022); evil(); //"'
+
+
+def test_render_junit_rejects_hostile_method() -> None:
+    case = {
+        "id": "evil",
+        "level": 1,
+        "calls": [{"m": "create_account();evil()", "a": [1, "acc1"], "e": True}],
+    }
+    with pytest.raises(ValueError, match="invalid method name"):
+        render_junit("bank_system", [case])
+
+
+def test_render_pytest_rejects_hostile_method() -> None:
+    from honepad.pythontest import render_pytest
+
+    case = {
+        "id": "evil",
+        "level": 1,
+        "calls": [{"m": "create_account();evil()", "a": [1, "acc1"], "e": True}],
+    }
+    with pytest.raises(ValueError, match="invalid method name"):
+        render_pytest("bank_system", [case])

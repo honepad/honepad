@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from honepad.cli import main
 from honepad.session import load_session, remaining_s
 
@@ -611,3 +613,51 @@ def test_run_level_zero_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None
     assert "\nOK\n" not in out
     assert not out.strip().endswith("OK")
     assert "UNLOCKED" not in out
+
+
+def test_load_session_rejects_path_escape_problem(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "../../pwn",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    escaped = (tmp_path / "work" / "../../pwn").resolve()
+    sibling = tmp_path.parent / "pwn"
+    assert main(["console"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert not escaped.exists()
+    assert not sibling.exists()
+    assert not (tmp_path / "work").exists()
+    with pytest.raises(ValueError, match="problem"):
+        load_session()
+
+
+def test_load_session_rejects_unknown_lang(monkeypatch, tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "not-a-lang",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises((ValueError, KeyError), match="lang|language"):
+        load_session()

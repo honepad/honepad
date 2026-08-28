@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -32,10 +33,17 @@ def load_cases(problem: str, level: int | None = None) -> list[dict[str, Any]]:
     return cases
 
 
+_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
 def method_name(snake: str, naming: str) -> str:
     if naming == "snake":
-        return snake
-    if naming == "camel":
+        name = snake
+    elif naming == "camel":
         parts = snake.split("_")
-        return parts[0] + "".join(p.title() for p in parts[1:])
-    raise ValueError(f"unknown naming: {naming}")
+        name = parts[0] + "".join(p.title() for p in parts[1:])
+    else:
+        raise ValueError(f"unknown naming: {naming}")
+    if _IDENT.fullmatch(name) is None:
+        raise ValueError(f"invalid method name: {name}")
+    return name
