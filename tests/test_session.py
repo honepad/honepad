@@ -7,6 +7,23 @@ import pytest
 
 from honepad.cli import main
 from honepad.session import ensure_work_copy, load_session, remaining_s, work_src
+from honepad.workstub import _java_method
+
+
+def test_java_method_includes_leading_javadoc() -> None:
+    stub = (
+        Path(__file__).resolve().parents[1]
+        / "langs"
+        / "java"
+        / "problems"
+        / "bank_system"
+        / "stub.java"
+    ).read_text(encoding="utf-8")
+    block = _java_method(stub, "topSpenders")
+    assert block is not None
+    assert block.lstrip().startswith("/**")
+    assert "id(outgoing)" in block
+    assert "public List<String> topSpenders" in block
 
 
 def test_remaining_s_floors_at_zero() -> None:
@@ -367,6 +384,32 @@ def test_unlock_appends_next_level_methods(monkeypatch, tmp_path: Path, capsys) 
     assert "topSpenders" in after
     assert "import java.util.List" in after
     assert "mergeAccounts" not in after
+    assert "id(outgoing)" in after
+    assert '["acc1(500)", "acc2(0)"]' in after
+
+
+def test_start_java_work_has_docs_only_for_unlocked(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    text = work.read_text(encoding="utf-8")
+    assert "/**" in text
+    assert "Returns true if created" in text
+    assert "topSpenders" not in text
+    assert "id(outgoing)" not in text
+    assert "paymentN" not in text
+
+
+def test_start_python_work_has_docs_only_for_unlocked(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    text = work.read_text(encoding="utf-8")
+    assert '"""Create an account.' in text
+    assert "def top_spenders(" not in text
+    assert "id(outgoing)" not in text
 
 
 def test_start_keeps_edited_work_unless_reset(monkeypatch, tmp_path: Path, capsys) -> None:

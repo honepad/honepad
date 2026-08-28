@@ -114,7 +114,11 @@ def _java_method(text: str, name: str) -> str | None:
     start = _java_method_start(text, name)
     if start is None:
         return None
-    return _brace_block(text, start)
+    pub = text.find("public ", start)
+    if pub < 0:
+        return None
+    body = _brace_block(text, pub)
+    return text[start:pub] + body
 
 
 def _java_method_start(text: str, name: str) -> int | None:
@@ -131,7 +135,17 @@ def _java_method_start(text: str, name: str) -> int | None:
         if pub < 0:
             idx = pos + 1
             continue
+        return _include_java_doc(text, pub)
+
+
+def _include_java_doc(text: str, pub: int) -> int:
+    close = text.rfind("*/", 0, pub)
+    if close < 0 or text[close + 2 : pub].strip() != "":
         return pub
+    open_pos = text.rfind("/**", 0, close)
+    if open_pos < 0:
+        return pub
+    return text.rfind("\n", 0, open_pos) + 1
 
 
 def _brace_block(text: str, start: int) -> str:
