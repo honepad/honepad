@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from honepad.catalog import language
+from honepad.catalog import language, repo_root
 from honepad.runner import (
     _RUNNERS,
     report_from_proc,
@@ -19,6 +19,15 @@ from honepad.traces import load_cases
 UNIMPLEMENTED_CATALOG_LANG = "vb"
 
 _GST = shutil.which("gst")
+
+
+def test_bank_level2_spec_shows_worked_example() -> None:
+    text = (repo_root() / "problems" / "bank_system" / "spec" / "level2.md").read_text(
+        encoding="utf-8"
+    )
+    assert "top_spenders(5, 2)" in text
+    assert '["acc1(500)", "acc2(0)"]' in text
+    assert '["acc1(500)", "acc2(500)", "acc3(300)"]' in text
 
 
 def test_bank_solution_all_levels() -> None:
