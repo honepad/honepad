@@ -53,7 +53,9 @@ def _load_python_class(path: Path, class_name: str) -> Any:
         return getattr(mod, class_name)
     except FileNotFoundError:
         raise
-    except Exception as exc:  # noqa: BLE001 - user pack load
+    except KeyboardInterrupt:
+        raise
+    except BaseException as exc:  # noqa: BLE001 - user pack load
         raise RuntimeError(_format_load_error(path, exc)) from exc
 
 
@@ -188,6 +190,9 @@ def report_from_proc(
         raise RuntimeError(
             f"{lang_id} adapter report count mismatch: {passed + len(failed)} != {len(cases)}"
         )
+    if proc.returncode != 0 and not failed:
+        detail = (proc.stderr or "").strip() or f"{lang_id} adapter exited {proc.returncode}"
+        raise RuntimeError(detail)
     return Report(problem, lang_id, level, passed, failed)
 
 
