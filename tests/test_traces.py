@@ -654,6 +654,11 @@ def test_bash_all_problems() -> None:
         assert report.ok, report.failed
 
 
+def test_bash_bank_empty_top_spenders() -> None:
+    report = run("bank_system", "bash", 2, "solution")
+    assert report.ok, report.failed
+
+
 def test_bash_bank_stub_fails() -> None:
     report = run("bank_system", "bash", 1, "stub")
     assert not report.ok
