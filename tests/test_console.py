@@ -493,6 +493,9 @@ def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys)
     assert "public-tests" in javac["options"]["cwd"]
     assert "public-tests" in javac["command"]
     assert "workspaceFolder" not in json.dumps(by_label["Run public tests"])
+    public_run = json.dumps(by_label["Run public tests"])
+    assert '"run"' in public_run
+    assert "submit" not in public_run
 
 
 def test_write_workspace_includes_unlocked_level_specs(monkeypatch, tmp_path: Path) -> None:
@@ -523,7 +526,7 @@ def test_unlock_prints_spec_and_refreshes_workspace(monkeypatch, tmp_path: Path,
     public = tmp_path / "workspace" / "bank_system-java" / "public"
     assert (public / "spec.md").read_text(encoding="utf-8").startswith("# Bank system level 1")
     assert not (public / "level2.md").exists()
-    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
     out = capsys.readouterr().out
     assert "UNLOCKED: level 2" in out
     assert "# Bank system level 2" in out

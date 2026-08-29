@@ -246,6 +246,7 @@ def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Pa
         "",
         "VS Code: Terminal > Run Task > Run public tests, or",
         f"`{sys.executable} -m honepad run {problem} --lang {lang}`.",
+        "A passing run does not unlock. Console 2 / honepad submit unlocks the next level.",
         "",
     ]
     if lang == "java":
