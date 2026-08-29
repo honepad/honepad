@@ -5,7 +5,8 @@ from __future__ import annotations
 import argparse
 import select
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from typing import Any, TextIO
 
 from honepad.catalog import language
@@ -261,6 +262,46 @@ def _use_live(stdin: TextIO, stdout: TextIO) -> bool:
     return bool(stdin.isatty() and stdout.isatty())
 
 
+@contextmanager
+def _keys_now(stdin: TextIO) -> Iterator[None]:
+    if sys.platform == "win32":
+        yield
+        return
+    try:
+        fd = stdin.fileno()
+    except (AttributeError, OSError):
+        yield
+        return
+    try:
+        import termios
+        import tty
+    except ImportError:
+        yield
+        return
+    try:
+        old = termios.tcgetattr(fd)
+    except termios.error:
+        yield
+        return
+    try:
+        tty.setcbreak(fd)
+        new = termios.tcgetattr(fd)
+        new[3] &= ~termios.ECHO
+        termios.tcsetattr(fd, termios.TCSADRAIN, new)
+        yield
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+
+def _drain_escape(stdin: TextIO) -> None:
+    while True:
+        ready, _, _ = select.select([stdin], [], [], 0.02)
+        if not ready:
+            return
+        if stdin.read(1) == "":
+            return
+
+
 def _read_choice(
     session: dict[str, Any],
     stdin: TextIO,
@@ -281,15 +322,25 @@ def _read_choice(
         stdout.flush()
         line = stdin.readline()
         return None if line == "" else line
-    while True:
-        stdout.write(f"\r[{_clock()}] {_MENU}  > ")
-        stdout.flush()
-        ready, _, _ = select.select([stdin], [], [], 1.0)
-        if ready:
-            line = stdin.readline()
-            stdout.write("\n")
+    with _keys_now(stdin):
+        while True:
+            stdout.write(f"\r[{_clock()}] {_MENU}")
             stdout.flush()
-            return None if line == "" else line
-        session_now = load_session()
-        if session_now is not None:
-            session.update(session_now)
+            ready, _, _ = select.select([stdin], [], [], 1.0)
+            if ready:
+                ch = stdin.read(1)
+                if ch == "":
+                    return None
+                if ch in {"\n", "\r"}:
+                    stdout.write("\n")
+                    stdout.flush()
+                    return ""
+                if ch == "\x1b":
+                    _drain_escape(stdin)
+                    continue
+                stdout.write("\n")
+                stdout.flush()
+                return ch
+            session_now = load_session()
+            if session_now is not None:
+                session.update(session_now)
