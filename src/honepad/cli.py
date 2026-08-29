@@ -261,6 +261,9 @@ def cmd_run(args: argparse.Namespace) -> int:
         report = run(args.problem, lang, level, kind=kind)
         if session is not None and same:
             left = remaining_s(int(session["started_at"]), int(session["minutes"]))
+        if report.debug.strip():
+            for line in report.debug.splitlines():
+                print(f"DEBUG: {line}")
     except (
         NotImplementedError,
         KeyError,

@@ -37,6 +37,7 @@ class Report:
     level: int
     passed: int
     failed: list[Fail]
+    debug: str = ""
 
     @property
     def ok(self) -> bool:
@@ -159,6 +160,21 @@ def run_python(
     return report_from_proc(proc, problem, "python3", level)
 
 
+def _extract_report_payload(stdout: str, lang_id: str) -> tuple[dict[str, Any], str]:
+    text = stdout.rstrip("\n")
+    idx = text.rfind("{")
+    while idx >= 0:
+        try:
+            payload = json.loads(text[idx:])
+        except json.JSONDecodeError:
+            idx = text.rfind("{", 0, idx)
+            continue
+        if isinstance(payload, dict) and "passed" in payload:
+            return payload, text[:idx]
+        idx = text.rfind("{", 0, idx)
+    raise RuntimeError(f"{lang_id} adapter produced invalid JSON")
+
+
 def report_from_proc(
     proc: subprocess.CompletedProcess[str],
     problem: str,
@@ -167,9 +183,7 @@ def report_from_proc(
 ) -> Report:
     if not proc.stdout.strip():
         raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
-    payload = json.loads(proc.stdout.splitlines()[-1])
-    if not isinstance(payload, dict):
-        raise RuntimeError(f"{lang_id} adapter produced invalid JSON")
+    payload, debug = _extract_report_payload(proc.stdout, lang_id)
     cases = {str(case["id"]): case for case in load_cases(problem, level)}
     failed: list[Fail] = []
     for row in payload.get("failed", []):
@@ -193,7 +207,7 @@ def report_from_proc(
     if proc.returncode != 0 and not failed:
         detail = (proc.stderr or "").strip() or f"{lang_id} adapter exited {proc.returncode}"
         raise RuntimeError(detail)
-    return Report(problem, lang_id, level, passed, failed)
+    return Report(problem, lang_id, level, passed, failed, debug=debug)
 
 
 def run_prepare_cmd(

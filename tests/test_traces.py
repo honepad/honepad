@@ -862,6 +862,45 @@ def test_report_from_proc_rejects_passed_count_mismatch() -> None:
     assert "adapter report count mismatch" in text
 
 
+def test_report_from_proc_reads_json_after_print_prefix() -> None:
+    n = len(load_cases("bank_system", 1))
+    glued = f'************500{{"passed": {n}, "failed": []}}\n'
+    proc = subprocess.CompletedProcess(["adapter"], 0, stdout=glued, stderr="")
+    report = report_from_proc(proc, "bank_system", "java", 1)
+    assert report.ok
+    assert report.passed == n
+    assert "************500" in report.debug
+
+
+def test_java_work_system_out_print_still_reports(monkeypatch, tmp_path: Path, capsys) -> None:
+    from honepad.cli import main
+
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    text = (
+        repo_root() / "langs" / "java" / "problems" / "bank_system" / "solution.java"
+    ).read_text(encoding="utf-8")
+    needle = "int result = account.deposit(amount);"
+    assert needle in text
+    work.write_text(
+        text.replace(
+            needle,
+            'System.out.print("************" + amount);\n        ' + needle,
+            1,
+        ),
+        encoding="utf-8",
+    )
+    code = main(["run", "bank_system", "--lang", "java", "--level", "1"])
+    out = capsys.readouterr().out
+    assert code == 0, out
+    assert "Expecting value" not in out
+    assert "DEBUG:" in out
+    assert "************" in out
+    assert "passed=" in out
+
+
 def test_report_from_proc_rejects_nonzero_empty_failed() -> None:
     n = len(load_cases("bank_system", 1))
     proc = subprocess.CompletedProcess(
