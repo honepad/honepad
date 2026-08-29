@@ -1794,6 +1794,30 @@ def test_submit_rejects_patched_os_exit_fake_json(monkeypatch, tmp_path: Path, c
     assert load_session()["unlocked"] == 1
 
 
+def test_js_unlock_merge_targets_simulation_not_first_class(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "javascript", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "javascript" / "work.js"
+    work.write_text(
+        "class Account {\n  constructor() {}\n}\n"
+        "class Simulation {\n  constructor() {}\n"
+        "  createAccount() {}\n  deposit() {}\n  transfer() {}\n}\n"
+        "module.exports = { Simulation };\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--kind", "solution"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "UNLOCKED" in out
+    body = work.read_text(encoding="utf-8")
+    account, _sep, simulation = body.partition("class Simulation")
+    assert "topSpenders" in simulation
+    assert "topSpenders" not in account
+
+
 def test_declares_class_skips_unclosed_block_comment() -> None:
     name = "Simulation"
     assert not declares_class("/*\nclass Simulation {\n}\n", "js", name)
