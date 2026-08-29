@@ -171,10 +171,26 @@ def test_start_paints_spec_heading_when_forced(monkeypatch, tmp_path: Path, caps
     assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0
     out = capsys.readouterr().out
     assert "# Bank system level" in out
-    first = out.splitlines()[0]
-    assert first.startswith("\x1b[")
+    heading = next(line for line in out.splitlines() if "# Bank system level" in line)
+    assert "\x1b[" in heading
     assert "SPEC:" in out
     assert "\x1b[" in spec_line(tmp_path / "work" / "bank_system" / "java" / "spec.md")
+
+
+def test_start_resume_note_before_spec(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    capsys.readouterr()
+    assert load_session()["unlocked"] == 2
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    spec_at = out.find("# Bank system level 2")
+    assert spec_at != -1
+    before = out[:spec_at]
+    assert "NOTE:" in before
+    assert "--reset" in before or "back" in before
 
 
 def test_start_on_tty_opens_live_menu(monkeypatch, tmp_path: Path, capsys) -> None:

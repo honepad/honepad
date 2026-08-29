@@ -1348,6 +1348,7 @@ def test_submit_without_class_does_not_unlock(monkeypatch, tmp_path: Path, capsy
     out = capsys.readouterr().out
     assert code == 1
     assert "FAIL:" in out
+    assert not any(line.strip() == "OK" for line in out.splitlines())
     assert "UNLOCKED" not in out
     assert load_session()["unlocked"] == 1
     assert work.read_text(encoding="utf-8") == "notes\n"

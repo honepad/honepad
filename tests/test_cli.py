@@ -6,7 +6,7 @@ import pytest
 
 from honepad.catalog import languages
 from honepad.cli import build_parser, main
-from honepad.runner import _RUNNERS
+from honepad.runner import _RUNNERS, run_prepare_cmd
 from honepad.term import invocation
 
 # Catalog id used by unimplemented-lang CLI tests. Must stay off
@@ -209,6 +209,32 @@ def test_start_unknown_lang_id_exits(monkeypatch, tmp_path, capsys) -> None:
     assert "STUB:" not in out
     assert "WORK:" not in out
     assert "Traceback" not in out
+
+
+def test_start_java_missing_javac_fails_before_session(monkeypatch, tmp_path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+
+    def _which(name: str, mode: int = 0, path: str | None = None) -> str | None:
+        if name == "javac":
+            return None
+        return f"/usr/bin/{name}"
+
+    monkeypatch.setattr("shutil.which", _which)
+    code = main(["start", "bank_system", "java", "--reset", "--no-console"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL" in out
+    assert "javac" in out
+    assert "PATH" in out
+    assert "NEXT:" in out
+    assert "OK: unlocked=" not in out
+    assert not session_file.is_file()
+
+
+def test_run_prepare_cmd_missing_binary_raises(tmp_path: Path) -> None:
+    with pytest.raises(RuntimeError, match="not on PATH"):
+        run_prepare_cmd(["no-such-honepad-compiler"], tmp_path, "java")
 
 
 def test_corrupt_cases_prints_fail(monkeypatch, tmp_path, capsys) -> None:
