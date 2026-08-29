@@ -21,7 +21,15 @@ from honepad.session import (
     unlock_next,
     work_src,
 )
-from honepad.term import file_link, start_next, work_line
+from honepad.term import (
+    file_link,
+    start_next,
+    status_fail,
+    status_note,
+    status_ok,
+    status_unlock,
+    work_line,
+)
 from honepad.traces import load_cases, method_name, problem_dir
 from honepad.workspace import write_workspace
 
@@ -41,7 +49,7 @@ def cmd_default(_args: argparse.Namespace) -> int:
     try:
         session = load_session()
     except ValueError as exc:
-        print(f"FAIL: {exc}")
+        print(status_fail(f"FAIL: {exc}"))
         return 1
     if session is None:
         _print_start_usage()
@@ -50,21 +58,21 @@ def cmd_default(_args: argparse.Namespace) -> int:
 
 
 def _print_start_usage() -> None:
-    print("FAIL: no session")
+    print(status_fail("FAIL: no session"))
     print(start_next())
     print("problems: " + ", ".join(problems()))
 
 
 def cmd_start(args: argparse.Namespace) -> int:
     if not args.problem or not args.lang:
-        print("FAIL: start needs a problem and a language")
+        print(status_fail("FAIL: start needs a problem and a language"))
         print(start_next())
         print("problems: " + ", ".join(problems()))
         return 1
     try:
         row = language(args.lang)
         if row["id"] not in _RUNNERS:
-            print(f"FAIL: no runner for {row['id']}")
+            print(status_fail(f"FAIL: no runner for {row['id']}"))
             print(start_next())
             return 1
         session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=args.reset)
@@ -74,15 +82,15 @@ def cmd_start(args: argparse.Namespace) -> int:
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
     except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
-        print(f"FAIL: {exc}")
+        print(status_fail(f"FAIL: {exc}"))
         return 1
     if level > unlocked:
-        print(f"LOCKED: level {level} (unlocked={unlocked})")
+        print(status_fail(f"LOCKED: level {level} (unlocked={unlocked})"))
         print(work_line(work))
         return 1
     spec = problem_dir(args.problem) / "spec" / f"level{level}.md"
     if not spec.is_file():
-        print(f"FAIL: missing spec {spec}")
+        print(status_fail(f"FAIL: missing spec {spec}"))
         return 1
     print(spec.read_text(encoding="utf-8"))
     print(f"\n{work_line(work)}")
@@ -93,10 +101,10 @@ def cmd_start(args: argparse.Namespace) -> int:
         f"NOTE: {minutes} minutes measures how far you get. "
         "You are not expected to finish every level."
     )
-    print("NOTE: honepad console opens a live menu (run, submit, reset, vscode).")
+    print(status_note("NOTE: honepad console opens a live menu (run, submit, reset, vscode)."))
     note_clock_restarted(session)
     left = remaining_s(started_at, minutes)
-    print(f"OK: unlocked={unlocked} remaining_s={left}")
+    print(status_ok(f"OK: unlocked={unlocked} remaining_s={left}"))
     if not getattr(args, "no_console", False) and sys.stdin.isatty() and sys.stdout.isatty():
         return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
     return 0
@@ -136,7 +144,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         RuntimeError,
         ValueError,
     ) as exc:
-        print(f"FAIL: {exc}")
+        print(status_fail(f"FAIL: {exc}"))
         return 1
     summary = f"{report.problem} {report.lang} level<={report.level} passed={report.passed}"
     if session is not None and same:
@@ -148,36 +156,42 @@ def cmd_run(args: argparse.Namespace) -> int:
         shown = method_name(fail.method, naming)
         argv = ", ".join(repr(item) for item in fail.args)
         print(
-            f"FAIL {fail.case} call[{fail.index}] {shown}({argv}) "
-            f"expected={fail.expected!r} actual={fail.actual!r}"
+            status_fail(
+                f"FAIL {fail.case} call[{fail.index}] {shown}({argv}) "
+                f"expected={fail.expected!r} actual={fail.actual!r}"
+            )
         )
         if kind == "work":
             print(work_line(work_src(args.problem, lang)))
         return 1
     if report.passed == 0:
-        print("FAIL: no cases")
+        print(status_fail("FAIL: no cases"))
         return 1
-    print("OK")
+    print(status_ok("OK"))
     may_unlock = bool(getattr(args, "unlock", False))
     if practice and session is not None and kind in ("solution", "work"):
         nxt = int(session["unlocked"]) + 1
         if nxt > max_level(str(session["problem"])):
             return 0
         if left == 0:
-            print("TIME UP: remaining_s=0. Next level stays locked.")
-            print("NOTE: honepad start starts a new clock and keeps your work.")
+            print(status_fail("TIME UP: remaining_s=0. Next level stays locked."))
+            print(status_note("NOTE: honepad start starts a new clock and keeps your work."))
             return 0
         if may_unlock:
             unlocked = unlock_next(session)
             if unlocked is not None:
-                print(f"UNLOCKED: level {unlocked}")
+                print(status_unlock(f"UNLOCKED: level {unlocked}"))
                 ensure_work_copy(args.problem, lang, reset=False, level=unlocked)
                 spec = problem_dir(args.problem) / "spec" / f"level{unlocked}.md"
                 if spec.is_file():
                     print(spec.read_text(encoding="utf-8").rstrip() + "\n")
                 write_workspace(args.problem, lang, unlocked)
         else:
-            print(f"NOTE: still unlocked={session['unlocked']}. 2 submit unlocks the next level.")
+            print(
+                status_note(
+                    f"NOTE: still unlocked={session['unlocked']}. 2 submit unlocks the next level."
+                )
+            )
     return 0
 
 
@@ -197,7 +211,7 @@ def cmd_timer(args: argparse.Namespace) -> int:
             minutes = args.minutes
             started = int(time.time())
     except ValueError as exc:
-        print(f"FAIL: {exc}")
+        print(status_fail(f"FAIL: {exc}"))
         return 1
     if session is not None:
         left = remaining_s(started, minutes)
@@ -215,7 +229,7 @@ def cmd_cases(args: argparse.Namespace) -> int:
     try:
         cases = load_cases(args.problem, args.level)
     except (ValueError, KeyError, FileNotFoundError) as exc:
-        print(f"FAIL: {exc}")
+        print(status_fail(f"FAIL: {exc}"))
         return 1
     print(json.dumps({"problem": args.problem, "count": len(cases)}, indent=2))
     return 0
