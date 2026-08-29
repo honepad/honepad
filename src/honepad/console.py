@@ -26,7 +26,10 @@ from honepad.term import (
     format_clock,
     gradient,
     invocation,
+    paint_spec,
+    render_keys,
     render_menu,
+    spec_line,
     start_next,
     status_fail,
     status_note,
@@ -48,6 +51,7 @@ def render_banner(session: dict[str, Any], now: int | None = None) -> str:
     lines = [
         f"{title}  {problem}  {lang}  {unlock}  remaining_s={left}  [{clock}]",
         work_line(work),
+        render_keys(),
     ]
     if left == 0:
         lines.append(status_fail("TIME UP: submit will not unlock."))
@@ -189,10 +193,10 @@ def _spec_output(problem: str, lang: str) -> str | None:
     root = workspace_dir(problem, lang) / "public"
     current = root / "spec" / "current.md"
     if current.is_file():
-        return f"SPEC: {file_link(current)}"
+        return spec_line(current)
     public_spec = root / "spec.md"
     if public_spec.is_file():
-        return f"SPEC: {file_link(public_spec)}"
+        return spec_line(public_spec)
     return None
 
 
@@ -274,7 +278,7 @@ def _print_spec(problem: str, level: int, stdout: TextIO) -> int:
         stdout.write(status_fail(f"FAIL: missing spec {spec}") + "\n")
         stdout.flush()
         return 1
-    text = spec.read_text(encoding="utf-8")
+    text = paint_spec(spec.read_text(encoding="utf-8"))
     stdout.write(text if text.endswith("\n") else text + "\n")
     stdout.flush()
     return 0

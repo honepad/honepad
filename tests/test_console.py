@@ -14,7 +14,15 @@ from honepad.console import _read_choice, dispatch, render_banner
 from honepad.javatest import java_ident
 from honepad.pythontest import pytest_ident
 from honepad.session import ensure_work_copy, load_session
-from honepad.term import color_enabled, file_link, file_uri, format_clock, render_menu
+from honepad.term import (
+    color_enabled,
+    file_link,
+    file_uri,
+    format_clock,
+    paint_spec,
+    render_menu,
+    spec_line,
+)
 from honepad.traces import load_cases
 from honepad.workspace import _link_or_copy, open_vscode, write_workspace
 
@@ -121,6 +129,52 @@ def test_menu_stays_plain_without_color(monkeypatch) -> None:
     text = render_menu("01:05")
     assert "\x1b[" not in text
     assert text.startswith("[01:05] 1 run")
+
+
+def test_banner_includes_menu_keys() -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 100,
+        "minutes": 90,
+        "unlocked": 3,
+    }
+    text = render_banner(session, now=100)
+    assert "1 run" in text
+    assert "2 submit" in text
+    assert "q quit" in text
+
+
+def test_paint_spec_stays_plain_without_color(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    raw = "# Bank system level 3\n`pay` withdraws amount.\n"
+    assert paint_spec(raw) == raw
+
+
+def test_paint_spec_colors_heading_and_code_when_forced(monkeypatch) -> None:
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    text = paint_spec("# Bank system level 3\n`pay` withdraws amount.\n")
+    assert "\x1b[" in text
+    assert "# Bank system level 3" in text
+    assert "`pay`" in text
+    heading, rest = text.split("\n", 1)
+    assert heading.startswith("\x1b[")
+    assert "\x1b[" in rest
+    assert "withdraws amount." in rest
+
+
+def test_start_paints_spec_heading_when_forced(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert "# Bank system level" in out
+    first = out.splitlines()[0]
+    assert first.startswith("\x1b[")
+    assert "SPEC:" in out
+    assert "\x1b[" in spec_line(tmp_path / "work" / "bank_system" / "java" / "spec.md")
 
 
 def test_start_on_tty_opens_live_menu(monkeypatch, tmp_path: Path, capsys) -> None:

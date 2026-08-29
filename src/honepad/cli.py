@@ -22,7 +22,8 @@ from honepad.session import (
     work_src,
 )
 from honepad.term import (
-    file_link,
+    paint_spec,
+    spec_line,
     start_next,
     status_fail,
     status_note,
@@ -98,11 +99,11 @@ def cmd_start(args: argparse.Namespace) -> int:
     if not spec.is_file():
         print(status_fail(f"FAIL: missing spec {spec}"))
         return 1
-    print(spec.read_text(encoding="utf-8"))
+    print(paint_spec(spec.read_text(encoding="utf-8")))
     print(f"\n{work_line(work)}")
     side = work.parent / "spec.md"
     if side.is_file():
-        print(f"SPEC: {file_link(side)}")
+        print(spec_line(side))
     print(
         f"NOTE: {minutes} minutes measures how far you get. "
         "You are not expected to finish every level."
@@ -201,7 +202,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 print(status_unlock(f"UNLOCKED: level {unlocked}"))
                 spec = problem_dir(args.problem) / "spec" / f"level{unlocked}.md"
                 if spec.is_file():
-                    print(spec.read_text(encoding="utf-8").rstrip() + "\n")
+                    print(paint_spec(spec.read_text(encoding="utf-8")).rstrip() + "\n")
         else:
             print(
                 status_note(
