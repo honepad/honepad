@@ -56,6 +56,12 @@ def _load_python_class(path: Path, class_name: str) -> Any:
         raise RuntimeError(_format_load_error(path, exc)) from exc
 
 
+def _values_differ(actual: Any, expected: Any) -> bool:
+    if expected is True or expected is False or expected is None:
+        return actual is not expected
+    return actual != expected
+
+
 def _format_load_error(path: Path, exc: BaseException) -> str:
     name = type(exc).__name__
     msg = getattr(exc, "msg", None) or str(exc).strip()
@@ -116,7 +122,7 @@ def run_python_body(
                     Fail(case["id"], i, method, args, expected, f"exc:{type(exc).__name__}")
                 )
                 break
-            if actual != expected:
+            if _values_differ(actual, expected):
                 failed.append(Fail(case["id"], i, method, args, expected, actual))
                 break
         else:

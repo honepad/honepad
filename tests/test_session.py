@@ -1402,3 +1402,87 @@ def test_merge_fail_prints_next_reset(monkeypatch, tmp_path: Path, capsys) -> No
     assert next_lines
     assert any("start --reset" in line or "work" in line for line in next_lines)
     assert load_session()["unlocked"] == 1
+
+
+def _l1_python_work(create_ok: object, create_dup: object, missing: object) -> str:
+    return (
+        "class Simulation:\n"
+        "    def __init__(self):\n"
+        "        self.accounts = {}\n"
+        "\n"
+        "    def create_account(self, timestamp, account_id):\n"
+        "        if account_id in self.accounts:\n"
+        f"            return {create_dup!r}\n"
+        "        self.accounts[account_id] = 0\n"
+        f"        return {create_ok!r}\n"
+        "\n"
+        "    def deposit(self, timestamp, account_id, amount):\n"
+        "        if account_id not in self.accounts:\n"
+        f"            return {missing!r}\n"
+        "        self.accounts[account_id] += amount\n"
+        "        return self.accounts[account_id]\n"
+        "\n"
+        "    def transfer(self, timestamp, source_account_id, target_account_id, amount):\n"
+        "        if source_account_id not in self.accounts:\n"
+        f"            return {missing!r}\n"
+        "        if target_account_id not in self.accounts:\n"
+        f"            return {missing!r}\n"
+        "        if source_account_id == target_account_id:\n"
+        f"            return {missing!r}\n"
+        "        if self.accounts[source_account_id] < amount:\n"
+        f"            return {missing!r}\n"
+        "        self.accounts[source_account_id] -= amount\n"
+        "        self.accounts[target_account_id] += amount\n"
+        "        return self.accounts[source_account_id]\n"
+    )
+
+
+def test_python_int_one_is_not_true(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text(_l1_python_work(1, 0, None), encoding="utf-8")
+    assert main(["run", "bank_system"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL" in out
+    assert "True" in out
+    assert "actual=1" in out
+    assert "UNLOCKED" not in out
+
+
+def test_python_true_still_passes(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text(_l1_python_work(True, False, None), encoding="utf-8")
+    assert main(["run", "bank_system"]) == 0
+    out = capsys.readouterr().out
+    assert "FAIL" not in out
+    assert "OK" in out
+
+
+def test_python_zero_is_not_none(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text(_l1_python_work(True, False, 0), encoding="utf-8")
+    assert main(["run", "bank_system"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL" in out
+    assert "None" in out
+    assert "actual=0" in out
+
+
+def test_python_none_still_passes(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text(_l1_python_work(True, False, None), encoding="utf-8")
+    assert main(["run", "bank_system"]) == 0
+    out = capsys.readouterr().out
+    assert "FAIL" not in out
+    assert "OK" in out
