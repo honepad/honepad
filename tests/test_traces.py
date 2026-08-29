@@ -851,6 +851,22 @@ def test_report_from_proc_rejects_non_object_json() -> None:
         report_from_proc(proc, "bank_system", "java", 1)
 
 
+def test_report_from_proc_rejects_non_object_failed_rows() -> None:
+    proc = subprocess.CompletedProcess(
+        ["adapter"], 0, stdout='{"passed": 0, "failed": [1]}\n', stderr=""
+    )
+    with pytest.raises(RuntimeError, match="invalid JSON"):
+        report_from_proc(proc, "bank_system", "java", 1)
+
+
+def test_report_from_proc_rejects_null_failed() -> None:
+    proc = subprocess.CompletedProcess(
+        ["adapter"], 0, stdout='{"passed": 0, "failed": null}\n', stderr=""
+    )
+    with pytest.raises(RuntimeError, match="invalid JSON"):
+        report_from_proc(proc, "bank_system", "java", 1)
+
+
 def test_report_from_proc_rejects_passed_count_mismatch() -> None:
     proc = subprocess.CompletedProcess(
         ["adapter"], 0, stdout='{"passed": 99, "failed": []}\n', stderr=""

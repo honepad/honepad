@@ -186,7 +186,12 @@ def report_from_proc(
     payload, debug = _extract_report_payload(proc.stdout, lang_id)
     cases = {str(case["id"]): case for case in load_cases(problem, level)}
     failed: list[Fail] = []
-    for row in payload.get("failed", []):
+    raw_failed = payload.get("failed", [])
+    if not isinstance(raw_failed, list):
+        raise RuntimeError(f"{lang_id} adapter produced invalid JSON")
+    for row in raw_failed:
+        if not isinstance(row, dict):
+            raise RuntimeError(f"{lang_id} adapter produced invalid JSON")
         args = row.get("args", row.get("a"))
         if not isinstance(args, list):
             case = cases.get(str(row["case"]))
