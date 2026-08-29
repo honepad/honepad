@@ -14,7 +14,7 @@ from honepad.console import _read_choice, dispatch, render_banner
 from honepad.javatest import java_ident
 from honepad.pythontest import pytest_ident
 from honepad.session import ensure_work_copy, load_session
-from honepad.term import file_link, file_uri, format_clock
+from honepad.term import color_enabled, file_link, file_uri, format_clock, render_menu
 from honepad.traces import load_cases
 from honepad.workspace import _link_or_copy, open_vscode, write_workspace
 
@@ -57,6 +57,70 @@ def test_banner_time_up_when_remaining_zero() -> None:
     assert "will not unlock" in text.lower()
     assert "quit then start" in text.lower()
     assert "keeps work" in text.lower()
+
+
+def test_color_disabled_without_tty(monkeypatch) -> None:
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
+    assert color_enabled() is False
+
+
+def test_no_color_wins_over_force(monkeypatch) -> None:
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert color_enabled() is False
+
+
+def test_banner_stays_plain_without_color(monkeypatch) -> None:
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+    monkeypatch.setenv("NO_COLOR", "1")
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 100,
+        "minutes": 90,
+        "unlocked": 2,
+    }
+    text = render_banner(session, now=100)
+    assert "\x1b[" not in text
+    assert "honepad  bank_system  java  unlocked=2" in text
+
+
+def test_banner_uses_bold_and_color_when_forced(monkeypatch) -> None:
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    monkeypatch.setenv("COLORTERM", "truecolor")
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 100,
+        "minutes": 90,
+        "unlocked": 2,
+    }
+    text = render_banner(session, now=100)
+    assert "\x1b[1m" in text
+    assert "\x1b[38;2;" in text
+    assert "unlocked=2" in text
+    assert "honepad" in text
+
+
+def test_menu_bolds_keys_when_forced(monkeypatch) -> None:
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    text = render_menu("01:05")
+    assert "\x1b[1m" in text
+    assert "\x1b[1m1\x1b[0m" in text
+    assert "run" in text
+    assert "submit" in text
+    assert "quit" in text
+
+
+def test_menu_stays_plain_without_color(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    text = render_menu("01:05")
+    assert "\x1b[" not in text
+    assert text.startswith("[01:05] 1 run")
 
 
 def test_start_on_tty_opens_live_menu(monkeypatch, tmp_path: Path, capsys) -> None:

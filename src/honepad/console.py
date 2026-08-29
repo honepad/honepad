@@ -19,11 +19,21 @@ from honepad.session import (
     remaining_s,
     work_src,
 )
-from honepad.term import file_link, format_clock, invocation, start_next, work_line
+from honepad.term import (
+    accent,
+    clock_style,
+    file_link,
+    format_clock,
+    gradient,
+    invocation,
+    render_menu,
+    start_next,
+    status_fail,
+    status_note,
+    work_line,
+)
 from honepad.traces import problem_dir
 from honepad.workspace import open_vscode, public_test_file, workspace_dir, write_workspace
-
-_MENU = "1 run  2 submit (local)  3 reset work  4 spec  5 vscode  q quit"
 
 
 def render_banner(session: dict[str, Any], now: int | None = None) -> str:
@@ -32,14 +42,18 @@ def render_banner(session: dict[str, Any], now: int | None = None) -> str:
     unlocked = int(session["unlocked"])
     left = remaining_s(int(session["started_at"]), int(session["minutes"]), now)
     work = work_src(problem, lang)
+    title = gradient("honepad", (94, 234, 212), (56, 189, 248))
+    unlock = accent(f"unlocked={unlocked}")
+    clock = clock_style(left, format_clock(left))
     lines = [
-        f"honepad  {problem}  {lang}  unlocked={unlocked}  "
-        f"remaining_s={left}  [{format_clock(left)}]",
+        f"{title}  {problem}  {lang}  {unlock}  remaining_s={left}  [{clock}]",
         work_line(work),
     ]
     if left == 0:
-        lines.append("TIME UP: submit will not unlock.")
-        lines.append("NOTE: a new clock is quit then start (keeps work). 3 deletes the file.")
+        lines.append(status_fail("TIME UP: submit will not unlock."))
+        lines.append(
+            status_note("NOTE: a new clock is quit then start (keeps work). 3 deletes the file.")
+        )
     return "\n".join(lines)
 
 
@@ -133,7 +147,7 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
         if choice in {"1", "run", "test"}:
             return _run_work(problem, lang, unlock=False)
         if choice in {"2", "submit"}:
-            stdout.write("NOTE: local submit. Nothing is sent.\n")
+            stdout.write(status_note("NOTE: local submit. Nothing is sent.") + "\n")
             stdout.flush()
             return _run_work(problem, lang, unlock=True)
         if choice in {"3", "reset"}:
@@ -155,11 +169,11 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
                 stdout.write(tests + "\n")
             stdout.flush()
             return open_vscode(path)
-        stdout.write(f"FAIL: unknown option {choice!r}\n")
+        stdout.write(status_fail(f"FAIL: unknown option {choice!r}") + "\n")
         stdout.flush()
         return 1
     except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
-        stdout.write(f"FAIL: {exc}\n")
+        stdout.write(status_fail(f"FAIL: {exc}") + "\n")
         stdout.flush()
         return 1
 
@@ -195,7 +209,7 @@ def _print_spec_link(problem: str, lang: str) -> None:
 
 
 def _print_fail(exc: BaseException) -> None:
-    print(f"FAIL: {exc}")
+    print(status_fail(f"FAIL: {exc}"))
     if str(exc).startswith("no runner for "):
         print(start_next())
 
@@ -257,7 +271,7 @@ def _run_work(problem: str, lang: str, *, unlock: bool) -> int:
 def _print_spec(problem: str, level: int, stdout: TextIO) -> int:
     spec = problem_dir(problem) / "spec" / f"level{level}.md"
     if not spec.is_file():
-        stdout.write(f"FAIL: missing spec {spec}\n")
+        stdout.write(status_fail(f"FAIL: missing spec {spec}") + "\n")
         stdout.flush()
         return 1
     text = spec.read_text(encoding="utf-8")
@@ -320,21 +334,23 @@ def _read_choice(
     live: bool,
     clock_fn: Callable[[], int] | None = None,
 ) -> str | None:
-    def _clock() -> str:
+    def _left() -> int:
         if clock_fn is not None:
-            left = clock_fn()
-        else:
-            left = remaining_s(int(session["started_at"]), int(session["minutes"]))
-        return format_clock(left)
+            return clock_fn()
+        return remaining_s(int(session["started_at"]), int(session["minutes"]))
+
+    def _prompt() -> str:
+        left = _left()
+        return render_menu(format_clock(left), seconds=left)
 
     if not live:
-        stdout.write(f"[{_clock()}] {_MENU}  > ")
+        stdout.write(f"{_prompt()}  > ")
         stdout.flush()
         line = stdin.readline()
         return None if line == "" else line
     with _keys_now(stdin):
         while True:
-            stdout.write(f"\r[{_clock()}] {_MENU}")
+            stdout.write(f"\r{_prompt()}\033[K")
             stdout.flush()
             ready, _, _ = select.select([stdin], [], [], 1.0)
             if ready:
