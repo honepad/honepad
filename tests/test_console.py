@@ -440,6 +440,45 @@ def test_console_reset_back_at_level1_fails(monkeypatch, tmp_path: Path, capsys)
     assert load_session()["unlocked"] == 1
 
 
+def test_start_reset_rewrites_workspace(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    work.write_text(
+        (repo_root() / "langs" / "java" / "problems" / "bank_system" / "solution.java").read_text(
+            encoding="utf-8"
+        ),
+        encoding="utf-8",
+    )
+    assert main(["submit", "bank_system", "--lang", "java"]) == 0
+    assert main(["vscode", "bank_system", "java", "--no-open"]) == 0
+    public = tmp_path / "workspace" / "bank_system-java" / "public"
+    assert (public / "spec" / "level2.md").is_file()
+    assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0
+    assert load_session()["unlocked"] == 1
+    assert not (public / "spec" / "level2.md").exists()
+    junit = (public / "src" / "test" / "java" / "PublicTracesTest.java").read_text(encoding="utf-8")
+    assert "topSpenders" not in junit
+
+
+def test_start_back_restarts_dead_clock(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    _write_python_solution(tmp_path)
+    assert main(["submit", "bank_system", "--lang", "python3"]) == 0
+    session = load_session()
+    assert session is not None
+    session["started_at"] = 1
+    session["minutes"] = 1
+    (tmp_path / "session.json").write_text(json.dumps(session, indent=2) + "\n", encoding="utf-8")
+    capsys.readouterr()
+    assert main(["start", "bank_system", "python3", "--back", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert load_session()["unlocked"] == 1
+    assert "remaining_s=0" not in out
+    assert "unlocked=1" in out
+
+
 def test_start_back_drops_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0

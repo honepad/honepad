@@ -272,6 +272,14 @@ def _reset_back(session: dict[str, Any], stdout: TextIO) -> int:
         stdout.flush()
         return 1
     lock_to_level(session, unlocked - 1)
+    nxt = ensure_session(
+        str(session["problem"]),
+        str(session["lang"]),
+        minutes=int(session["minutes"]),
+        reset=False,
+    )
+    session.clear()
+    session.update(nxt)
     work = slice_work_to_level(str(session["problem"]), str(session["lang"]), unlocked - 1)
     write_workspace(str(session["problem"]), str(session["lang"]), unlocked - 1)
     stdout.write(f"OK: unlocked={session['unlocked']}\n{work_line(work)}\n")

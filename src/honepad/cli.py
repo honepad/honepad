@@ -36,7 +36,7 @@ from honepad.term import (
     work_reset_next,
 )
 from honepad.traces import load_cases, method_name, problem_dir
-from honepad.workspace import write_workspace
+from honepad.workspace import workspace_dir, write_workspace
 
 
 def cmd_langs(_args: argparse.Namespace) -> int:
@@ -112,6 +112,7 @@ def cmd_start(args: argparse.Namespace) -> int:
                 print(work_line(work_src(args.problem, row["id"])))
                 return 1
             session = lock_to_level(session, unlocked - 1)
+            session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=False)
             unlocked = int(session["unlocked"])
             work = slice_work_to_level(args.problem, row["id"], unlocked)
             write_workspace(args.problem, row["id"], unlocked)
@@ -121,6 +122,8 @@ def cmd_start(args: argparse.Namespace) -> int:
             )
             unlocked = int(session["unlocked"])
             work = ensure_work_copy(args.problem, row["id"], reset=args.reset, level=unlocked)
+            if args.reset and workspace_dir(args.problem, row["id"]).exists():
+                write_workspace(args.problem, row["id"], unlocked)
         level = unlocked if args.level is None else args.level
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])

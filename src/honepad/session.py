@@ -219,16 +219,4 @@ def restart_all(problem: str, lang: str, minutes: int = 90) -> dict[str, Any]:
 
 
 def slice_work_to_level(problem: str, lang_id: str, level: int) -> Path:
-    dest = work_src(problem, lang_id)
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    row = language(lang_id)
-    ext = str(row["ext"])
-    allowed = methods_through_level(problem, level, naming_for(lang_id))
-    class_name = class_name_for(problem)
-    if dest.is_file():
-        current = dest.read_text(encoding="utf-8")
-        if declares_class(current, ext, class_name):
-            dest.write_text(slice_stub(current, ext, allowed, class_name), encoding="utf-8")
-            write_work_spec(problem, level, dest.parent)
-            return dest
     return ensure_work_copy(problem, lang_id, reset=True, level=level)
