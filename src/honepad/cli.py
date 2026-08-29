@@ -158,16 +158,30 @@ def cmd_run(args: argparse.Namespace) -> int:
         print("FAIL: no cases")
         return 1
     print("OK")
+    may_unlock = getattr(args, "unlock", True)
     if practice and session is not None and kind in ("solution", "work") and left > 0:
-        nxt = unlock_next(session)
-        if nxt is not None:
-            print(f"UNLOCKED: level {nxt}")
-            ensure_work_copy(args.problem, lang, reset=False, level=nxt)
-            spec = problem_dir(args.problem) / "spec" / f"level{nxt}.md"
-            if spec.is_file():
-                print(spec.read_text(encoding="utf-8").rstrip() + "\n")
-            write_workspace(args.problem, lang, nxt)
-    elif practice and session is not None and kind in ("solution", "work") and left == 0:
+        if may_unlock:
+            nxt = unlock_next(session)
+            if nxt is not None:
+                print(f"UNLOCKED: level {nxt}")
+                ensure_work_copy(args.problem, lang, reset=False, level=nxt)
+                spec = problem_dir(args.problem) / "spec" / f"level{nxt}.md"
+                if spec.is_file():
+                    print(spec.read_text(encoding="utf-8").rstrip() + "\n")
+                write_workspace(args.problem, lang, nxt)
+        else:
+            nxt = int(session["unlocked"]) + 1
+            if nxt <= max_level(str(session["problem"])):
+                print(
+                    f"NOTE: still unlocked={session['unlocked']}. 2 submit unlocks the next level."
+                )
+    elif (
+        practice
+        and session is not None
+        and kind in ("solution", "work")
+        and left == 0
+        and may_unlock
+    ):
         nxt = int(session["unlocked"]) + 1
         if nxt <= max_level(str(session["problem"])):
             print("TIME UP: remaining_s=0. Next level stays locked.")
@@ -260,7 +274,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="live practice menu",
         description=(
             "Live menu with remaining_s clock. On a TTY, keys 1-5 and q "
-            "run immediately (no Enter). 1 run tests, 2 submit (local), "
+            "run immediately (no Enter). 1 run tests without unlocking, "
+            "2 submit (local) unlocks the next level, "
             "3 reset work, 4 spec, 5 vscode workspace. Paths use OSC 8 file:// links."
         ),
     )
