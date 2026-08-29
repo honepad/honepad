@@ -770,3 +770,25 @@ def test_vscode_missing_code_prints_fail(monkeypatch, tmp_path: Path, capsys) ->
     assert "file://" in out
     assert "Install" in out
     assert "PATH" in out
+
+
+def test_workspace_has_submit_task_not_default(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    dest = write_workspace("bank_system", "python3", 1)
+    public = dest.parent / "public"
+    tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
+    by_label = {task["label"]: task for task in tasks["tasks"]}
+    assert "Submit (unlock next level)" in by_label
+    submit = by_label["Submit (unlock next level)"]
+    blob = json.dumps(submit)
+    assert "submit" in blob
+    assert "public-tests" in submit["options"]["cwd"]
+    default = by_label["Run public tests"]
+    assert default["group"]["isDefault"] is True
+    assert "submit" not in json.dumps(default)
+    group = submit.get("group")
+    if isinstance(group, dict):
+        assert group.get("isDefault") is not True
+    readme = (public / "README.md").read_text(encoding="utf-8")
+    assert "Submit (unlock next level)" in readme

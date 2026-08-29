@@ -247,9 +247,9 @@ def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Pa
         f"Work file: {work}",
         f"URI: {file_uri(work)}",
         "",
-        "VS Code: Terminal > Run Task > Run public tests, or",
-        f"`{sys.executable} -m honepad run {problem} --lang {lang}`.",
-        "A passing run does not unlock. Console 2 / honepad submit unlocks the next level.",
+        "VS Code: Terminal > Run Task > Run public tests, or Submit (unlock next level).",
+        f"`{sys.executable} -m honepad run {problem} --lang {lang}` does not unlock.",
+        f"`{sys.executable} -m honepad submit {problem} --lang {lang}` unlocks the next level.",
         "",
     ]
     if lang == "java":
@@ -284,7 +284,17 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
             "group": {"kind": "test", "isDefault": True},
             "presentation": {"reveal": "always", "panel": "shared"},
             "problemMatcher": [],
-        }
+        },
+        {
+            "label": "Submit (unlock next level)",
+            "type": "shell",
+            "command": sys.executable,
+            "args": ["-m", "honepad", "submit", problem, "--lang", lang],
+            "group": "test",
+            "options": {"cwd": "${workspaceFolder:public-tests}"},
+            "presentation": {"reveal": "always", "panel": "shared"},
+            "problemMatcher": [],
+        },
     ]
     public_cwd = "${workspaceFolder:public-tests}"
     if lang == "java":
