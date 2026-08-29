@@ -1,12 +1,14 @@
+import io
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
-from honepad.catalog import languages
+from honepad.catalog import languages, problems
 from honepad.cli import build_parser, main
 from honepad.runner import _RUNNERS, run_prepare_cmd
+from honepad.session import load_session
 from honepad.term import invocation
 
 # Catalog id used by unimplemented-lang CLI tests. Must stay off
@@ -153,6 +155,83 @@ def test_start_unimplemented_catalog_lang_exits(monkeypatch, tmp_path, capsys) -
     assert "STUB:" not in out
     assert "WORK:" not in out
     assert "Traceback" not in out
+
+
+def _tty_stdin(monkeypatch, text: str) -> io.StringIO:
+    fake_in = io.StringIO(text)
+    monkeypatch.setattr(fake_in, "isatty", lambda: True)
+    monkeypatch.setattr(sys, "stdin", fake_in)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr("honepad.console._use_live", lambda *_a, **_k: False)
+    return fake_in
+
+
+def test_start_without_args_on_tty_picks_lang_then_problem(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "python3\nbank_system\n")
+    assert main(["start", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
+    assert "language:" in out
+    assert "problem:" in out
+    assert "python3" in out
+    assert "bank_system" in out
+    assert UNIMPLEMENTED_CATALOG_LANG not in out
+    assert "OK: unlocked=" in out
+
+
+def test_start_picker_accepts_numbers(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    runner_ids = [row["id"] for row in languages() if row["id"] in _RUNNERS]
+    lang_n = runner_ids.index("java") + 1
+    problem_n = problems().index("file_storage") + 1
+    _tty_stdin(monkeypatch, f"{lang_n}\n{problem_n}\n")
+    assert main(["start", "--no-console"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "java"
+    assert session["problem"] == "file_storage"
+
+
+def test_start_with_problem_only_picks_lang(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "python3\n")
+    assert main(["start", "workers", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "workers"
+    assert "language:" in out
+    assert "problem:" not in out
+
+
+def test_bare_honepad_no_session_on_tty_picks(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "python3\nbank_system\nq\n")
+    assert main([]) == 0
+    out = capsys.readouterr().out
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
+    assert "language:" in out
+    assert "problem:" in out
+    assert "OK: quit" in out
+
+
+def test_start_picker_quit_prints_next(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "q\n")
+    assert main(["start", "--no-console"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "NEXT:" in out
+    assert load_session() is None
 
 
 def test_start_help_mentions_fail_for_unimplemented(capsys) -> None:

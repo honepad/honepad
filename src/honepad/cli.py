@@ -57,6 +57,18 @@ def cmd_default(_args: argparse.Namespace) -> int:
         print(status_fail(f"FAIL: {exc}"))
         return 1
     if session is None:
+        if _can_prompt():
+            return cmd_start(
+                argparse.Namespace(
+                    problem=None,
+                    lang=None,
+                    level=None,
+                    minutes=90,
+                    reset=False,
+                    back=False,
+                    no_console=False,
+                )
+            )
         _print_start_usage()
         return 1
     return cmd_console(argparse.Namespace(problem=None, lang=None, minutes=90))
@@ -68,6 +80,60 @@ def _print_start_usage() -> None:
     print("problems: " + ", ".join(problems()))
 
 
+def _can_prompt() -> bool:
+    try:
+        return bool(sys.stdin.isatty() and sys.stdout.isatty())
+    except AttributeError:
+        return False
+
+
+def _runner_ids() -> list[str]:
+    return [row["id"] for row in languages() if row["id"] in _RUNNERS]
+
+
+def _print_choices(title: str, items: list[str]) -> None:
+    print(f"{title}:")
+    width = len(str(len(items)))
+    for i, item in enumerate(items, 1):
+        print(f"  {i:>{width}}  {item}")
+    sys.stdout.flush()
+
+
+def _read_choice(items: list[str]) -> str | None:
+    line = sys.stdin.readline()
+    if line == "":
+        return None
+    raw = line.strip()
+    if raw in {"", "q", "quit"}:
+        return None
+    if raw.isdigit():
+        n = int(raw)
+        if 1 <= n <= len(items):
+            return items[n - 1]
+        return None
+    if raw in items:
+        return raw
+    return None
+
+
+def _fill_start_args(args: argparse.Namespace) -> bool:
+    if not args.lang:
+        ids = _runner_ids()
+        _print_choices("language", ids)
+        picked = _read_choice(ids)
+        if picked is None:
+            return False
+        args.lang = picked
+    if not args.problem:
+        opts = problems()
+        _print_choices("problem", opts)
+        picked = _read_choice(opts)
+        if picked is None:
+            return False
+        args.problem = picked
+    return True
+
+
 def _is_work_file_problem(exc: BaseException) -> bool:
     text = str(exc)
     return "work file" in text or "/work/" in text or "work." in text
@@ -75,10 +141,11 @@ def _is_work_file_problem(exc: BaseException) -> bool:
 
 def cmd_start(args: argparse.Namespace) -> int:
     if not args.problem or not args.lang:
-        print(status_fail("FAIL: start needs a problem and a language"))
-        print(start_next())
-        print("problems: " + ", ".join(problems()))
-        return 1
+        if not (_can_prompt() and _fill_start_args(args)):
+            print(status_fail("FAIL: start needs a problem and a language"))
+            print(start_next())
+            print("problems: " + ", ".join(problems()))
+            return 1
     try:
         row = language(args.lang)
         if row["id"] not in _RUNNERS:
@@ -317,7 +384,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="start a 90-minute session",
         description=(
             "Start a practice session: spec, work file, 90-minute clock. "
-            "On a TTY this opens the live menu. "
+            "On a TTY, omit problem and language to pick from a list, "
+            "then this opens the live menu. "
             "--reset starts over at level 1. --back drops one unlocked level. "
             "Unimplemented catalog langs print FAIL and exit 1."
         ),
