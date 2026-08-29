@@ -67,6 +67,22 @@ def class_name_for(problem: str) -> str:
     return _CLASS[problem]
 
 
+def declares_class(text: str, ext: str, class_name: str) -> bool:
+    """True when work declares the class, not just mentions its name."""
+    token = re.escape(class_name)
+    if ext == "py":
+        return bool(re.search(rf"\bclass\s+{token}\b", text))
+    if ext == "java":
+        return bool(re.search(rf"\bclass\s+{token}\b", text))
+    if ext in {"js", "ts"}:
+        return bool(
+            re.search(rf"\bclass\s+{token}\b", text) or re.search(rf"\bfunction\s+{token}\b", text)
+        )
+    if ext == "rb":
+        return bool(re.search(rf"\bclass\s+{token}\b", text))
+    return class_name in text
+
+
 def naming_for(lang_id: str) -> str:
     return str(language(lang_id)["naming"])
 

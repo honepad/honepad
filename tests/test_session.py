@@ -1350,6 +1350,24 @@ def test_submit_without_class_does_not_unlock(monkeypatch, tmp_path: Path, capsy
     assert "top_spenders" not in spec.read_text(encoding="utf-8")
 
 
+def test_submit_class_name_in_comment_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text("# Simulation notes\n", encoding="utf-8")
+    code = main(["submit", "bank_system", "--kind", "solution"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL:" in out
+    assert "Simulation" in out
+    assert "UNLOCKED" not in out
+    assert "start --reset" in out
+    assert load_session()["unlocked"] == 1
+    assert work.read_text(encoding="utf-8") == "# Simulation notes\n"
+    assert "def " not in work.read_text(encoding="utf-8")
+
+
 def test_python_syntax_error_includes_line_or_token(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
@@ -1383,6 +1401,20 @@ def test_work_exists_without_class_is_not_missing(monkeypatch, tmp_path: Path) -
     assert "work file missing" not in text
     assert "Simulation" in text
     assert "start --reset" in text
+
+
+def test_require_merge_rejects_class_name_in_comment(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    dest = work_src("bank_system", "python3")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text("# Simulation notes\n", encoding="utf-8")
+    with pytest.raises(ValueError) as excinfo:
+        ensure_work_copy("bank_system", "python3", reset=False, level=2, require_merge=True)
+    text = str(excinfo.value)
+    assert "work file missing" not in text
+    assert "Simulation" in text
+    assert "start --reset" in text
+    assert dest.read_text(encoding="utf-8") == "# Simulation notes\n"
 
 
 def test_merge_fail_prints_next_reset(monkeypatch, tmp_path: Path, capsys) -> None:
