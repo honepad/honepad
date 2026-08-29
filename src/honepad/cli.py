@@ -158,35 +158,32 @@ def cmd_run(args: argparse.Namespace) -> int:
         print("FAIL: no cases")
         return 1
     print("OK")
-    may_unlock = getattr(args, "unlock", True)
-    if practice and session is not None and kind in ("solution", "work") and left > 0:
-        if may_unlock:
-            nxt = unlock_next(session)
-            if nxt is not None:
-                print(f"UNLOCKED: level {nxt}")
-                ensure_work_copy(args.problem, lang, reset=False, level=nxt)
-                spec = problem_dir(args.problem) / "spec" / f"level{nxt}.md"
-                if spec.is_file():
-                    print(spec.read_text(encoding="utf-8").rstrip() + "\n")
-                write_workspace(args.problem, lang, nxt)
-        else:
-            nxt = int(session["unlocked"]) + 1
-            if nxt <= max_level(str(session["problem"])):
-                print(
-                    f"NOTE: still unlocked={session['unlocked']}. 2 submit unlocks the next level."
-                )
-    elif (
-        practice
-        and session is not None
-        and kind in ("solution", "work")
-        and left == 0
-        and may_unlock
-    ):
+    may_unlock = bool(getattr(args, "unlock", False))
+    if practice and session is not None and kind in ("solution", "work"):
         nxt = int(session["unlocked"]) + 1
-        if nxt <= max_level(str(session["problem"])):
+        if nxt > max_level(str(session["problem"])):
+            return 0
+        if left == 0:
             print("TIME UP: remaining_s=0. Next level stays locked.")
             print("NOTE: honepad start starts a new clock and keeps your work.")
+            return 0
+        if may_unlock:
+            unlocked = unlock_next(session)
+            if unlocked is not None:
+                print(f"UNLOCKED: level {unlocked}")
+                ensure_work_copy(args.problem, lang, reset=False, level=unlocked)
+                spec = problem_dir(args.problem) / "spec" / f"level{unlocked}.md"
+                if spec.is_file():
+                    print(spec.read_text(encoding="utf-8").rstrip() + "\n")
+                write_workspace(args.problem, lang, unlocked)
+        else:
+            print(f"NOTE: still unlocked={session['unlocked']}. 2 submit unlocks the next level.")
     return 0
+
+
+def cmd_submit(args: argparse.Namespace) -> int:
+    args.unlock = True
+    return cmd_run(args)
 
 
 def cmd_timer(args: argparse.Namespace) -> int:
@@ -252,13 +249,37 @@ def build_parser() -> argparse.ArgumentParser:
     run_p = sub.add_parser(
         "run",
         help="replay traces",
-        description=("Replay traces. Unimplemented catalog langs print FAIL and exit 1."),
+        description=(
+            "Replay traces without unlocking. "
+            "Use submit or run --submit to unlock after a passing practice run. "
+            "Unimplemented catalog langs print FAIL and exit 1."
+        ),
     )
     run_p.add_argument("problem", choices=problems())
     run_p.add_argument("--lang", default=None)
     run_p.add_argument("--level", type=int, default=None)
     run_p.add_argument("--kind", choices=("solution", "stub", "work"), default=None)
-    run_p.set_defaults(func=cmd_run)
+    run_p.add_argument(
+        "--submit",
+        action="store_true",
+        dest="unlock",
+        help="unlock the next level after a passing practice run",
+    )
+    run_p.set_defaults(func=cmd_run, unlock=False)
+
+    submit = sub.add_parser(
+        "submit",
+        help="replay traces and unlock on pass",
+        description=(
+            "Local submit: replay traces, then unlock the next level on pass. "
+            "Nothing is sent. Unimplemented catalog langs print FAIL and exit 1."
+        ),
+    )
+    submit.add_argument("problem", choices=problems())
+    submit.add_argument("--lang", default=None)
+    submit.add_argument("--level", type=int, default=None)
+    submit.add_argument("--kind", choices=("solution", "stub", "work"), default=None)
+    submit.set_defaults(func=cmd_submit, unlock=True)
 
     timer = sub.add_parser("timer", help="print a 90-minute remaining_s")
     timer.add_argument("--minutes", type=int, default=90)

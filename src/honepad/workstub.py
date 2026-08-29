@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import re
+
 from honepad.catalog import language
 from honepad.traces import load_cases, method_name
+
+_API_IDENT = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\(")
+_RUBY_DEF = re.compile(r"^(\s*)def ([A-Za-z_][A-Za-z0-9_?!]*)\b")
 
 _CLASS = {
     "bank_system": "Simulation",
@@ -28,7 +33,9 @@ def slice_stub(text: str, ext: str, allowed: set[str], class_name: str) -> str:
         return _slice_python(text, allowed)
     if ext in {"js", "ts"}:
         return _slice_js(text, allowed, class_name)
-    return text
+    if ext == "rb":
+        return _slice_ruby(text, allowed, class_name)
+    return _slice_api_comments(text, allowed)
 
 
 def merge_unlocked_methods(work: str, full: str, ext: str, allowed: set[str]) -> str:
@@ -48,7 +55,12 @@ def merge_unlocked_methods(work: str, full: str, ext: str, allowed: set[str]) ->
         if extras:
             return _insert_before_js_class_close(work, extras)
         return work
-    return work
+    if ext == "rb":
+        extras = "".join(_ruby_method(full, name) or "" for name in missing)
+        if extras:
+            return _insert_before_ruby_class_end(work, extras)
+        return work
+    return _merge_api_comments(work, full, allowed)
 
 
 def class_name_for(problem: str) -> str:
@@ -64,7 +76,9 @@ def _declares(text: str, ext: str, name: str) -> bool:
         return f"{name}(" in text
     if ext == "py":
         return f"def {name}(" in text
-    return name in text
+    if ext == "rb":
+        return f"def {name}(" in text or f"def {name} " in text
+    return any(token in text for token in _name_forms(name))
 
 
 def _slice_java(text: str, allowed: set[str], class_name: str) -> str:
@@ -454,3 +468,182 @@ def _js_class_close(text: str, class_name: str) -> int:
                 return i
         i += 1
     raise ValueError("unbalanced braces")
+
+
+def _name_forms(name: str) -> set[str]:
+    forms = {name}
+    if "_" in name:
+        parts = name.split("_")
+        forms.add(parts[0] + "".join(part.title() for part in parts[1:]))
+        return forms
+    snake: list[str] = []
+    for i, ch in enumerate(name):
+        if ch.isupper() and i:
+            snake.append("_")
+        snake.append(ch.lower())
+    forms.add("".join(snake))
+    return forms
+
+
+def _allowed_forms(allowed: set[str]) -> set[str]:
+    forms: set[str] = set()
+    for name in allowed:
+        forms.update(_name_forms(name))
+    return forms
+
+
+def _api_ident(line: str) -> str | None:
+    match = _API_IDENT.search(line)
+    if match is None:
+        return None
+    return match.group(1)
+
+
+def _is_comment_line(line: str) -> bool:
+    stripped = line.strip()
+    if not stripped:
+        return False
+    if stripped.startswith(("//", "#", "--", ";;", "%", "!")):
+        return True
+    if stripped.startswith('"') and stripped.endswith('"'):
+        return True
+    if stripped.startswith("(*") or stripped.endswith("*)"):
+        return True
+    return False
+
+
+def _slice_api_comments(text: str, allowed: set[str]) -> str:
+    allowed_all = _allowed_forms(allowed)
+    lines = text.splitlines(keepends=True)
+    out: list[str] = []
+    in_block = False
+    for line in lines:
+        stripped = line.strip()
+        if "(*" in stripped:
+            in_block = True
+        consider = _is_comment_line(stripped) or (in_block and "(*" not in stripped)
+        name = _api_ident(stripped) if consider else None
+        if name is not None and name not in allowed_all:
+            if "*)" in stripped and "(*" not in stripped:
+                out.append("*)\n")
+            if "*)" in stripped:
+                in_block = False
+            continue
+        out.append(line)
+        if "*)" in stripped:
+            in_block = False
+    return "".join(out)
+
+
+def _merge_api_comments(work: str, full: str, allowed: set[str]) -> str:
+    allowed_all = _allowed_forms(allowed)
+    extras: list[str] = []
+    in_block = False
+    for line in full.splitlines(keepends=True):
+        stripped = line.strip()
+        if "(*" in stripped:
+            in_block = True
+        consider = _is_comment_line(stripped) or (in_block and "(*" not in stripped)
+        name = _api_ident(stripped) if consider else None
+        present = name is not None and any(form in work for form in _name_forms(name))
+        if name is not None and name in allowed_all and not present:
+            extras.append(line if line.endswith("\n") else line + "\n")
+        if "*)" in stripped:
+            in_block = False
+    if not extras:
+        return work
+    return _insert_api_comment_lines(work, extras)
+
+
+def _insert_api_comment_lines(work: str, extras: list[str]) -> str:
+    lines = work.splitlines(keepends=True)
+    last = -1
+    in_block = False
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if "(*" in stripped:
+            in_block = True
+        if _is_comment_line(stripped) or in_block:
+            last = i
+        elif stripped:
+            break
+        if "*)" in stripped:
+            in_block = False
+    if last < 0:
+        return "".join(extras) + work
+    closer = lines[last]
+    if "*)" in closer.strip() and "(*" not in closer.strip():
+        lines[last:last] = extras
+        return "".join(lines)
+    lines[last + 1 : last + 1] = extras
+    return "".join(lines)
+
+
+def _slice_ruby(text: str, allowed: set[str], class_name: str) -> str:
+    header = _ruby_header(text, class_name)
+    init = _ruby_method(text, "initialize") or ""
+    parts = [header.rstrip(), init.rstrip()]
+    for name in _ruby_method_order(text):
+        if name == "initialize" or name not in allowed:
+            continue
+        block = _ruby_method(text, name)
+        if block:
+            parts.append(block.rstrip())
+    body = "\n".join(part for part in parts if part)
+    if not body.endswith("\n"):
+        body += "\n"
+    return body + "end\n"
+
+
+def _ruby_header(text: str, class_name: str) -> str:
+    marker = f"class {class_name}"
+    for line in text.splitlines(keepends=True):
+        if line.strip().startswith(marker):
+            return line if line.endswith("\n") else line + "\n"
+    raise ValueError(f"missing {marker}")
+
+
+def _ruby_method_order(text: str) -> list[str]:
+    names: list[str] = []
+    for line in text.splitlines():
+        match = _RUBY_DEF.match(line)
+        if match:
+            names.append(match.group(2))
+    return names
+
+
+def _ruby_method(text: str, name: str) -> str | None:
+    lines = text.splitlines(keepends=True)
+    start = None
+    for i, line in enumerate(lines):
+        match = _RUBY_DEF.match(line)
+        if match and match.group(2) == name:
+            start = i
+            break
+    if start is None:
+        return None
+    depth = 0
+    for j in range(start, len(lines)):
+        stripped = lines[j].strip()
+        if stripped.startswith("def "):
+            depth += 1
+        if stripped == "end" or stripped.startswith("end ") or stripped.startswith("end;"):
+            depth -= 1
+            if depth == 0:
+                return "".join(lines[start : j + 1])
+    return "".join(lines[start:])
+
+
+def _insert_before_ruby_class_end(work: str, extra: str) -> str:
+    if not extra:
+        return work
+    close = work.rfind("\nend")
+    if close < 0:
+        stripped = work.rstrip()
+        if stripped.endswith("end"):
+            close = len(stripped) - 3
+            prefix = stripped[:close].rstrip() + "\n"
+            return prefix + extra.lstrip("\n") + "end\n"
+        return work.rstrip() + "\n" + extra.lstrip("\n")
+    prefix = work[:close].rstrip() + "\n"
+    return prefix + extra.lstrip("\n") + work[close + 1 :]
