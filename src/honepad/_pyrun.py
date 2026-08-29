@@ -10,6 +10,7 @@ from honepad.runner import run_python_body
 
 
 def main(argv: list[str] | None = None) -> int:
+    terminate = os._exit
     args = sys.argv[1:] if argv is None else argv
     problem, level_s, kind = args[0], args[1], args[2]
     orig_stdout = sys.stdout
@@ -58,7 +59,7 @@ def main(argv: list[str] | None = None) -> int:
         }
         sys.stdout.write(json.dumps(payload) + "\n")
         sys.stdout.flush()
-    os._exit(rc)
+    terminate(rc)
 
 
 if __name__ == "__main__":
