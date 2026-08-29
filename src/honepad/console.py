@@ -15,8 +15,11 @@ from honepad.session import (
     ensure_session,
     ensure_work_copy,
     load_session,
+    lock_to_level,
     note_clock_restarted,
     remaining_s,
+    restart_all,
+    slice_work_to_level,
     work_src,
 )
 from honepad.term import (
@@ -136,6 +139,8 @@ def loop_console(
                     return 0
                 if confirmed is False:
                     continue
+                last = _apply_reset(confirmed, session, stdout)
+                continue
             last = dispatch(choice, session, stdout)
     except KeyboardInterrupt:
         stdout.write("\nOK: quit\n")
@@ -155,10 +160,7 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
             stdout.flush()
             return _run_work(problem, lang, unlock=True)
         if choice in {"3", "reset"}:
-            work = ensure_work_copy(problem, lang, reset=True, level=unlocked)
-            stdout.write(f"OK: reset\n{work_line(work)}\n")
-            stdout.flush()
-            return 0
+            return _reset_work(session, stdout)
         if choice in {"4", "spec"}:
             return _print_spec(problem, unlocked, stdout)
         if choice in {"5", "vscode", "code"}:
@@ -218,8 +220,12 @@ def _print_fail(exc: BaseException) -> None:
         print(start_next())
 
 
-def _confirm_reset(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> bool | str | None:
-    stdout.write("Type yes to wipe the work file.\n")
+def _confirm_reset(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> str | bool | None:
+    unlocked = int(session["unlocked"])
+    stdout.write(f"Type yes to wipe work (stay at level {unlocked}).\n")
+    if unlocked > 1:
+        stdout.write(f"Type back to return to level {unlocked - 1}.\n")
+    stdout.write("Type all to start over at level 1.\n")
     left = remaining_s(int(session["started_at"]), int(session["minutes"]))
     if left == 0:
         stdout.write("NEXT: quit then start starts a new clock and keeps work.\n")
@@ -229,10 +235,59 @@ def _confirm_reset(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> bo
         return None
     confirm = line.strip().lower()
     if confirm == "yes":
-        return True
+        return "work"
+    if confirm == "back":
+        return "back"
+    if confirm == "all":
+        return "all"
     if confirm in {"q", "quit"}:
         return "quit"
     return False
+
+
+def _apply_reset(kind: str | bool, session: dict[str, Any], stdout: TextIO) -> int:
+    if kind == "back":
+        return _reset_back(session, stdout)
+    if kind == "all":
+        return _reset_all(session, stdout)
+    return _reset_work(session, stdout)
+
+
+def _reset_work(session: dict[str, Any], stdout: TextIO) -> int:
+    work = ensure_work_copy(
+        str(session["problem"]),
+        str(session["lang"]),
+        reset=True,
+        level=int(session["unlocked"]),
+    )
+    stdout.write(f"OK: reset\n{work_line(work)}\n")
+    stdout.flush()
+    return 0
+
+
+def _reset_back(session: dict[str, Any], stdout: TextIO) -> int:
+    unlocked = int(session["unlocked"])
+    if unlocked <= 1:
+        stdout.write(status_fail("FAIL: already level 1") + "\n")
+        stdout.flush()
+        return 1
+    lock_to_level(session, unlocked - 1)
+    work = slice_work_to_level(str(session["problem"]), str(session["lang"]), unlocked - 1)
+    write_workspace(str(session["problem"]), str(session["lang"]), unlocked - 1)
+    stdout.write(f"OK: unlocked={session['unlocked']}\n{work_line(work)}\n")
+    stdout.flush()
+    return _print_spec(str(session["problem"]), unlocked - 1, stdout)
+
+
+def _reset_all(session: dict[str, Any], stdout: TextIO) -> int:
+    nxt = restart_all(str(session["problem"]), str(session["lang"]), int(session["minutes"]))
+    session.clear()
+    session.update(nxt)
+    work = ensure_work_copy(str(session["problem"]), str(session["lang"]), reset=True, level=1)
+    write_workspace(str(session["problem"]), str(session["lang"]), 1)
+    stdout.write(f"OK: unlocked=1\n{work_line(work)}\n")
+    stdout.flush()
+    return _print_spec(str(session["problem"]), 1, stdout)
 
 
 def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:

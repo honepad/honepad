@@ -15,9 +15,11 @@ from honepad.session import (
     ensure_session,
     ensure_work_copy,
     load_session,
+    lock_to_level,
     max_level,
     note_clock_restarted,
     remaining_s,
+    slice_work_to_level,
     unlock_next,
     work_src,
 )
@@ -82,9 +84,33 @@ def cmd_start(args: argparse.Namespace) -> int:
             print(status_fail(f"FAIL: no runner for {row['id']}"))
             print(start_next())
             return 1
-        session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=args.reset)
-        unlocked = int(session["unlocked"])
-        work = ensure_work_copy(args.problem, row["id"], reset=args.reset, level=unlocked)
+        if args.reset and getattr(args, "back", False):
+            print(status_fail("FAIL: use --reset or --back, not both"))
+            return 1
+        if getattr(args, "back", False):
+            session = load_session()
+            if session is None:
+                print(status_fail("FAIL: no session to go back"))
+                print(start_next())
+                return 1
+            if session["problem"] != args.problem or str(session["lang"]) != row["id"]:
+                print(status_fail("FAIL: --back needs the current problem and language"))
+                return 1
+            unlocked = int(session["unlocked"])
+            if unlocked <= 1:
+                print(status_fail("FAIL: already level 1"))
+                print(work_line(work_src(args.problem, row["id"])))
+                return 1
+            session = lock_to_level(session, unlocked - 1)
+            unlocked = int(session["unlocked"])
+            work = slice_work_to_level(args.problem, row["id"], unlocked)
+            write_workspace(args.problem, row["id"], unlocked)
+        else:
+            session = ensure_session(
+                args.problem, args.lang, minutes=args.minutes, reset=args.reset
+            )
+            unlocked = int(session["unlocked"])
+            work = ensure_work_copy(args.problem, row["id"], reset=args.reset, level=unlocked)
         level = unlocked if args.level is None else args.level
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
@@ -266,6 +292,7 @@ def build_parser() -> argparse.ArgumentParser:
         description=(
             "Start a practice session: spec, work file, 90-minute clock. "
             "On a TTY this opens the live menu. "
+            "--reset starts over at level 1. --back drops one unlocked level. "
             "Unimplemented catalog langs print FAIL and exit 1."
         ),
     )
@@ -274,6 +301,7 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("--level", type=int, default=None)
     start.add_argument("--minutes", type=int, default=90)
     start.add_argument("--reset", action="store_true")
+    start.add_argument("--back", action="store_true")
     start.add_argument("--no-console", action="store_true")
     start.set_defaults(func=cmd_start)
 
@@ -328,7 +356,8 @@ def build_parser() -> argparse.ArgumentParser:
             "Live menu with remaining_s clock. On a TTY, keys 1-5 and q "
             "run immediately (no Enter). 1 run tests without unlocking, "
             "2 submit (local) unlocks the next level, "
-            "3 reset work, 4 spec, 5 vscode workspace. Paths use OSC 8 file:// links."
+            "3 reset (yes=this level, back=previous, all=L1), "
+            "4 spec, 5 vscode workspace. Paths use OSC 8 file:// links."
         ),
     )
     console.add_argument("problem", nargs="?", choices=problems())
