@@ -1609,3 +1609,49 @@ def test_run_systemexit_at_import_prints_path_and_next(monkeypatch, tmp_path: Pa
     next_lines = [line for line in out.splitlines() if "NEXT:" in line]
     assert next_lines
     assert any("start --reset" in line for line in next_lines)
+
+
+def test_submit_rejects_fake_json_on_dunder_stdout_os_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        f"import os, sys\nprint({payload!r}, file=sys.__stdout__, flush=True)\nos._exit(0)\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "no Simulation class" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+def test_submit_rejects_fake_json_on_fd1_os_exit(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        f"import os\nos.write(1, {payload.encode()!r} + b'\\n')\nos._exit(0)\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "no Simulation class" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
