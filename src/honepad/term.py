@@ -136,6 +136,10 @@ def start_next() -> str:
     return f"NEXT: {invocation()} start bank_system java"
 
 
+def work_reset_next() -> str:
+    return f"NEXT: edit the work file or {invocation()} start --reset"
+
+
 def format_clock(seconds: int) -> str:
     left = seconds if seconds > 0 else 0
     hours, rem = divmod(left, 3600)

@@ -51,7 +51,9 @@ def _migrate_legacy_java_work(parent: Path, dest: Path) -> None:
         legacy.unlink()
 
 
-def ensure_work_copy(problem: str, lang_id: str, *, reset: bool, level: int) -> Path:
+def ensure_work_copy(
+    problem: str, lang_id: str, *, reset: bool, level: int, require_merge: bool = False
+) -> Path:
     dest = work_src(problem, lang_id)
     dest.parent.mkdir(parents=True, exist_ok=True)
     row = language(lang_id)
@@ -67,6 +69,11 @@ def ensure_work_copy(problem: str, lang_id: str, *, reset: bool, level: int) -> 
             merged = merge_unlocked_methods(current, full, ext, allowed)
             if merged != current:
                 dest.write_text(merged, encoding="utf-8")
+        elif require_merge:
+            raise ValueError(
+                f"work file exists but has no {class_name} class, "
+                f"edit WORK or honepad start --reset: {dest}"
+            )
         write_work_spec(problem, level, dest.parent)
         return dest
     sliced = slice_stub(full, ext, allowed, class_name_for(problem))

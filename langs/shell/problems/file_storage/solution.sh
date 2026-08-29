@@ -4,6 +4,11 @@
 new() {
   unset FILES OWNER USERS CAPACITY BACKUPS
   declare -gA FILES OWNER USERS CAPACITY BACKUPS
+  FILES=()
+  OWNER=()
+  USERS=()
+  CAPACITY=()
+  BACKUPS=()
   USERS[admin]=1
   CAPACITY[admin]=""
 }

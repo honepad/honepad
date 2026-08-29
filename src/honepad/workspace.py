@@ -37,13 +37,15 @@ def public_test_file(problem: str, lang: str) -> Path | None:
 
 def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
     root = workspace_dir(problem, lang)
+    work = work_src(problem, lang)
+    row = language(lang)
+    if row["id"] in {"java", "python3"} and not work.is_file():
+        raise ValueError(f"work file missing: {work}")
     public = root / "public"
     public.mkdir(parents=True, exist_ok=True)
-    work = work_src(problem, lang)
     cases = load_cases(problem, unlocked)
     (public / "cases.json").write_text(json.dumps(cases, indent=2) + "\n", encoding="utf-8")
     spec_folder = _write_specs(public, problem, unlocked)
-    row = language(lang)
     if row["id"] == "java":
         _write_java_public(public, work, problem, cases, unlocked)
         _write_work_java_settings(work.parent)
@@ -201,8 +203,9 @@ def _write_java_public(
 def _write_python_public(
     public: Path, work: Path, problem: str, cases: list[dict[str, object]]
 ) -> None:
-    if work.is_file():
-        _link_or_copy(work, public / "work.py")
+    if not work.is_file():
+        raise ValueError(f"work file missing: {work}")
+    _link_or_copy(work, public / "work.py")
     (public / "test_public.py").write_text(render_pytest(problem, cases), encoding="utf-8")
     _write_extensions(public, ["ms-python.python"])
 
@@ -244,9 +247,9 @@ def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Pa
         f"Work file: {work}",
         f"URI: {file_uri(work)}",
         "",
-        "VS Code: Terminal > Run Task > Run public tests, or",
-        f"`{sys.executable} -m honepad run {problem} --lang {lang}`.",
-        "A passing run does not unlock. Console 2 / honepad submit unlocks the next level.",
+        "VS Code: Terminal > Run Task > Run public tests, or Submit (unlock next level).",
+        f"`{sys.executable} -m honepad run {problem} --lang {lang}` does not unlock.",
+        f"`{sys.executable} -m honepad submit {problem} --lang {lang}` unlocks the next level.",
         "",
     ]
     if lang == "java":
@@ -281,7 +284,17 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
             "group": {"kind": "test", "isDefault": True},
             "presentation": {"reveal": "always", "panel": "shared"},
             "problemMatcher": [],
-        }
+        },
+        {
+            "label": "Submit (unlock next level)",
+            "type": "shell",
+            "command": sys.executable,
+            "args": ["-m", "honepad", "submit", problem, "--lang", lang],
+            "group": "test",
+            "options": {"cwd": "${workspaceFolder:public-tests}"},
+            "presentation": {"reveal": "always", "panel": "shared"},
+            "problemMatcher": [],
+        },
     ]
     public_cwd = "${workspaceFolder:public-tests}"
     if lang == "java":

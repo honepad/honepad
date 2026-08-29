@@ -4,6 +4,8 @@
 new() {
   unset DB EXPIRY
   declare -gA DB EXPIRY
+  DB=()
+  EXPIRY=()
   BACKUP_TS=()
   BACKUP_STATE=()
 }
@@ -223,6 +225,8 @@ restore() {
   local backup=${BACKUP_STATE[$idx]}
   unset DB EXPIRY
   declare -gA DB EXPIRY
+  DB=()
+  EXPIRY=()
   local pair key field value remaining expiry
   while IFS= read -r pair; do
     if [[ -z "$pair" ]]; then

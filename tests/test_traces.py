@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ from honepad.runner import (
     report_from_proc,
     run,
     run_compiled,
+    run_prepare_cmd,
     run_python,
     run_script,
 )
@@ -652,6 +654,11 @@ def test_bash_all_problems() -> None:
         assert report.ok, report.failed
 
 
+def test_bash_bank_empty_top_spenders() -> None:
+    report = run("bank_system", "bash", 2, "solution")
+    assert report.ok, report.failed
+
+
 def test_bash_bank_stub_fails() -> None:
     report = run("bank_system", "bash", 1, "stub")
     assert not report.ok
@@ -842,17 +849,40 @@ def test_report_from_proc_rejects_non_object_json() -> None:
         report_from_proc(proc, "bank_system", "java", 1)
 
 
+def test_report_from_proc_rejects_passed_count_mismatch() -> None:
+    proc = subprocess.CompletedProcess(
+        ["adapter"], 0, stdout='{"passed": 99, "failed": []}\n', stderr=""
+    )
+    with pytest.raises(RuntimeError, match="mismatch") as excinfo:
+        report_from_proc(proc, "bank_system", "python3", 1)
+    text = str(excinfo.value)
+    assert "99" in text
+    assert "adapter report count mismatch" in text
+
+
 def test_run_script_removes_cases_file(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
     def fake_run(argv, **_kwargs):
         captured["cases_path"] = argv[-1]
         captured["exists_during"] = Path(argv[-1]).is_file()
+        n = len(load_cases("bank_system", 1))
         return subprocess.CompletedProcess(
-            argv, 0, stdout='{"passed": 0, "failed": []}\n', stderr=""
+            argv, 0, stdout=f'{{"passed": {n}, "failed": []}}\n', stderr=""
         )
 
     monkeypatch.setattr("honepad.runner.subprocess.run", fake_run)
     run_script("bank_system", "javascript", 1, "solution", ["node"])
     assert captured["exists_during"] is True
     assert not Path(str(captured["cases_path"])).exists()
+
+
+def test_run_prepare_cmd_times_out() -> None:
+    with pytest.raises(RuntimeError, match="timed out") as excinfo:
+        run_prepare_cmd(
+            [sys.executable, "-c", "import time; time.sleep(5)"],
+            Path("."),
+            "java",
+            timeout=0.2,
+        )
+    assert "timed out" in str(excinfo.value)

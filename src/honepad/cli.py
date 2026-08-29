@@ -29,6 +29,7 @@ from honepad.term import (
     status_ok,
     status_unlock,
     work_line,
+    work_reset_next,
 )
 from honepad.traces import load_cases, method_name, problem_dir
 from honepad.workspace import write_workspace
@@ -61,6 +62,11 @@ def _print_start_usage() -> None:
     print(status_fail("FAIL: no session"))
     print(start_next())
     print("problems: " + ", ".join(problems()))
+
+
+def _is_work_file_problem(exc: BaseException) -> bool:
+    text = str(exc)
+    return "work file" in text or "/work/" in text or "work." in text
 
 
 def cmd_start(args: argparse.Namespace) -> int:
@@ -137,6 +143,8 @@ def cmd_run(args: argparse.Namespace) -> int:
             left = remaining_s(int(session["started_at"]), int(session["minutes"]))
             print(f"remaining_s={left}")
         report = run(args.problem, lang, level, kind=kind)
+        if session is not None and same:
+            left = remaining_s(int(session["started_at"]), int(session["minutes"]))
     except (
         NotImplementedError,
         KeyError,
@@ -146,6 +154,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         ValueError,
     ) as exc:
         print(status_fail(f"FAIL: {exc}"))
+        if _is_work_file_problem(exc):
+            print(work_reset_next())
         return 1
     summary = f"{report.problem} {report.lang} level<={report.level} passed={report.passed}"
     if session is not None and same:
@@ -180,10 +190,11 @@ def cmd_run(args: argparse.Namespace) -> int:
             return 0
         if may_unlock:
             try:
-                ensure_work_copy(args.problem, lang, reset=False, level=nxt)
+                ensure_work_copy(args.problem, lang, reset=False, level=nxt, require_merge=True)
                 write_workspace(args.problem, lang, nxt)
             except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
                 print(status_fail(f"FAIL: {exc}"))
+                print(work_reset_next())
                 return 1
             unlocked = unlock_next(session)
             if unlocked is not None:
