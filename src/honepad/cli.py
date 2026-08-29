@@ -259,7 +259,8 @@ def build_parser() -> argparse.ArgumentParser:
         "console",
         help="live practice menu",
         description=(
-            "Live menu with remaining_s clock. 1 run tests, 2 submit (local), "
+            "Live menu with remaining_s clock. On a TTY, keys 1-5 and q "
+            "run immediately (no Enter). 1 run tests, 2 submit (local), "
             "3 reset work, 4 spec, 5 vscode workspace. Paths use OSC 8 file:// links."
         ),
     )

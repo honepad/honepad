@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -8,7 +9,7 @@ from pathlib import Path
 import pytest
 
 from honepad.cli import main
-from honepad.console import dispatch, render_banner
+from honepad.console import _read_choice, dispatch, render_banner
 from honepad.javatest import java_ident
 from honepad.pythontest import pytest_ident
 from honepad.session import ensure_work_copy, load_session
@@ -130,6 +131,45 @@ def test_console_unimplemented_lang_fails(monkeypatch, tmp_path: Path, capsys) -
     assert "factory job" not in out
     assert "NEXT:" in out
     assert "start bank_system java" in out
+
+
+def _pipe_stdin(data: bytes) -> io.TextIOWrapper:
+    read_fd, write_fd = os.pipe()
+    os.write(write_fd, data)
+    os.close(write_fd)
+    return os.fdopen(read_fd, "r")
+
+
+def test_live_menu_key_does_not_need_enter() -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 1,
+        "minutes": 90,
+        "unlocked": 2,
+    }
+    stdin = _pipe_stdin(b"1q")
+    try:
+        got = _read_choice(session, stdin, io.StringIO(), live=True, clock_fn=lambda: 12)
+    finally:
+        stdin.close()
+    assert got == "1"
+
+
+def test_live_menu_enter_alone_is_empty() -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 1,
+        "minutes": 90,
+        "unlocked": 2,
+    }
+    stdin = _pipe_stdin(b"\n")
+    try:
+        got = _read_choice(session, stdin, io.StringIO(), live=True, clock_fn=lambda: 12)
+    finally:
+        stdin.close()
+    assert got == ""
 
 
 def test_console_quit(monkeypatch, tmp_path: Path, capsys) -> None:
