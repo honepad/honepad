@@ -20,14 +20,17 @@ def main(argv: list[str] | None = None) -> int:
     os.dup2(sink.fileno(), 1)
     sys.stdout = sink
     sys.__stdout__ = sink
+    report = None
+    rc = 1
     try:
         try:
             report = run_python_body(problem, int(level_s), kind)
+            rc = 0 if report.ok else 1
         except KeyboardInterrupt:
             raise
         except BaseException as exc:
             sys.stderr.write(f"{exc}\n")
-            return 1
+            rc = 1
     finally:
         try:
             sink.flush()
@@ -38,22 +41,24 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout = orig_stdout
         sys.__stdout__ = orig___stdout__
         sink.close()
-    payload = {
-        "passed": report.passed,
-        "failed": [
-            {
-                "case": row.case,
-                "index": row.index,
-                "method": row.method,
-                "args": row.args,
-                "expected": row.expected,
-                "actual": row.actual,
-            }
-            for row in report.failed
-        ],
-    }
-    sys.stdout.write(json.dumps(payload) + "\n")
-    return 0 if report.ok else 1
+    if report is not None:
+        payload = {
+            "passed": report.passed,
+            "failed": [
+                {
+                    "case": row.case,
+                    "index": row.index,
+                    "method": row.method,
+                    "args": row.args,
+                    "expected": row.expected,
+                    "actual": row.actual,
+                }
+                for row in report.failed
+            ],
+        }
+        sys.stdout.write(json.dumps(payload) + "\n")
+        sys.stdout.flush()
+    os._exit(rc)
 
 
 if __name__ == "__main__":
