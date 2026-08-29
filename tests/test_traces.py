@@ -862,6 +862,21 @@ def test_report_from_proc_rejects_passed_count_mismatch() -> None:
     assert "adapter report count mismatch" in text
 
 
+def test_report_from_proc_rejects_nonzero_empty_failed() -> None:
+    n = len(load_cases("bank_system", 1))
+    proc = subprocess.CompletedProcess(
+        ["adapter"],
+        1,
+        stdout=f'{{"passed": {n}, "failed": []}}\n',
+        stderr="adapter boom",
+    )
+    with pytest.raises(RuntimeError) as excinfo:
+        report_from_proc(proc, "bank_system", "python3", 1)
+    text = str(excinfo.value)
+    assert "adapter boom" in text or "exited" in text
+    assert "adapter report count mismatch" not in text
+
+
 def test_run_script_removes_cases_file(monkeypatch) -> None:
     captured: dict[str, object] = {}
 

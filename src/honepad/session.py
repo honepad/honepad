@@ -12,6 +12,7 @@ from honepad.catalog import language, problems, repo_root
 from honepad.traces import problem_dir
 from honepad.workstub import (
     class_name_for,
+    declares_class,
     merge_unlocked_methods,
     methods_through_level,
     naming_for,
@@ -65,7 +66,7 @@ def ensure_work_copy(
     if dest.is_file() and not reset:
         current = dest.read_text(encoding="utf-8")
         class_name = class_name_for(problem)
-        if class_name in current:
+        if declares_class(current, ext, class_name):
             merged = merge_unlocked_methods(current, full, ext, allowed)
             if merged != current:
                 dest.write_text(merged, encoding="utf-8")
