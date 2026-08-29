@@ -1794,6 +1794,57 @@ def test_submit_rejects_patched_os_exit_fake_json(monkeypatch, tmp_path: Path, c
     assert load_session()["unlocked"] == 1
 
 
+def test_java_unlock_merge_targets_simulation_not_last_brace(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    work.write_text(
+        "public class Simulation {\n"
+        "  public Simulation() {}\n"
+        "  public Boolean createAccount(long t, String id) { return true; }\n"
+        "}\n"
+        "class Account {\n  Account() {}\n}\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--kind", "solution"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "UNLOCKED" in out
+    body = work.read_text(encoding="utf-8")
+    simulation, _sep, account = body.partition("class Account")
+    assert "topSpenders" in simulation
+    assert "topSpenders" not in account
+    assert "class Account" in body
+
+
+def test_python_unlock_merge_targets_simulation_not_last_class(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text(
+        "class Simulation:\n"
+        "    def create_account(self, *args):\n        return True\n"
+        "    def deposit(self, *args):\n        return 0\n"
+        "    def transfer(self, *args):\n        return 0\n"
+        "\nclass Account:\n    pass\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--kind", "solution"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "UNLOCKED" in out
+    body = work.read_text(encoding="utf-8")
+    simulation, _sep, account = body.partition("class Account")
+    assert "def top_spenders" in simulation
+    assert "def top_spenders" not in account
+
+
 def test_ruby_unlock_merge_targets_simulation_not_last_end(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:

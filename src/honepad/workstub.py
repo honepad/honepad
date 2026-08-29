@@ -45,12 +45,14 @@ def merge_unlocked_methods(
     if ext == "java":
         extras = "".join(_java_method(full, name) or "" for name in missing)
         if extras:
-            work = _ensure_java_imports(_insert_before_last_brace(work, extras), full, extras)
+            work = _ensure_java_imports(
+                _insert_before_java_class_close(work, extras, class_name), full, extras
+            )
         return _inject_java_docs(work, full, allowed)
     if ext == "py":
         extras = "".join(_python_method(full, name) or "" for name in missing)
         if extras:
-            work = work.rstrip() + "\n\n" + extras.lstrip("\n")
+            work = _insert_before_python_class_end(work, extras, class_name)
         return _inject_python_docs(work, full, allowed)
     if ext in {"js", "ts"}:
         extras = "".join(_js_method(full, name) or "" for name in missing)
@@ -254,14 +256,26 @@ def _ensure_java_imports(work: str, full: str, extras: str) -> str:
     return work[:idx] + "\n".join(needed) + "\n\n" + work[idx:]
 
 
-def _insert_before_last_brace(text: str, extra: str) -> str:
+def _insert_before_java_class_close(text: str, extra: str, class_name: str) -> str:
     if not extra:
         return text
-    close = text.rfind("}")
-    if close < 0:
-        return text + extra
+    close = _js_class_close(text, class_name)
     prefix = text[:close].rstrip() + "\n\n"
-    return prefix + extra.lstrip("\n") + "}\n"
+    return prefix + extra.lstrip("\n") + text[close:]
+
+
+def _insert_before_python_class_end(work: str, extra: str, class_name: str) -> str:
+    if not extra:
+        return work
+    match = re.search(rf"^class {re.escape(class_name)}\b", work, re.MULTILINE)
+    if match is None:
+        raise ValueError(f"missing class {class_name}")
+    nxt = re.search(r"^class ", work[match.end() :], re.MULTILINE)
+    extras = extra.lstrip("\n")
+    if nxt is None:
+        return work.rstrip() + "\n\n" + extras
+    at = match.end() + nxt.start()
+    return work[:at].rstrip() + "\n\n" + extras + "\n\n" + work[at:]
 
 
 def _slice_python(text: str, allowed: set[str]) -> str:
@@ -491,7 +505,12 @@ def _insert_before_js_class_close(text: str, extra: str, class_name: str) -> str
 
 
 def _js_class_close(text: str, class_name: str) -> int:
-    markers = (f"class {class_name}", f"{class_name} = class", f"{class_name}: class")
+    markers = (
+        f"public class {class_name}",
+        f"class {class_name}",
+        f"{class_name} = class",
+        f"{class_name}: class",
+    )
     idx = -1
     for marker in markers:
         idx = text.find(marker)
