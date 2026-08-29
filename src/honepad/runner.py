@@ -17,6 +17,7 @@ from honepad.catalog import language, repo_root
 from honepad.traces import load_cases, method_name
 
 RUN_TIMEOUT_S = 30
+COMPILE_TIMEOUT_S = 120
 
 
 @dataclass
@@ -194,7 +195,7 @@ def run_prepare_cmd(
     argv: list[str],
     cwd: Path,
     lang_id: str,
-    timeout: float = RUN_TIMEOUT_S,
+    timeout: float = COMPILE_TIMEOUT_S,
 ) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(

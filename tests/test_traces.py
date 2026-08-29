@@ -8,6 +8,8 @@ import pytest
 from honepad.catalog import language, repo_root
 from honepad.runner import (
     _RUNNERS,
+    COMPILE_TIMEOUT_S,
+    RUN_TIMEOUT_S,
     report_from_proc,
     run,
     run_compiled,
@@ -886,3 +888,8 @@ def test_run_prepare_cmd_times_out() -> None:
             timeout=0.2,
         )
     assert "timed out" in str(excinfo.value)
+
+
+def test_run_prepare_cmd_default_timeout_is_compile_budget() -> None:
+    assert COMPILE_TIMEOUT_S > RUN_TIMEOUT_S
+    assert run_prepare_cmd.__defaults__[-1] == COMPILE_TIMEOUT_S
