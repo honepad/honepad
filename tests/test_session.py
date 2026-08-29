@@ -1771,3 +1771,31 @@ def test_submit_block_comment_class_does_not_unlock(monkeypatch, tmp_path: Path,
     assert "UNLOCKED" not in out
     assert load_session()["unlocked"] == 1
     assert work.read_text(encoding="utf-8") == "/*\nclass Simulation {\n}\n*/\n"
+
+
+def test_submit_rejects_patched_os_exit_fake_json(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "import os\n"
+        f"os._exit = lambda _rc: os.write(1, {payload.encode()!r} + b'\\n')\n"
+        "class Simulation:\n    pass\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "UNLOCKED" not in out
+    assert load_session()["unlocked"] == 1
+
+
+def test_declares_class_skips_unclosed_block_comment() -> None:
+    name = "Simulation"
+    assert not declares_class("/*\nclass Simulation {\n}\n", "js", name)
+    assert not declares_class('"""\nclass Simulation:\n    pass\n', "py", name)
+    assert declares_class("class Simulation:\n    pass\n", "py", name)

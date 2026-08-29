@@ -71,11 +71,21 @@ _BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
 _PY_DOCSTRING = re.compile(r'("""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\')')
 
 
+def _drop_unclosed(text: str, opener: str) -> str:
+    idx = text.find(opener)
+    if idx >= 0:
+        return text[:idx]
+    return text
+
+
 def _code_lines(text: str, ext: str) -> list[str]:
     if ext in {"js", "ts", "java"}:
         text = _BLOCK_COMMENT.sub("\n", text)
+        text = _drop_unclosed(text, "/*")
     if ext == "py":
         text = _PY_DOCSTRING.sub("\n", text)
+        text = _drop_unclosed(text, '"""')
+        text = _drop_unclosed(text, "'''")
     return [
         line.strip()
         for line in text.splitlines()
