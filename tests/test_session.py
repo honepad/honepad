@@ -9,7 +9,13 @@ from honepad.catalog import language, repo_root
 from honepad.cli import main
 from honepad.runner import _RUNNERS
 from honepad.session import ensure_work_copy, load_session, remaining_s, work_src
-from honepad.workstub import _java_method, class_name_for, methods_through_level, naming_for
+from honepad.workstub import (
+    _java_method,
+    class_name_for,
+    declares_class,
+    methods_through_level,
+    naming_for,
+)
 
 
 def test_java_method_includes_leading_javadoc() -> None:
@@ -1655,3 +1661,69 @@ def test_submit_rejects_fake_json_on_fd1_os_exit(monkeypatch, tmp_path: Path, ca
     assert "no Simulation class" not in out
     assert "passed=" not in out
     assert load_session()["unlocked"] == 1
+
+
+def test_submit_class_keyword_in_comment_does_not_unlock(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text("# class Simulation notes\n", encoding="utf-8")
+    code = main(["submit", "bank_system", "--kind", "solution"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL:" in out
+    assert "Simulation" in out
+    assert "UNLOCKED" not in out
+    assert "start --reset" in out
+    assert load_session()["unlocked"] == 1
+    assert work.read_text(encoding="utf-8") == "# class Simulation notes\n"
+    assert "def " not in work.read_text(encoding="utf-8")
+
+
+def test_submit_js_class_comment_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "javascript", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "javascript" / "work.js"
+    work.write_text("// class Simulation\n", encoding="utf-8")
+    code = main(["submit", "bank_system", "--kind", "solution"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL:" in out
+    assert "UNLOCKED" not in out
+    assert load_session()["unlocked"] == 1
+    assert work.read_text(encoding="utf-8") == "// class Simulation\n"
+
+
+def test_declares_class_skips_comments_and_accepts_js_const() -> None:
+    name = "Simulation"
+    assert not declares_class("# class Simulation notes\n", "py", name)
+    assert not declares_class("// class Simulation\n", "js", name)
+    assert not declares_class("print('class Simulation')\n", "py", name)
+    assert declares_class("class Simulation:\n    pass\n", "py", name)
+    assert declares_class("public class Simulation {\n}\n", "java", name)
+    assert declares_class("export class Simulation {\n}\n", "js", name)
+    assert declares_class("const Simulation = class {\n};\n", "js", name)
+    assert declares_class("let Simulation = class {\n};\n", "js", name)
+    assert declares_class("var Simulation = class {\n};\n", "js", name)
+    assert declares_class("module.exports = {\n  Simulation: class {}\n};\n", "js", name)
+
+
+def test_submit_js_const_class_unlocks(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "javascript", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "javascript" / "work.js"
+    work.write_text(
+        "const Simulation = class {\n  constructor() {}\n};\nmodule.exports = { Simulation };\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--kind", "solution"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "UNLOCKED: level 2" in out
+    assert load_session()["unlocked"] == 2
