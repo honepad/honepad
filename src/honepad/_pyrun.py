@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import io
 import json
+import os
 import sys
 
 from honepad.runner import run_python_body
@@ -12,8 +12,14 @@ from honepad.runner import run_python_body
 def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     problem, level_s, kind = args[0], args[1], args[2]
-    real_stdout = sys.stdout
-    sys.stdout = io.StringIO()
+    orig_stdout = sys.stdout
+    orig___stdout__ = sys.__stdout__
+    orig_stdout.flush()
+    saved_fd = os.dup(1)
+    sink = open(os.devnull, "w")
+    os.dup2(sink.fileno(), 1)
+    sys.stdout = sink
+    sys.__stdout__ = sink
     try:
         try:
             report = run_python_body(problem, int(level_s), kind)
@@ -23,7 +29,15 @@ def main(argv: list[str] | None = None) -> int:
             sys.stderr.write(f"{exc}\n")
             return 1
     finally:
-        sys.stdout = real_stdout
+        try:
+            sink.flush()
+        except OSError:
+            pass
+        os.dup2(saved_fd, 1)
+        os.close(saved_fd)
+        sys.stdout = orig_stdout
+        sys.__stdout__ = orig___stdout__
+        sink.close()
     payload = {
         "passed": report.passed,
         "failed": [

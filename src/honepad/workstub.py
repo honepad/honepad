@@ -70,16 +70,26 @@ def class_name_for(problem: str) -> str:
 def declares_class(text: str, ext: str, class_name: str) -> bool:
     """True when work declares the class, not just mentions its name."""
     token = re.escape(class_name)
+    lines = [
+        line.strip()
+        for line in text.splitlines()
+        if line.strip() and not line.strip().startswith(("#", "//"))
+    ]
+    decl = re.compile(rf"^(?:(?:export(?:\s+default)?|public)\s+)?class\s+{token}\b")
     if ext == "py":
-        return bool(re.search(rf"\bclass\s+{token}\b", text))
+        return any(decl.match(line) for line in lines)
     if ext == "java":
-        return bool(re.search(rf"\bclass\s+{token}\b", text))
+        return any(decl.match(line) for line in lines)
     if ext in {"js", "ts"}:
-        return bool(
-            re.search(rf"\bclass\s+{token}\b", text) or re.search(rf"\bfunction\s+{token}\b", text)
+        assign = re.compile(rf"^(?:const|let|var)\s+{token}\s*=\s*class\b")
+        shorthand = re.compile(rf"^{token}\s*:\s*class\b")
+        fn = re.compile(rf"^(?:export\s+)?function\s+{token}\b")
+        return any(
+            decl.match(line) or assign.match(line) or shorthand.match(line) or fn.match(line)
+            for line in lines
         )
     if ext == "rb":
-        return bool(re.search(rf"\bclass\s+{token}\b", text))
+        return any(decl.match(line) for line in lines)
     return class_name in text
 
 
