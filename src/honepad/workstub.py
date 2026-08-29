@@ -38,7 +38,9 @@ def slice_stub(text: str, ext: str, allowed: set[str], class_name: str) -> str:
     return _slice_api_comments(text, allowed)
 
 
-def merge_unlocked_methods(work: str, full: str, ext: str, allowed: set[str]) -> str:
+def merge_unlocked_methods(
+    work: str, full: str, ext: str, allowed: set[str], class_name: str
+) -> str:
     missing = [name for name in sorted(allowed) if not _declares(work, ext, name)]
     if ext == "java":
         extras = "".join(_java_method(full, name) or "" for name in missing)
@@ -53,7 +55,7 @@ def merge_unlocked_methods(work: str, full: str, ext: str, allowed: set[str]) ->
     if ext in {"js", "ts"}:
         extras = "".join(_js_method(full, name) or "" for name in missing)
         if extras:
-            return _insert_before_js_class_close(work, extras)
+            return _insert_before_js_class_close(work, extras, class_name)
         return work
     if ext == "rb":
         extras = "".join(_ruby_method(full, name) or "" for name in missing)
@@ -480,30 +482,23 @@ def _js_method(text: str, name: str) -> str | None:
     return _brace_block(text, start)
 
 
-def _insert_before_js_class_close(text: str, extra: str) -> str:
+def _insert_before_js_class_close(text: str, extra: str, class_name: str) -> str:
     if not extra:
-        return text
-    class_name = _js_class_name(text)
-    if class_name is None:
         return text
     close = _js_class_close(text, class_name)
     prefix = text[:close].rstrip() + "\n"
     return prefix + extra.lstrip("\n") + text[close:]
 
 
-def _js_class_name(text: str) -> str | None:
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("class "):
-            return stripped[6:].split("{")[0].strip()
-    return None
-
-
 def _js_class_close(text: str, class_name: str) -> int:
-    marker = f"class {class_name}"
-    idx = text.find(marker)
+    markers = (f"class {class_name}", f"{class_name} = class", f"{class_name}: class")
+    idx = -1
+    for marker in markers:
+        idx = text.find(marker)
+        if idx >= 0:
+            break
     if idx < 0:
-        raise ValueError(f"missing {marker}")
+        raise ValueError(f"missing class {class_name}")
     brace = text.find("{", idx)
     depth = 0
     i = brace

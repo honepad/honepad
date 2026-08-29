@@ -67,7 +67,7 @@ def ensure_work_copy(
         current = dest.read_text(encoding="utf-8")
         class_name = class_name_for(problem)
         if declares_class(current, ext, class_name):
-            merged = merge_unlocked_methods(current, full, ext, allowed)
+            merged = merge_unlocked_methods(current, full, ext, allowed, class_name)
             if merged != current:
                 dest.write_text(merged, encoding="utf-8")
         elif require_merge:
