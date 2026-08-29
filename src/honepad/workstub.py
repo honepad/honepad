@@ -60,7 +60,7 @@ def merge_unlocked_methods(
     if ext == "rb":
         extras = "".join(_ruby_method(full, name) or "" for name in missing)
         if extras:
-            return _insert_before_ruby_class_end(work, extras)
+            return _insert_before_ruby_class_end(work, extras, class_name)
         return work
     return _merge_api_comments(work, full, allowed)
 
@@ -677,16 +677,16 @@ def _ruby_method(text: str, name: str) -> str | None:
     return "".join(lines[start:])
 
 
-def _insert_before_ruby_class_end(work: str, extra: str) -> str:
+def _insert_before_ruby_class_end(work: str, extra: str, class_name: str) -> str:
     if not extra:
         return work
-    close = work.rfind("\nend")
-    if close < 0:
-        stripped = work.rstrip()
-        if stripped.endswith("end"):
-            close = len(stripped) - 3
-            prefix = stripped[:close].rstrip() + "\n"
-            return prefix + extra.lstrip("\n") + "end\n"
-        return work.rstrip() + "\n" + extra.lstrip("\n")
+    match = re.search(rf"^(\s*)class {re.escape(class_name)}\b", work, re.MULTILINE)
+    if match is None:
+        raise ValueError(f"missing class {class_name}")
+    indent = match.group(1)
+    closer = re.search(rf"^{re.escape(indent)}end\b", work[match.end() :], re.MULTILINE)
+    if closer is None:
+        raise ValueError(f"unbalanced end for class {class_name}")
+    close = match.end() + closer.start()
     prefix = work[:close].rstrip() + "\n"
-    return prefix + extra.lstrip("\n") + work[close + 1 :]
+    return prefix + extra.lstrip("\n") + work[close:]
