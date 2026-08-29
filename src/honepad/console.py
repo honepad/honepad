@@ -131,11 +131,11 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
         lang = str(session["lang"])
         unlocked = int(session["unlocked"])
         if choice in {"1", "run", "test"}:
-            return _run_work(problem, lang)
+            return _run_work(problem, lang, unlock=False)
         if choice in {"2", "submit"}:
             stdout.write("NOTE: local submit. Nothing is sent.\n")
             stdout.flush()
-            return _run_work(problem, lang)
+            return _run_work(problem, lang, unlock=True)
         if choice in {"3", "reset"}:
             work = ensure_work_copy(problem, lang, reset=True, level=unlocked)
             stdout.write(f"OK: reset\n{work_line(work)}\n")
@@ -238,10 +238,20 @@ def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:
     return session
 
 
-def _run_work(problem: str, lang: str) -> int:
+def _run_work(problem: str, lang: str, *, unlock: bool) -> int:
     from honepad.cli import cmd_run
 
-    return int(cmd_run(argparse.Namespace(problem=problem, lang=lang, level=None, kind="work")))
+    return int(
+        cmd_run(
+            argparse.Namespace(
+                problem=problem,
+                lang=lang,
+                level=None,
+                kind="work",
+                unlock=unlock,
+            )
+        )
+    )
 
 
 def _print_spec(problem: str, level: int, stdout: TextIO) -> int:

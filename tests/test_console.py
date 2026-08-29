@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from honepad.catalog import repo_root
 from honepad.cli import main
 from honepad.console import _read_choice, dispatch, render_banner
 from honepad.javatest import java_ident
@@ -189,6 +190,13 @@ def test_console_quit(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "file://" in out
 
 
+def _write_python_solution(tmp_path: Path) -> Path:
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    src = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    work.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+    return work
+
+
 def test_console_run_then_quit(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
@@ -202,6 +210,33 @@ def test_console_run_then_quit(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "FAIL " in out or "l1-" in out
     assert "remaining_s=" in out
     assert "OK: quit" in out
+
+
+def test_console_run_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    _write_python_solution(tmp_path)
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("1\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED" not in out
+    assert load_session()["unlocked"] == 1
+    assert "passed=" in out
+    assert "2 submit" in out
+
+
+def test_console_submit_unlocks(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    _write_python_solution(tmp_path)
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("2\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED: level 2" in out
+    assert load_session()["unlocked"] == 2
+    assert "NOTE: local submit" in out
 
 
 def test_console_reset(monkeypatch, tmp_path: Path, capsys) -> None:
