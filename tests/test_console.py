@@ -21,6 +21,7 @@ from honepad.term import (
     format_clock,
     paint_spec,
     render_menu,
+    render_prompt,
     spec_line,
 )
 from honepad.traces import load_cases
@@ -138,6 +139,14 @@ def test_menu_includes_level_without_color(monkeypatch) -> None:
     assert "\x1b[" not in text
     assert "LEVEL 2" in text
     assert "1 run" in text
+
+
+def test_prompt_is_clock_and_level_only(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    text = render_prompt("01:05", level=2)
+    assert text == "[01:05] LEVEL 2"
+    assert "1 run" not in text
+    assert "quit" not in text
 
 
 def test_banner_includes_menu_keys() -> None:
@@ -315,6 +324,49 @@ def test_live_menu_enter_alone_is_empty() -> None:
     finally:
         stdin.close()
     assert got == ""
+
+
+def test_live_prompt_is_clock_and_level_only() -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 1,
+        "minutes": 90,
+        "unlocked": 2,
+    }
+    stdin = _pipe_stdin(b"q")
+    buf = io.StringIO()
+    try:
+        got = _read_choice(session, stdin, buf, live=True, clock_fn=lambda: 12)
+    finally:
+        stdin.close()
+    assert got == "q"
+    out = buf.getvalue()
+    assert "LEVEL 2" in out
+    assert "00:12" in out
+    assert "1 run" not in out
+    assert "submit" not in out
+    assert out.count("\n") == 1
+
+
+def test_live_menu_space_then_key() -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 1,
+        "minutes": 90,
+        "unlocked": 2,
+    }
+    stdin = _pipe_stdin(b" \t1")
+    buf = io.StringIO()
+    try:
+        got = _read_choice(session, stdin, buf, live=True, clock_fn=lambda: 12)
+    finally:
+        stdin.close()
+    assert got == "1"
+    out = buf.getvalue()
+    assert out.count("\n") == 1
+    assert "1 run" not in out
 
 
 def test_console_quit(monkeypatch, tmp_path: Path, capsys) -> None:
