@@ -1,3 +1,5 @@
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -24,39 +26,56 @@ public class Adapter {
         Class<?> cls = Class.forName(className);
         List<Map<String, Object>> failed = new ArrayList<>();
         int passed = 0;
-        for (Object rowObj : cases) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> row = (Map<String, Object>) rowObj;
-            Object obj = cls.getDeclaredConstructor().newInstance();
-            String caseId = String.valueOf(row.get("id"));
-            @SuppressWarnings("unchecked")
-            List<Object> calls = (List<Object>) row.get("calls");
-            boolean ok = true;
-            for (int i = 0; i < calls.size(); i++) {
+        PrintStream realOut = System.out;
+        ByteArrayOutputStream captured = new ByteArrayOutputStream();
+        PrintStream sink = new PrintStream(captured, true);
+        System.setOut(sink);
+        try {
+            for (Object rowObj : cases) {
                 @SuppressWarnings("unchecked")
-                Map<String, Object> call = (Map<String, Object>) calls.get(i);
-                String methodSnake = String.valueOf(call.get("m"));
-                String name = toCamel(methodSnake);
+                Map<String, Object> row = (Map<String, Object>) rowObj;
+                Object obj = cls.getDeclaredConstructor().newInstance();
+                String caseId = String.valueOf(row.get("id"));
                 @SuppressWarnings("unchecked")
-                List<Object> argv = (List<Object>) call.get("a");
-                Object expected = call.get("e");
-                Object actual;
-                try {
-                    actual = invoke(obj, name, argv);
-                } catch (Exception exc) {
-                    Throwable cause = unwrap(exc);
-                    failed.add(failRow(caseId, i, methodSnake, expected, "exc:" + cause.getClass().getSimpleName()));
-                    ok = false;
-                    break;
+                List<Object> calls = (List<Object>) row.get("calls");
+                boolean ok = true;
+                for (int i = 0; i < calls.size(); i++) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> call = (Map<String, Object>) calls.get(i);
+                    String methodSnake = String.valueOf(call.get("m"));
+                    String name = toCamel(methodSnake);
+                    @SuppressWarnings("unchecked")
+                    List<Object> argv = (List<Object>) call.get("a");
+                    Object expected = call.get("e");
+                    Object actual;
+                    try {
+                        actual = invoke(obj, name, argv);
+                    } catch (Exception exc) {
+                        Throwable cause = unwrap(exc);
+                        failed.add(failRow(caseId, i, methodSnake, expected, "exc:" + cause.getClass().getSimpleName()));
+                        ok = false;
+                        break;
+                    }
+                    if (!MiniJson.stringify(actual).equals(MiniJson.stringify(expected))) {
+                        failed.add(failRow(caseId, i, methodSnake, expected, actual));
+                        ok = false;
+                        break;
+                    }
                 }
-                if (!MiniJson.stringify(actual).equals(MiniJson.stringify(expected))) {
-                    failed.add(failRow(caseId, i, methodSnake, expected, actual));
-                    ok = false;
-                    break;
+                if (ok) {
+                    passed += 1;
                 }
             }
-            if (ok) {
-                passed += 1;
+        } finally {
+            sink.flush();
+            System.setOut(realOut);
+            sink.close();
+        }
+        String debug = captured.toString();
+        if (!debug.isEmpty()) {
+            System.out.print(debug);
+            if (!debug.endsWith("\n")) {
+                System.out.println();
             }
         }
         Map<String, Object> report = new LinkedHashMap<>();
