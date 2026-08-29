@@ -372,6 +372,80 @@ def test_console_reset(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "edited-by-candidate" not in work.read_text(encoding="utf-8")
 
 
+def test_console_reset_back_drops_one_level(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = _write_python_solution(tmp_path)
+    assert main(["submit", "bank_system", "--lang", "python3"]) == 0
+    assert load_session()["unlocked"] == 2
+    assert "top_spenders" in work.read_text(encoding="utf-8")
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("3\nback\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "Type back" in out
+    assert "OK: unlocked=1" in out
+    assert load_session()["unlocked"] == 1
+    text = work.read_text(encoding="utf-8")
+    assert "def create_account(" in text
+    assert "def top_spenders(" not in text
+
+
+def test_console_reset_all_starts_level1(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = _write_python_solution(tmp_path)
+    assert main(["submit", "bank_system", "--lang", "python3"]) == 0
+    assert load_session()["unlocked"] == 2
+    started = int(load_session()["started_at"])
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("3\nall\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "Type all" in out
+    assert "OK: unlocked=1" in out
+    after = load_session()
+    assert after["unlocked"] == 1
+    assert int(after["started_at"]) >= started
+    text = work.read_text(encoding="utf-8")
+    assert "def create_account(" in text
+    assert "NotImplementedError" in text
+    assert "def top_spenders(" not in text
+
+
+def test_console_reset_back_at_level1_fails(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("3\nback\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "already level 1" in out
+    assert load_session()["unlocked"] == 1
+
+
+def test_start_back_drops_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    work.write_text(
+        (repo_root() / "langs" / "java" / "problems" / "bank_system" / "solution.java").read_text(
+            encoding="utf-8"
+        ),
+        encoding="utf-8",
+    )
+    assert main(["submit", "bank_system", "--lang", "java"]) == 0
+    assert load_session()["unlocked"] == 2
+    capsys.readouterr()
+    assert main(["start", "bank_system", "java", "--back", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert "unlocked=1" in out
+    assert load_session()["unlocked"] == 1
+    text = work.read_text(encoding="utf-8")
+    assert "createAccount" in text
+    assert "topSpenders" not in text
+
+
 def test_console_reset_without_yes_keeps_work(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
