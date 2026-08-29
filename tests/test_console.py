@@ -478,6 +478,20 @@ def test_write_workspace_java_missing_work_fails_closed(monkeypatch, tmp_path: P
         / "Simulation.java"
     )
     assert not public_sim.exists()
+    public = tmp_path / "workspace" / "bank_system-java" / "public"
+    assert not (public / "cases.json").exists()
+
+
+def test_write_workspace_python_missing_work_fails_closed(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.unlink()
+    with pytest.raises(ValueError, match="work file missing"):
+        write_workspace("bank_system", "python3", 1)
+    public = tmp_path / "workspace" / "bank_system-python3" / "public"
+    assert not (public / "test_public.py").exists()
+    assert not (public / "cases.json").exists()
 
 
 def test_vscode_no_open_writes_public_tests(monkeypatch, tmp_path: Path, capsys) -> None:

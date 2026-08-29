@@ -137,6 +137,8 @@ def cmd_run(args: argparse.Namespace) -> int:
             left = remaining_s(int(session["started_at"]), int(session["minutes"]))
             print(f"remaining_s={left}")
         report = run(args.problem, lang, level, kind=kind)
+        if session is not None and same:
+            left = remaining_s(int(session["started_at"]), int(session["minutes"]))
     except (
         NotImplementedError,
         KeyError,
@@ -180,7 +182,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             return 0
         if may_unlock:
             try:
-                ensure_work_copy(args.problem, lang, reset=False, level=nxt)
+                ensure_work_copy(args.problem, lang, reset=False, level=nxt, require_merge=True)
                 write_workspace(args.problem, lang, nxt)
             except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
                 print(status_fail(f"FAIL: {exc}"))
