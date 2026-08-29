@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ from honepad.runner import (
     report_from_proc,
     run,
     run_compiled,
+    run_prepare_cmd,
     run_python,
     run_script,
 )
@@ -868,3 +870,14 @@ def test_run_script_removes_cases_file(monkeypatch) -> None:
     run_script("bank_system", "javascript", 1, "solution", ["node"])
     assert captured["exists_during"] is True
     assert not Path(str(captured["cases_path"])).exists()
+
+
+def test_run_prepare_cmd_times_out() -> None:
+    with pytest.raises(RuntimeError, match="timed out") as excinfo:
+        run_prepare_cmd(
+            [sys.executable, "-c", "import time; time.sleep(5)"],
+            Path("."),
+            "java",
+            timeout=0.2,
+        )
+    assert "timed out" in str(excinfo.value)

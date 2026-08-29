@@ -190,6 +190,25 @@ def report_from_proc(
     return Report(problem, lang_id, level, passed, failed)
 
 
+def run_prepare_cmd(
+    argv: list[str],
+    cwd: Path,
+    lang_id: str,
+    timeout: float = RUN_TIMEOUT_S,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            argv,
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=cwd,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"{lang_id} timed out after {timeout}s") from exc
+
+
 def run_compiled(
     problem: str,
     lang_id: str,
@@ -392,12 +411,10 @@ def run_haskell(problem: str, level: int, kind: str = "solution") -> Report:
         shutil.copy(haskell_dir / "Harness.hs", tmpdir / "Harness.hs")
         shutil.copy(haskell_dir / "MiniJson.hs", tmpdir / "MiniJson.hs")
         shutil.copy(src, tmpdir / "Solution.hs")
-        compiled = subprocess.run(
+        compiled = run_prepare_cmd(
             [_ghc(), "-O0", "-w", "-o", "run", "Adapter.hs"],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "haskell",
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "ghc compile failed")
@@ -446,21 +463,17 @@ def run_scala(problem: str, level: int, kind: str = "solution") -> Report:
         shutil.copy(repo_root() / "langs" / "java" / "MiniJson.java", tmpdir / "MiniJson.java")
         shutil.copy(src, tmpdir / "solution.scala")
         # scalac type-checks .java sources but does not emit those classes.
-        java_compiled = subprocess.run(
+        java_compiled = run_prepare_cmd(
             ["javac", "MiniJson.java"],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "scala",
         )
         if java_compiled.returncode != 0:
             raise RuntimeError(java_compiled.stderr or java_compiled.stdout or "javac failed")
-        compiled = subprocess.run(
+        compiled = run_prepare_cmd(
             [_scalac(), "-classpath", ".", "Adapter.scala", "solution.scala"],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "scala",
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "scalac failed")
@@ -495,12 +508,10 @@ def run_d(problem: str, level: int, kind: str = "solution") -> Report:
     def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(d_dir / "adapter.d", tmpdir / "adapter.d")
         shutil.copy(src, tmpdir / "solution.d")
-        compiled = subprocess.run(
+        compiled = run_prepare_cmd(
             _d_compile_cmd(_d_compiler()),
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "d",
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "d compile failed")
@@ -517,12 +528,10 @@ def run_ocaml(problem: str, level: int, kind: str = "solution") -> Report:
         shutil.copy(ocaml_dir / "adapter.ml", tmpdir / "adapter.ml")
         shutil.copy(ocaml_dir / "minijson.ml", tmpdir / "minijson.ml")
         shutil.copy(src, tmpdir / "solution.ml")
-        compiled = subprocess.run(
+        compiled = run_prepare_cmd(
             [_ocaml(), "-o", "run", "minijson.ml", "solution.ml", "adapter.ml"],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "ocaml",
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "ocaml compile failed")
@@ -862,12 +871,10 @@ def run_java(problem: str, level: int, kind: str = "solution") -> Report:
         shutil.copy(java_dir / "Adapter.java", tmpdir / "Adapter.java")
         shutil.copy(java_dir / "MiniJson.java", tmpdir / "MiniJson.java")
         shutil.copy(src, tmpdir / f"{class_name}.java")
-        compiled = subprocess.run(
+        compiled = run_prepare_cmd(
             ["javac", "Adapter.java", "MiniJson.java", f"{class_name}.java"],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "java",
         )
         if compiled.returncode != 0:
             raise RuntimeError(f"{src}: {compiled.stderr or compiled.stdout or 'javac failed'}")
@@ -937,12 +944,10 @@ def run_freepascal(problem: str, level: int, kind: str = "solution") -> Report:
         shutil.copy(fpc_dir / "adapter.pas", tmpdir / "adapter.pas")
         shutil.copy(fpc_dir / "minijson.pas", tmpdir / "minijson.pas")
         shutil.copy(src, tmpdir / "solution.pas")
-        compiled = subprocess.run(
+        compiled = run_prepare_cmd(
             [_fpc(), "-O-", "-orun", "adapter.pas"],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "freepascal",
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "fpc compile failed")
@@ -985,16 +990,14 @@ def run_kotlin(problem: str, level: int, kind: str = "solution") -> Report:
         shutil.copy(repo_root() / "langs" / "java" / "MiniJson.java", tmpdir / "MiniJson.java")
         shutil.copy(src, tmpdir / "solution.kt")
         # kotlinc type-checks .java sources but does not emit those classes.
-        java_compiled = subprocess.run(
+        java_compiled = run_prepare_cmd(
             ["javac", "MiniJson.java"],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "kotlin",
         )
         if java_compiled.returncode != 0:
             raise RuntimeError(java_compiled.stderr or java_compiled.stdout or "javac failed")
-        compiled = subprocess.run(
+        compiled = run_prepare_cmd(
             [
                 _kotlinc(),
                 "Adapter.kt",
@@ -1005,10 +1008,8 @@ def run_kotlin(problem: str, level: int, kind: str = "solution") -> Report:
                 "-d",
                 "run.jar",
             ],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "kotlin",
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "kotlinc failed")
@@ -1052,12 +1053,10 @@ def run_cpp(problem: str, level: int, kind: str = "solution") -> Report:
             f"Harness* new_target() {{ return new {ctor_name}(); }}\n",
             encoding="utf-8",
         )
-        compiled = subprocess.run(
+        compiled = run_prepare_cmd(
             [_cxx(), "-std=c++17", "-O0", "adapter.cpp", "ctor.cpp", "solution.cpp", "-o", "run"],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "cpp",
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "c++ compile failed")
@@ -1096,7 +1095,7 @@ def run_nim(problem: str, level: int, kind: str = "solution") -> Report:
     def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(adapter, tmpdir / "adapter.nim")
         shutil.copy(src, tmpdir / "solution.nim")
-        compiled = subprocess.run(
+        compiled = run_prepare_cmd(
             [
                 _nim(),
                 "c",
@@ -1105,10 +1104,8 @@ def run_nim(problem: str, level: int, kind: str = "solution") -> Report:
                 "-o:run",
                 "adapter.nim",
             ],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "nim",
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "nim compile failed")
@@ -1139,18 +1136,16 @@ def run_fortran(problem: str, level: int, kind: str = "solution") -> Report:
         shutil.copy(fortran_dir / "minijson.h", tmpdir / "minijson.h")
         shutil.copy(fortran_dir / "json_bridge.c", tmpdir / "json_bridge.c")
         shutil.copy(src, tmpdir / "solution.f90")
-        compiled_c = subprocess.run(
+        compiled_c = run_prepare_cmd(
             [_cc(), "-std=c11", "-O0", "-c", "minijson.c", "json_bridge.c"],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "fortran",
         )
         if compiled_c.returncode != 0:
             raise RuntimeError(
                 compiled_c.stderr or compiled_c.stdout or "c json helper compile failed"
             )
-        compiled = subprocess.run(
+        compiled = run_prepare_cmd(
             [
                 _gfortran(),
                 "-O0",
@@ -1162,10 +1157,8 @@ def run_fortran(problem: str, level: int, kind: str = "solution") -> Report:
                 "solution.f90",
                 "adapter.f90",
             ],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "fortran",
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "gfortran compile failed")
@@ -1191,7 +1184,7 @@ def run_c(problem: str, level: int, kind: str = "solution") -> Report:
             f"HonepadTarget *new_target(void) {{ return {ctor_name}_new(); }}\n",
             encoding="utf-8",
         )
-        compiled = subprocess.run(
+        compiled = run_prepare_cmd(
             [
                 _cc(),
                 "-std=c11",
@@ -1203,10 +1196,8 @@ def run_c(problem: str, level: int, kind: str = "solution") -> Report:
                 "-o",
                 "run",
             ],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "c",
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "c compile failed")
@@ -1239,7 +1230,7 @@ def run_swift(problem: str, level: int, kind: str = "solution") -> Report:
             f"func newTarget() -> Harness {{ return {ctor_name}() }}\n",
             encoding="utf-8",
         )
-        compiled = subprocess.run(
+        compiled = run_prepare_cmd(
             [
                 _swiftc(),
                 "Adapter.swift",
@@ -1249,10 +1240,8 @@ def run_swift(problem: str, level: int, kind: str = "solution") -> Report:
                 "-o",
                 "run",
             ],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=tmpdir,
+            tmpdir,
+            "swift",
         )
         if compiled.returncode != 0:
             raise RuntimeError(compiled.stderr or compiled.stdout or "swiftc failed")
