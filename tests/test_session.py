@@ -1216,3 +1216,89 @@ def test_unlock_appends_ruby_and_comment_lang(monkeypatch, tmp_path: Path, capsy
     assert "top_spenders(" in cs_after
     assert "merge_accounts(" not in cs_after
     assert class_name_for("bank_system") in cs_after
+
+
+def test_submit_current_level_unlocks(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    assert main(["submit", "bank_system", "--kind", "solution", "--level", "1"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED: level 2" in out
+    assert load_session()["unlocked"] == 2
+
+
+def test_submit_other_level_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    assert main(["submit", "bank_system", "--kind", "solution", "--level", "4"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED" not in out
+    assert load_session()["unlocked"] == 1
+    assert "level<=4" in out
+
+
+def test_kind_stub_still_fails_when_work_is_solution(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    src = (
+        Path(__file__).resolve().parents[1]
+        / "langs"
+        / "python3"
+        / "problems"
+        / "bank_system"
+        / "solution.py"
+    )
+    work.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+    assert main(["run", "bank_system", "--kind", "stub"]) == 1
+    out = capsys.readouterr().out
+    assert "UNLOCKED" not in out
+    assert "FAIL" in out
+    assert load_session()["unlocked"] == 1
+
+
+def test_submit_broken_js_work_prints_fail_not_traceback(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "javascript", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "javascript" / "work.js"
+    work.write_text("class Simulation\n", encoding="utf-8")
+    code = main(["submit", "bank_system", "--kind", "solution"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL:" in out
+    assert "Traceback" not in out
+    assert load_session()["unlocked"] == 1
+    assert work.read_text(encoding="utf-8") == "class Simulation\n"
+
+
+def test_expired_submit_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    started = 1_700_000_000
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": started,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("honepad.session.time.time", lambda: started + 90 * 60 + 5)
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "remaining_s=0" in out
+    assert "UNLOCKED" not in out
+    assert "TIME UP" in out
+    assert load_session()["unlocked"] == 1
