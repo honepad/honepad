@@ -49,10 +49,10 @@ def render_banner(session: dict[str, Any], now: int | None = None) -> str:
     left = remaining_s(int(session["started_at"]), int(session["minutes"]), now)
     work = work_src(problem, lang)
     title = gradient("honepad", (94, 234, 212), (56, 189, 248))
-    unlock = accent(f"unlocked={unlocked}")
+    level = accent(f"LEVEL {unlocked}")
     clock = clock_style(left, format_clock(left))
     lines = [
-        f"{title}  {problem}  {lang}  {unlock}  remaining_s={left}  [{clock}]",
+        f"{title}  {problem}  {lang}  {level}  remaining_s={left}  [{clock}]",
         work_line(work),
         render_keys(),
     ]
@@ -114,10 +114,19 @@ def loop_console(
 ) -> int:
     last = 0
     use_live = _use_live(stdin, stdout) if live is None else live
+    bannered = False
+    shown_level = int(session["unlocked"])
     try:
         while True:
             session = load_session() or session
-            stdout.write(render_banner(session) + "\n")
+            level_now = int(session["unlocked"])
+            if not bannered:
+                stdout.write(render_banner(session) + "\n")
+                bannered = True
+                shown_level = level_now
+            elif level_now != shown_level:
+                stdout.write(render_banner(session) + "\n")
+                shown_level = level_now
             stdout.flush()
             line = _read_choice(session, stdin, stdout, live=use_live)
             if line is None:
@@ -139,9 +148,21 @@ def loop_console(
                     return 0
                 if confirmed is False:
                     continue
+                stdout.write("\n")
                 last = _apply_reset(confirmed, session, stdout)
+                stdout.write("\n")
                 continue
+            if choice in {"2", "submit"}:
+                unlock = _confirm_unlock(stdin, stdout, live=use_live)
+                if unlock is None:
+                    return last
+                if not unlock:
+                    stdout.write("OK: submit cancelled\n")
+                    stdout.flush()
+                    continue
+            stdout.write("\n")
             last = dispatch(choice, session, stdout)
+            stdout.write("\n")
     except KeyboardInterrupt:
         stdout.write("\nOK: quit\n")
         stdout.flush()
@@ -218,6 +239,23 @@ def _print_fail(exc: BaseException) -> None:
     print(status_fail(f"FAIL: {exc}"))
     if str(exc).startswith("no runner for "):
         print(start_next())
+
+
+def _confirm_unlock(stdin: TextIO, stdout: TextIO, *, live: bool) -> bool | None:
+    stdout.write("Submit unlocks the next level if traces pass. Unlock? y / n\n")
+    stdout.flush()
+    if live:
+        with _keys_now(stdin):
+            ch = stdin.read(1)
+            if ch == "":
+                return None
+            stdout.write(f"{ch}\n")
+            stdout.flush()
+            return ch.lower() == "y"
+    line = stdin.readline()
+    if line == "":
+        return None
+    return line.strip().lower() in {"y", "yes"}
 
 
 def _confirm_reset(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> str | bool | None:
@@ -408,7 +446,11 @@ def _read_choice(
 
     def _prompt() -> str:
         left = _left()
-        return render_menu(format_clock(left), seconds=left)
+        return render_menu(
+            format_clock(left),
+            seconds=left,
+            level=int(session["unlocked"]),
+        )
 
     if not live:
         stdout.write(f"{_prompt()}  > ")

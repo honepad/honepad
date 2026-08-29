@@ -92,7 +92,8 @@ def test_banner_stays_plain_without_color(monkeypatch) -> None:
     }
     text = render_banner(session, now=100)
     assert "\x1b[" not in text
-    assert "honepad  bank_system  java  unlocked=2" in text
+    assert "honepad  bank_system  java  LEVEL 2" in text
+    assert "unlocked=2" not in text
 
 
 def test_banner_uses_bold_and_color_when_forced(monkeypatch) -> None:
@@ -109,7 +110,7 @@ def test_banner_uses_bold_and_color_when_forced(monkeypatch) -> None:
     text = render_banner(session, now=100)
     assert "\x1b[1m" in text
     assert "\x1b[38;2;" in text
-    assert "unlocked=2" in text
+    assert "LEVEL 2" in text
     assert "honepad" in text
 
 
@@ -129,6 +130,14 @@ def test_menu_stays_plain_without_color(monkeypatch) -> None:
     text = render_menu("01:05")
     assert "\x1b[" not in text
     assert text.startswith("[01:05] 1 run")
+
+
+def test_menu_includes_level_without_color(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    text = render_menu("01:05", level=2)
+    assert "\x1b[" not in text
+    assert "LEVEL 2" in text
+    assert "1 run" in text
 
 
 def test_banner_includes_menu_keys() -> None:
@@ -190,6 +199,7 @@ def test_start_resume_note_before_spec(monkeypatch, tmp_path: Path, capsys) -> N
     assert spec_at != -1
     before = out[:spec_at]
     assert "NOTE:" in before
+    assert "LEVEL 2" in before
     assert "--reset" in before or "back" in before
 
 
@@ -358,6 +368,20 @@ def test_console_run_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> Non
     assert load_session()["unlocked"] == 1
     assert "passed=" in out
     assert "2 submit" in out
+    assert out.count("LEVEL 1") >= 1
+    assert out.count("honepad  bank_system") == 1
+
+
+def test_console_two_runs_keep_one_banner(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("1\n1\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert out.count("honepad  bank_system") == 1
+    assert out.count("passed=") == 2
+    assert "\n\n" in out
 
 
 def test_console_submit_unlocks(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -365,12 +389,27 @@ def test_console_submit_unlocks(monkeypatch, tmp_path: Path, capsys) -> None:
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
     _write_python_solution(tmp_path)
     capsys.readouterr()
-    monkeypatch.setattr(sys, "stdin", io.StringIO("2\nq\n"))
+    monkeypatch.setattr(sys, "stdin", io.StringIO("2\ny\nq\n"))
     assert main(["console"]) == 0
     out = capsys.readouterr().out
     assert "UNLOCKED: level 2" in out
     assert load_session()["unlocked"] == 2
     assert "NOTE: local submit" in out
+    assert "LEVEL 2" in out
+
+
+def test_console_submit_cancel_keeps_level(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    _write_python_solution(tmp_path)
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("2\nn\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED" not in out
+    assert "cancelled" in out.lower()
+    assert load_session()["unlocked"] == 1
+    assert "passed=" not in out
 
 
 def test_console_reset(monkeypatch, tmp_path: Path, capsys) -> None:

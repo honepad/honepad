@@ -102,11 +102,14 @@ def render_keys(*, enabled: bool | None = None) -> str:
     return "  ".join(items)
 
 
-def render_menu(clock: str, *, seconds: int | None = None) -> str:
+def render_menu(clock: str, *, seconds: int | None = None, level: int | None = None) -> str:
     shown = clock if seconds is None else clock_style(seconds, clock)
     if seconds is None and color_enabled():
         shown = paint(clock, _BOLD, fg256(114))
-    return f"[{shown}] {render_keys()}"
+    prefix = f"[{shown}]"
+    if level is not None:
+        prefix = f"{prefix} {accent(f'LEVEL {level}')}"
+    return f"{prefix} {render_keys()}"
 
 
 def paint_spec(text: str, *, enabled: bool | None = None) -> str:
