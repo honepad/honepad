@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from pathlib import Path
+
+_CODE_SPAN = re.compile(r"`([^`]+)`")
 
 _OSC = "\033]8;;"
 _ST = "\033\\"
@@ -91,12 +94,49 @@ def clock_style(seconds: int, clock: str) -> str:
     return paint(clock, _BOLD, fg256(114))
 
 
+def render_keys(*, enabled: bool | None = None) -> str:
+    items = [
+        f"{bold(key, enabled=enabled)} {paint(label, fg256(252), enabled=enabled)}"
+        for key, label in _MENU_ITEMS
+    ]
+    return "  ".join(items)
+
+
 def render_menu(clock: str, *, seconds: int | None = None) -> str:
     shown = clock if seconds is None else clock_style(seconds, clock)
     if seconds is None and color_enabled():
         shown = paint(clock, _BOLD, fg256(114))
-    items = [f"{bold(key)} {dim(label)}" for key, label in _MENU_ITEMS]
-    return f"[{shown}] " + "  ".join(items)
+    return f"[{shown}] {render_keys()}"
+
+
+def paint_spec(text: str, *, enabled: bool | None = None) -> str:
+    on = color_enabled() if enabled is None else enabled
+    if not on or not text:
+        return text
+    out: list[str] = []
+    fence = False
+    for line in text.splitlines(keepends=True):
+        raw = line[:-1] if line.endswith("\n") else line
+        nl = "\n" if line.endswith("\n") else ""
+        if raw.startswith("```"):
+            fence = not fence
+            out.append(paint(raw, _DIM, enabled=True) + nl)
+            continue
+        if fence:
+            out.append(paint(raw, fg256(81), enabled=True) + nl)
+            continue
+        if raw.startswith("#"):
+            out.append(paint(raw, _BOLD, fg256(81), enabled=True) + nl)
+            continue
+        out.append(_paint_inline(raw) + nl)
+    return "".join(out)
+
+
+def _paint_inline(text: str) -> str:
+    def repl(match: re.Match[str]) -> str:
+        return paint(f"`{match.group(1)}`", fg256(114), enabled=True)
+
+    return _CODE_SPAN.sub(repl, text)
 
 
 def status_ok(text: str) -> str:
@@ -166,3 +206,7 @@ def file_link(path: Path | str, label: str | None = None) -> str:
 
 def work_line(path: Path | str) -> str:
     return f"{accent('WORK:')} {file_link(path)}"
+
+
+def spec_line(path: Path | str) -> str:
+    return f"{accent('SPEC:')} {file_link(path)}"
