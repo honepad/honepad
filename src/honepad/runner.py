@@ -211,6 +211,8 @@ def run_prepare_cmd(
             cwd=cwd,
             timeout=timeout,
         )
+    except FileNotFoundError as exc:
+        raise RuntimeError(f"{lang_id}: {argv[0]} not on PATH") from exc
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(f"{lang_id} timed out after {timeout}s") from exc
 

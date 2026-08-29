@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
 import time
 from typing import Any
@@ -87,6 +88,15 @@ def cmd_start(args: argparse.Namespace) -> int:
         if args.reset and getattr(args, "back", False):
             print(status_fail("FAIL: use --reset or --back, not both"))
             return 1
+        if row["id"] == "java":
+            missing = next(
+                (name for name in ("javac", "java") if shutil.which(name) is None),
+                None,
+            )
+            if missing is not None:
+                print(status_fail(f"FAIL: {missing} not on PATH"))
+                print("NEXT: install a JDK so javac and java are on PATH")
+                return 1
         if getattr(args, "back", False):
             session = load_session()
             if session is None:
@@ -125,8 +135,18 @@ def cmd_start(args: argparse.Namespace) -> int:
     if not spec.is_file():
         print(status_fail(f"FAIL: missing spec {spec}"))
         return 1
-    print(paint_spec(spec.read_text(encoding="utf-8")))
-    print(f"\n{work_line(work)}")
+    left = remaining_s(started_at, minutes)
+    if unlocked > 1 or session.get("clock_restarted"):
+        print(
+            status_note(
+                f"NOTE: resume at unlocked={unlocked}. "
+                "start --reset starts over at L1. "
+                "start --back or console 3 back drops to the previous level. "
+                "console 3 all starts over at L1."
+            )
+        )
+    note_clock_restarted(session)
+    print(work_line(work))
     side = work.parent / "spec.md"
     if side.is_file():
         print(spec_line(side))
@@ -135,9 +155,8 @@ def cmd_start(args: argparse.Namespace) -> int:
         "You are not expected to finish every level."
     )
     print(status_note("NOTE: honepad console opens a live menu (run, submit, reset, vscode)."))
-    note_clock_restarted(session)
-    left = remaining_s(started_at, minutes)
     print(status_ok(f"OK: unlocked={unlocked} remaining_s={left}"))
+    print(paint_spec(spec.read_text(encoding="utf-8")))
     if not getattr(args, "no_console", False) and sys.stdin.isatty() and sys.stdout.isatty():
         return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
     return 0
@@ -205,11 +224,11 @@ def cmd_run(args: argparse.Namespace) -> int:
     if report.passed == 0:
         print(status_fail("FAIL: no cases"))
         return 1
-    print(status_ok("OK"))
     may_unlock = bool(getattr(args, "unlock", False))
     if practice and session is not None and kind in ("solution", "work"):
         nxt = int(session["unlocked"]) + 1
         if nxt > max_level(str(session["problem"])):
+            print(status_ok("OK"))
             return 0
         if left == 0:
             print(status_fail("TIME UP: remaining_s=0. Next level stays locked."))
@@ -223,18 +242,22 @@ def cmd_run(args: argparse.Namespace) -> int:
                 print(status_fail(f"FAIL: {exc}"))
                 print(work_reset_next())
                 return 1
+            print(status_ok("OK"))
             unlocked = unlock_next(session)
             if unlocked is not None:
                 print(status_unlock(f"UNLOCKED: level {unlocked}"))
                 spec = problem_dir(args.problem) / "spec" / f"level{unlocked}.md"
                 if spec.is_file():
                     print(paint_spec(spec.read_text(encoding="utf-8")).rstrip() + "\n")
-        else:
-            print(
-                status_note(
-                    f"NOTE: still unlocked={session['unlocked']}. 2 submit unlocks the next level."
-                )
+            return 0
+        print(status_ok("OK"))
+        print(
+            status_note(
+                f"NOTE: still unlocked={session['unlocked']}. 2 submit unlocks the next level."
             )
+        )
+        return 0
+    print(status_ok("OK"))
     return 0
 
 
