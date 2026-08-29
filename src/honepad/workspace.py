@@ -250,6 +250,7 @@ def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Pa
         "VS Code: Terminal > Run Task > Run public tests, or Submit (unlock next level).",
         f"`{sys.executable} -m honepad run {problem} --lang {lang}` does not unlock.",
         f"`{sys.executable} -m honepad submit {problem} --lang {lang}` unlocks the next level.",
+        "Submit asks y / n (console) or a VS Code pick (task input) before unlock.",
         "",
     ]
     if lang == "java":
@@ -289,7 +290,16 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
             "label": "Submit (unlock next level)",
             "type": "shell",
             "command": sys.executable,
-            "args": ["-m", "honepad", "submit", problem, "--lang", lang],
+            "args": [
+                "-m",
+                "honepad",
+                "submit",
+                problem,
+                "--lang",
+                lang,
+                "--confirm",
+                "${input:unlockConfirm}",
+            ],
             "group": "test",
             "options": {"cwd": "${workspaceFolder:public-tests}"},
             "presentation": {"reveal": "always", "panel": "shared"},
@@ -331,7 +341,17 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
                 "problemMatcher": [],
             }
         )
-    (vscode / "tasks.json").write_text(
-        json.dumps({"version": "2.0.0", "tasks": tasks}, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    payload = {
+        "version": "2.0.0",
+        "inputs": [
+            {
+                "id": "unlockConfirm",
+                "type": "pickString",
+                "description": "Submit unlocks the next level if traces pass. Unlock?",
+                "options": ["n", "y"],
+                "default": "n",
+            }
+        ],
+        "tasks": tasks,
+    }
+    (vscode / "tasks.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")

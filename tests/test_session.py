@@ -286,7 +286,7 @@ def test_run_level4_with_session_does_not_unlock(monkeypatch, tmp_path: Path, ca
     out = capsys.readouterr().out
     assert "UNLOCKED" not in out
     assert load_session()["unlocked"] == 1
-    assert "level<=4" in out
+    assert "through LEVEL 4" in out
 
 
 def test_run_without_session_defaults_to_python3_level4(
@@ -295,7 +295,7 @@ def test_run_without_session_defaults_to_python3_level4(
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
     assert main(["run", "bank_system"]) == 0
     out = capsys.readouterr().out
-    assert "bank_system python3 level<=4" in out
+    assert "bank_system python3 through LEVEL 4" in out
     assert "UNLOCKED" not in out
     assert load_session() is None
 
@@ -309,7 +309,7 @@ def test_run_kind_work_without_session(monkeypatch, tmp_path: Path, capsys) -> N
     assert "UNLOCKED" not in out
     assert "\nOK\n" not in out
     assert not out.strip().endswith("OK")
-    assert "level<=4 passed=" not in out
+    assert "through LEVEL 4 passed=" not in out
     assert load_session() is None
 
 
@@ -329,7 +329,7 @@ def test_run_kind_work_problem_mismatch(monkeypatch, tmp_path: Path, capsys) -> 
     assert "UNLOCKED" not in out
     assert "\nOK\n" not in out
     assert not out.strip().endswith("OK")
-    assert "level<=4 passed=" not in out
+    assert "through LEVEL 4 passed=" not in out
     after = load_session()
     assert after is not None
     assert after["problem"] == "workers"
@@ -1234,6 +1234,17 @@ def test_submit_current_level_unlocks(monkeypatch, tmp_path: Path, capsys) -> No
     assert load_session()["unlocked"] == 2
 
 
+def test_submit_confirm_n_cancels(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    assert main(["submit", "bank_system", "--kind", "solution", "--confirm", "n"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED" not in out
+    assert "cancelled" in out.lower()
+    assert load_session()["unlocked"] == 1
+
+
 def test_submit_other_level_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
@@ -1242,7 +1253,7 @@ def test_submit_other_level_does_not_unlock(monkeypatch, tmp_path: Path, capsys)
     out = capsys.readouterr().out
     assert "UNLOCKED" not in out
     assert load_session()["unlocked"] == 1
-    assert "level<=4" in out
+    assert "through LEVEL 4" in out
 
 
 def test_kind_stub_still_fails_when_work_is_solution(monkeypatch, tmp_path: Path, capsys) -> None:
