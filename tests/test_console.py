@@ -390,6 +390,14 @@ def test_confirm_unlock_live_y_prefix() -> None:
     stdin = io.StringIO("yrest")
     stdout = io.StringIO()
     assert _confirm_unlock(stdin, stdout, live=True) is True
+    assert stdin.read() == ""
+
+
+def test_confirm_unlock_live_yes_drains_leftover() -> None:
+    stdin = io.StringIO("yes")
+    stdout = io.StringIO()
+    assert _confirm_unlock(stdin, stdout, live=True) is True
+    assert stdin.read() == ""
 
 
 def test_confirm_unlock_live_n() -> None:

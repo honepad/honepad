@@ -249,6 +249,7 @@ def _confirm_unlock(stdin: TextIO, stdout: TextIO, *, live: bool) -> bool | None
             ch = stdin.read(1)
             if ch == "":
                 return None
+            _drain_pending(stdin)
             stdout.write(f"{ch}\n")
             stdout.flush()
             return ch.lower() == "y"
@@ -429,6 +430,15 @@ def _drain_escape(stdin: TextIO) -> None:
             return
         if stdin.read(1) == "":
             return
+
+
+def _drain_pending(stdin: TextIO) -> None:
+    try:
+        stdin.fileno()
+    except (AttributeError, OSError):
+        stdin.read()
+        return
+    _drain_escape(stdin)
 
 
 def _read_choice(

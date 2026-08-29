@@ -912,6 +912,36 @@ def test_java_work_system_out_print_still_reports(monkeypatch, tmp_path: Path, c
     assert "through LEVEL 1" in out
 
 
+def test_python_work_print_still_reports(monkeypatch, tmp_path: Path, capsys) -> None:
+    from honepad.cli import main
+
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    text = (
+        repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    ).read_text(encoding="utf-8")
+    needle = "result = account.deposit(amount)"
+    assert needle in text
+    work.write_text(
+        text.replace(
+            needle,
+            'print("************")\n        ' + needle,
+            1,
+        ),
+        encoding="utf-8",
+    )
+    code = main(["run", "bank_system", "--lang", "python3", "--level", "1"])
+    out = capsys.readouterr().out
+    assert code == 0, out
+    assert "Expecting value" not in out
+    assert "DEBUG:" in out
+    assert "************" in out
+    assert "passed=" in out
+    assert "through LEVEL 1" in out
+
+
 def test_report_from_proc_rejects_nonzero_empty_failed() -> None:
     n = len(load_cases("bank_system", 1))
     proc = subprocess.CompletedProcess(
