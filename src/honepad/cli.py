@@ -276,7 +276,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         if _is_work_file_problem(exc):
             print(work_reset_next())
         return 1
-    summary = f"{report.problem} {report.lang} level<={report.level} passed={report.passed}"
+    summary = f"{report.problem} {report.lang} through LEVEL {report.level} passed={report.passed}"
     if session is not None and same:
         summary = f"{summary} remaining_s={left}"
     print(summary)
@@ -335,6 +335,20 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 
 def cmd_submit(args: argparse.Namespace) -> int:
+    confirm = getattr(args, "confirm", None)
+    if confirm is not None:
+        if str(confirm).strip().lower() not in {"y", "yes"}:
+            print("OK: submit cancelled")
+            return 0
+    elif sys.stdin.isatty() and sys.stdout.isatty():
+        from honepad.console import _confirm_unlock, _use_live
+
+        ok = _confirm_unlock(sys.stdin, sys.stdout, live=_use_live(sys.stdin, sys.stdout))
+        if ok is None:
+            return 1
+        if not ok:
+            print("OK: submit cancelled")
+            return 0
     args.unlock = True
     return cmd_run(args)
 
@@ -435,6 +449,11 @@ def build_parser() -> argparse.ArgumentParser:
     submit.add_argument("--lang", default=None)
     submit.add_argument("--level", type=int, default=None)
     submit.add_argument("--kind", choices=("solution", "stub", "work"), default=None)
+    submit.add_argument(
+        "--confirm",
+        default=None,
+        help="y unlocks after a passing run; n cancels. TTY asks if omitted.",
+    )
     submit.set_defaults(func=cmd_submit, unlock=True)
 
     timer = sub.add_parser("timer", help="print a 90-minute remaining_s")

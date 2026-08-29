@@ -1005,7 +1005,13 @@ def test_workspace_has_submit_task_not_default(monkeypatch, tmp_path: Path) -> N
     submit = by_label["Submit (unlock next level)"]
     blob = json.dumps(submit)
     assert "submit" in blob
+    assert "--confirm" in blob
+    assert "${input:unlockConfirm}" in blob
     assert "public-tests" in submit["options"]["cwd"]
+    inputs = {item["id"]: item for item in tasks.get("inputs", [])}
+    assert "unlockConfirm" in inputs
+    assert "y" in inputs["unlockConfirm"]["options"]
+    assert "n" in inputs["unlockConfirm"]["options"]
     default = by_label["Run public tests"]
     assert default["group"]["isDefault"] is True
     assert "submit" not in json.dumps(default)
