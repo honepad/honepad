@@ -123,9 +123,10 @@ def cmd_run(args: argparse.Namespace) -> int:
             and session.get("problem") == args.problem
             and str(session.get("lang")) == lang
         )
-        practice = args.level is None and same
+        unlocked_now = int(session["unlocked"]) if same and session is not None else None
+        practice = same and (args.level is None or args.level == unlocked_now)
         if args.level is None:
-            level = int(session["unlocked"]) if practice and session is not None else 4
+            level = unlocked_now if practice and unlocked_now is not None else 4
         else:
             level = args.level
         kind = args.kind
@@ -178,14 +179,18 @@ def cmd_run(args: argparse.Namespace) -> int:
             print(status_note("NOTE: honepad start starts a new clock and keeps your work."))
             return 0
         if may_unlock:
+            try:
+                ensure_work_copy(args.problem, lang, reset=False, level=nxt)
+                write_workspace(args.problem, lang, nxt)
+            except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
+                print(status_fail(f"FAIL: {exc}"))
+                return 1
             unlocked = unlock_next(session)
             if unlocked is not None:
                 print(status_unlock(f"UNLOCKED: level {unlocked}"))
-                ensure_work_copy(args.problem, lang, reset=False, level=unlocked)
                 spec = problem_dir(args.problem) / "spec" / f"level{unlocked}.md"
                 if spec.is_file():
                     print(spec.read_text(encoding="utf-8").rstrip() + "\n")
-                write_workspace(args.problem, lang, unlocked)
         else:
             print(
                 status_note(
