@@ -209,7 +209,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     if unlocked > 1 or session.get("clock_restarted"):
         print(
             status_note(
-                f"NOTE: resume at unlocked={unlocked}. "
+                f"NOTE: resume at LEVEL {unlocked} (not a new L1). "
                 "start --reset starts over at L1. "
                 "start --back or console 3 back drops to the previous level. "
                 "console 3 all starts over at L1."
