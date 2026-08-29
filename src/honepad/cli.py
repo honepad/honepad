@@ -25,6 +25,7 @@ from honepad.session import (
     work_src,
 )
 from honepad.term import (
+    invocation,
     paint_spec,
     spec_line,
     start_next,
@@ -154,6 +155,7 @@ def cmd_start(args: argparse.Namespace) -> int:
             return 1
         if args.reset and getattr(args, "back", False):
             print(status_fail("FAIL: use --reset or --back, not both"))
+            print(f"NEXT: {invocation()} start --reset")
             return 1
         if row["id"] == "java":
             missing = next(
@@ -172,11 +174,13 @@ def cmd_start(args: argparse.Namespace) -> int:
                 return 1
             if session["problem"] != args.problem or str(session["lang"]) != row["id"]:
                 print(status_fail("FAIL: --back needs the current problem and language"))
+                print(f"NEXT: {invocation()} start {session['problem']} {session['lang']} --back")
                 return 1
             unlocked = int(session["unlocked"])
             if unlocked <= 1:
                 print(status_fail("FAIL: already level 1"))
                 print(work_line(work_src(args.problem, row["id"])))
+                print(f"NEXT: {invocation()} start")
                 return 1
             session = lock_to_level(session, unlocked - 1)
             session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=False)
@@ -198,7 +202,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         print(status_fail(f"FAIL: {exc}"))
         return 1
     if level > unlocked:
-        print(status_fail(f"LOCKED: level {level} (unlocked={unlocked})"))
+        print(status_fail(f"LOCKED: LEVEL {level} (open through LEVEL {unlocked})"))
         print(work_line(work))
         return 1
     spec = problem_dir(args.problem) / "spec" / f"level{level}.md"
@@ -209,10 +213,8 @@ def cmd_start(args: argparse.Namespace) -> int:
     if unlocked > 1 or session.get("clock_restarted"):
         print(
             status_note(
-                f"NOTE: resume at LEVEL {unlocked} (not a new L1). "
-                "start --reset starts over at L1. "
-                "start --back or console 3 back drops to the previous level. "
-                "console 3 all starts over at L1."
+                f"NOTE: resume at LEVEL {unlocked}. "
+                "start --reset is L1. start --back or console 3 drops a level."
             )
         )
     note_clock_restarted(session)
@@ -225,7 +227,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         "You are not expected to finish every level."
     )
     print(status_note("NOTE: honepad console opens a live menu (run, submit, reset, vscode)."))
-    print(status_ok(f"OK: unlocked={unlocked} remaining_s={left}"))
+    print(status_ok(f"OK: LEVEL {unlocked} remaining_s={left}"))
     print(paint_spec(spec.read_text(encoding="utf-8")))
     if not getattr(args, "no_console", False) and sys.stdin.isatty() and sys.stdout.isatty():
         return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
@@ -326,7 +328,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         print(status_ok("OK"))
         print(
             status_note(
-                f"NOTE: still unlocked={session['unlocked']}. 2 submit unlocks the next level."
+                f"NOTE: still LEVEL {session['unlocked']}. 2 submit unlocks the next level."
             )
         )
         return 0

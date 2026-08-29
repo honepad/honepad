@@ -44,10 +44,10 @@ def test_start_locks_higher_level(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
     out = capsys.readouterr().out
-    assert "unlocked=1" in out
+    assert "LEVEL 1" in out
     assert "remaining_s=" in out
     assert main(["start", "bank_system", "python3", "--level", "2"]) == 1
-    assert "LOCKED: level 2" in capsys.readouterr().out
+    assert "LOCKED: LEVEL 2" in capsys.readouterr().out
 
 
 def test_run_pass_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -148,10 +148,10 @@ def test_start_reset_clears_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
     assert load_session()["unlocked"] == 2
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
     out = capsys.readouterr().out
-    assert "unlocked=1" in out
+    assert "LEVEL 1" in out
     assert load_session()["unlocked"] == 1
     assert main(["start", "bank_system", "python3", "--level", "2"]) == 1
-    assert "LOCKED: level 2" in capsys.readouterr().out
+    assert "LOCKED: LEVEL 2" in capsys.readouterr().out
 
 
 def test_start_different_problem_replaces_session(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -167,9 +167,9 @@ def test_start_different_problem_replaces_session(monkeypatch, tmp_path: Path, c
     assert session is not None
     assert session["problem"] == "workers"
     assert session["unlocked"] == 1
-    assert "unlocked=1" in out
+    assert "LEVEL 1" in out
     assert main(["start", "workers", "python3", "--level", "2"]) == 1
-    assert "LOCKED: level 2" in capsys.readouterr().out
+    assert "LOCKED: LEVEL 2" in capsys.readouterr().out
 
 
 def test_start_same_problem_keeps_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -185,7 +185,7 @@ def test_start_same_problem_keeps_unlock(monkeypatch, tmp_path: Path, capsys) ->
     assert session is not None
     assert session["unlocked"] == 2
     assert session["lang"] == "javascript"
-    assert "unlocked=2" in out
+    assert "LEVEL 2" in out
     assert main(["start", "bank_system", "javascript", "--level", "2"]) == 0
     level_out = capsys.readouterr().out
     assert "LOCKED" not in level_out
@@ -261,7 +261,7 @@ def test_start_level1_after_unlock_prints_l1_spec(monkeypatch, tmp_path: Path, c
     out = capsys.readouterr().out
     assert "create_account" in out
     assert "top_spenders" not in out
-    assert "unlocked=2" in out
+    assert "LEVEL 2" in out
 
 
 def test_start_without_level_prints_unlocked_spec(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -275,7 +275,7 @@ def test_start_without_level_prints_unlocked_spec(monkeypatch, tmp_path: Path, c
     out = capsys.readouterr().out
     assert "top_spenders" in out
     assert "Bank system level 2" in out
-    assert "unlocked=2" in out
+    assert "LEVEL 2" in out
 
 
 def test_run_level4_with_session_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -510,7 +510,7 @@ def test_locked_start_still_creates_work_file(monkeypatch, tmp_path: Path, capsy
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--level", "2"]) == 1
     out = capsys.readouterr().out
-    assert "LOCKED: level 2" in out
+    assert "LOCKED: LEVEL 2" in out
     work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
     assert work.is_file()
     assert main(["run", "bank_system"]) == 1
