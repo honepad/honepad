@@ -10,7 +10,7 @@ import pytest
 
 from honepad.catalog import repo_root
 from honepad.cli import main
-from honepad.console import _read_choice, dispatch, render_banner
+from honepad.console import _confirm_unlock, _read_choice, dispatch, render_banner
 from honepad.javatest import java_ident
 from honepad.pythontest import pytest_ident
 from honepad.session import ensure_work_copy, load_session
@@ -384,6 +384,30 @@ def test_console_quit(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "5 vscode" in out
     assert "OK: quit" in out
     assert "file://" in out
+
+
+def test_confirm_unlock_live_y_prefix() -> None:
+    stdin = io.StringIO("yrest")
+    stdout = io.StringIO()
+    assert _confirm_unlock(stdin, stdout, live=True) is True
+
+
+def test_confirm_unlock_live_n() -> None:
+    stdin = io.StringIO("n")
+    stdout = io.StringIO()
+    assert _confirm_unlock(stdin, stdout, live=True) is False
+
+
+def test_confirm_unlock_line_yes() -> None:
+    stdin = io.StringIO("yes\n")
+    stdout = io.StringIO()
+    assert _confirm_unlock(stdin, stdout, live=False) is True
+
+
+def test_confirm_unlock_line_yrest() -> None:
+    stdin = io.StringIO("yrest\n")
+    stdout = io.StringIO()
+    assert _confirm_unlock(stdin, stdout, live=False) is False
 
 
 def _write_python_solution(tmp_path: Path) -> Path:

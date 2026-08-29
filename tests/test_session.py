@@ -1245,6 +1245,19 @@ def test_submit_confirm_n_cancels(monkeypatch, tmp_path: Path, capsys) -> None:
     assert load_session()["unlocked"] == 1
 
 
+def test_submit_confirm_y_unlocks(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    src = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    work.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+    capsys.readouterr()
+    assert main(["submit", "bank_system", "--kind", "solution", "--confirm", "y"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED: level 2" in out
+    assert load_session()["unlocked"] == 2
+
+
 def test_submit_other_level_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0

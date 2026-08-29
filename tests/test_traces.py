@@ -872,6 +872,16 @@ def test_report_from_proc_reads_json_after_print_prefix() -> None:
     assert "************500" in report.debug
 
 
+def test_report_from_proc_last_passed_object_wins() -> None:
+    n = len(load_cases("bank_system", 1))
+    stdout = '{"passed": 0, "failed": []}\n************{"passed": ' + str(n) + ', "failed": []}\n'
+    proc = subprocess.CompletedProcess(["adapter"], 0, stdout=stdout, stderr="")
+    report = report_from_proc(proc, "bank_system", "java", 1)
+    assert report.ok
+    assert report.passed == n
+    assert '{"passed": 0' in report.debug
+
+
 def test_java_work_system_out_print_still_reports(monkeypatch, tmp_path: Path, capsys) -> None:
     from honepad.cli import main
 
@@ -899,6 +909,7 @@ def test_java_work_system_out_print_still_reports(monkeypatch, tmp_path: Path, c
     assert "DEBUG:" in out
     assert "************" in out
     assert "passed=" in out
+    assert "through LEVEL 1" in out
 
 
 def test_report_from_proc_rejects_nonzero_empty_failed() -> None:
