@@ -1486,3 +1486,24 @@ def test_python_none_still_passes(monkeypatch, tmp_path: Path, capsys) -> None:
     out = capsys.readouterr().out
     assert "FAIL" not in out
     assert "OK" in out
+
+
+def test_submit_rejects_fake_adapter_passed_json(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text(
+        "class Simulation:\n"
+        "    def __init__(self):\n"
+        '        print(\'{"passed": 99, "failed": []}\')\n'
+        "        raise SystemExit(0)\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "UNLOCKED" not in out
+    assert load_session()["unlocked"] == 1

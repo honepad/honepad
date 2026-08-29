@@ -842,14 +842,26 @@ def test_report_from_proc_rejects_non_object_json() -> None:
         report_from_proc(proc, "bank_system", "java", 1)
 
 
+def test_report_from_proc_rejects_passed_count_mismatch() -> None:
+    proc = subprocess.CompletedProcess(
+        ["adapter"], 0, stdout='{"passed": 99, "failed": []}\n', stderr=""
+    )
+    with pytest.raises(RuntimeError, match="mismatch") as excinfo:
+        report_from_proc(proc, "bank_system", "python3", 1)
+    text = str(excinfo.value)
+    assert "99" in text
+    assert "adapter report count mismatch" in text
+
+
 def test_run_script_removes_cases_file(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
     def fake_run(argv, **_kwargs):
         captured["cases_path"] = argv[-1]
         captured["exists_during"] = Path(argv[-1]).is_file()
+        n = len(load_cases("bank_system", 1))
         return subprocess.CompletedProcess(
-            argv, 0, stdout='{"passed": 0, "failed": []}\n', stderr=""
+            argv, 0, stdout=f'{{"passed": {n}, "failed": []}}\n', stderr=""
         )
 
     monkeypatch.setattr("honepad.runner.subprocess.run", fake_run)

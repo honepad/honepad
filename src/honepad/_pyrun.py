@@ -13,6 +13,9 @@ def main(argv: list[str] | None = None) -> int:
     problem, level_s, kind = args[0], args[1], args[2]
     try:
         report = run_python_body(problem, int(level_s), kind)
+    except SystemExit as exc:
+        sys.stderr.write(f"{exc}\n")
+        return 1
     except Exception as exc:
         sys.stderr.write(f"{exc}\n")
         return 1

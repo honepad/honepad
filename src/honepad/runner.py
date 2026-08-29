@@ -117,7 +117,9 @@ def run_python_body(
                     obj = cls()
                 fn = getattr(obj, method)
                 actual = fn(*args)
-            except Exception as exc:  # noqa: BLE001 - user pack
+            except KeyboardInterrupt:
+                raise
+            except BaseException as exc:  # noqa: BLE001 - user pack
                 failed.append(
                     Fail(case["id"], i, method, args, expected, f"exc:{type(exc).__name__}")
                 )
@@ -180,7 +182,12 @@ def report_from_proc(
         failed.append(
             Fail(row["case"], row["index"], row["method"], args, row["expected"], row["actual"])
         )
-    return Report(problem, lang_id, level, int(payload.get("passed", 0)), failed)
+    passed = int(payload.get("passed", 0))
+    if passed + len(failed) != len(cases):
+        raise RuntimeError(
+            f"{lang_id} adapter report count mismatch: {passed + len(failed)} != {len(cases)}"
+        )
+    return Report(problem, lang_id, level, passed, failed)
 
 
 def run_compiled(
