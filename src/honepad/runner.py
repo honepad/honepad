@@ -53,7 +53,18 @@ def _load_python_class(path: Path, class_name: str) -> Any:
     except FileNotFoundError:
         raise
     except Exception as exc:  # noqa: BLE001 - user pack load
-        raise RuntimeError(f"{path}: {type(exc).__name__}") from exc
+        raise RuntimeError(_format_load_error(path, exc)) from exc
+
+
+def _format_load_error(path: Path, exc: BaseException) -> str:
+    name = type(exc).__name__
+    msg = getattr(exc, "msg", None) or str(exc).strip()
+    lineno = getattr(exc, "lineno", None)
+    if lineno is not None:
+        return f"{path}: {name}: {msg} (line {lineno})"
+    if msg and msg != name:
+        return f"{path}: {name}: {msg}"
+    return f"{path}: {name}"
 
 
 def pack_src(lang_id: str, problem: str, kind: str, solution_name: str, stub_name: str) -> Path:

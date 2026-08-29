@@ -70,7 +70,10 @@ def ensure_work_copy(
             if merged != current:
                 dest.write_text(merged, encoding="utf-8")
         elif require_merge:
-            raise ValueError(f"work file missing {class_name}: {dest}")
+            raise ValueError(
+                f"work file exists but has no {class_name} class, "
+                f"edit WORK or honepad start --reset: {dest}"
+            )
         write_work_spec(problem, level, dest.parent)
         return dest
     sliced = slice_stub(full, ext, allowed, class_name_for(problem))
