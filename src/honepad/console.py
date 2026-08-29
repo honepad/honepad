@@ -31,7 +31,7 @@ from honepad.term import (
     invocation,
     paint_spec,
     render_keys,
-    render_menu,
+    render_prompt,
     spec_line,
     start_next,
     status_fail,
@@ -446,7 +446,7 @@ def _read_choice(
 
     def _prompt() -> str:
         left = _left()
-        return render_menu(
+        return render_prompt(
             format_clock(left),
             seconds=left,
             level=int(session["unlocked"]),
@@ -472,6 +472,8 @@ def _read_choice(
                     return ""
                 if ch == "\x1b":
                     _drain_escape(stdin)
+                    continue
+                if ch.isspace():
                     continue
                 stdout.write("\n")
                 stdout.flush()
