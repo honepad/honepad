@@ -67,14 +67,26 @@ def class_name_for(problem: str) -> str:
     return _CLASS[problem]
 
 
-def declares_class(text: str, ext: str, class_name: str) -> bool:
-    """True when work declares the class, not just mentions its name."""
-    token = re.escape(class_name)
-    lines = [
+_BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+_PY_DOCSTRING = re.compile(r'("""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\')')
+
+
+def _code_lines(text: str, ext: str) -> list[str]:
+    if ext in {"js", "ts", "java"}:
+        text = _BLOCK_COMMENT.sub("\n", text)
+    if ext == "py":
+        text = _PY_DOCSTRING.sub("\n", text)
+    return [
         line.strip()
         for line in text.splitlines()
         if line.strip() and not line.strip().startswith(("#", "//"))
     ]
+
+
+def declares_class(text: str, ext: str, class_name: str) -> bool:
+    """True when work declares the class, not just mentions its name."""
+    token = re.escape(class_name)
+    lines = _code_lines(text, ext)
     decl = re.compile(rf"^(?:(?:export(?:\s+default)?|public)\s+)?class\s+{token}\b")
     if ext == "py":
         return any(decl.match(line) for line in lines)

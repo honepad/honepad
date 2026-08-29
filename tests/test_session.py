@@ -1727,3 +1727,47 @@ def test_submit_js_const_class_unlocks(monkeypatch, tmp_path: Path, capsys) -> N
     assert code == 0
     assert "UNLOCKED: level 2" in out
     assert load_session()["unlocked"] == 2
+
+
+def test_submit_rejects_atexit_fake_json_os_exit(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "import atexit, os\n"
+        f"atexit.register(lambda: (os.write(1, {payload.encode()!r} + b'\\n'), os._exit(0)))\n"
+        "class Simulation:\n    pass\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "UNLOCKED" not in out
+    assert load_session()["unlocked"] == 1
+
+
+def test_declares_class_skips_block_comments_and_docstrings() -> None:
+    name = "Simulation"
+    assert not declares_class("/*\nclass Simulation {\n}\n*/\n", "js", name)
+    assert not declares_class('"""\nclass Simulation:\n    pass\n"""\n', "py", name)
+    assert declares_class("class Simulation:\n    pass\n", "py", name)
+
+
+def test_submit_block_comment_class_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "javascript", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "javascript" / "work.js"
+    work.write_text("/*\nclass Simulation {\n}\n*/\n", encoding="utf-8")
+    code = main(["submit", "bank_system", "--kind", "solution"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL:" in out
+    assert "UNLOCKED" not in out
+    assert load_session()["unlocked"] == 1
+    assert work.read_text(encoding="utf-8") == "/*\nclass Simulation {\n}\n*/\n"
