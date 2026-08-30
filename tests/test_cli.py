@@ -266,6 +266,7 @@ def test_start_picker_typo_reprompts(monkeypatch, tmp_path, capsys) -> None:
     assert session["lang"] == "python3"
     assert session["problem"] == "bank_system"
     assert "not a choice" in out
+    assert "Did you mean python3?" in out
     assert "OK: LEVEL" in out
 
 
