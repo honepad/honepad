@@ -482,7 +482,6 @@ def _tool(name: str) -> str | None:
     for folder in _coursier_bins():
         cand = folder / name
         if cand.is_file() and os.access(cand, os.X_OK):
-            _prepend_path(folder)
             return str(cand)
     return None
 

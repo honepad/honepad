@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 import sys
@@ -38,6 +39,9 @@ def test_scalac_finds_coursier_bin(tmp_path: Path, monkeypatch) -> None:
     monkeypatch.setattr(runner, "_coursier_bins", lambda: [fake])
     monkeypatch.setattr(runner.shutil, "which", lambda _name, **_k: None)
     assert runner._scalac() == str(scalac)
+    path_parts = os.environ.get("PATH", "").split(os.pathsep)
+    assert path_parts[0] != str(fake)
+    assert str(fake) not in path_parts
 
 
 def test_ensure_scala_script_pins_ci_version() -> None:
