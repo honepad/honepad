@@ -705,6 +705,7 @@ def test_work_timeout_python_prints_fail(monkeypatch, tmp_path: Path, capsys) ->
     assert "FAIL:" in out
     assert "timed out" in out
     assert "python3" in out
+    assert work.name in out
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
 

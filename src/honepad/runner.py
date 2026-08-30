@@ -134,7 +134,7 @@ def run_python(
     level: int,
     kind: str = "solution",
 ) -> Report:
-    python_entry(problem, kind)
+    src = python_entry(problem, kind)
     env = os.environ.copy()
     src_dir = str(repo_root() / "src")
     prior = env.get("PYTHONPATH", "")
@@ -149,7 +149,7 @@ def run_python(
             env=env,
         )
     except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(f"python3 timed out after {RUN_TIMEOUT_S}s") from exc
+        raise RuntimeError(f"{src}: python3 timed out after {RUN_TIMEOUT_S}s") from exc
     return report_from_proc(proc, problem, "python3", level)
 
 
