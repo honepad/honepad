@@ -307,10 +307,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         if _is_work_file_problem(exc):
             print(work_reset_next())
         return 1
-    summary = f"{report.problem} {report.lang} through LEVEL {report.level} passed={report.passed}"
-    if session is not None and same:
-        summary = f"{summary} remaining_s={left}"
-    print(summary)
+    print(f"{report.problem} {report.lang} through LEVEL {report.level} passed={report.passed}")
     if report.failed:
         fail = report.failed[0]
         naming = str(language(lang)["naming"])
@@ -336,7 +333,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             return 0
         if left == 0:
             print(status_fail("TIME UP: remaining_s=0. Next level stays locked."))
-            print(status_note("NOTE: honepad start starts a new clock and keeps your work."))
+            print(status_note("NOTE: q then honepad start starts a new clock and keeps your work."))
             return 0
         if may_unlock:
             try:

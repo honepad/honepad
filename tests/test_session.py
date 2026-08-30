@@ -978,8 +978,12 @@ def test_expired_run_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> Non
     assert main(["run", "bank_system", "--kind", "solution"]) == 0
     out = capsys.readouterr().out
     assert "remaining_s=0" in out
+    through = [ln for ln in out.splitlines() if "through LEVEL" in ln]
+    assert through
+    assert all("remaining_s=" not in ln for ln in through)
     assert "UNLOCKED" not in out
     assert "TIME UP" in out
+    assert "q then" in out
     assert load_session()["unlocked"] == 1
 
 
