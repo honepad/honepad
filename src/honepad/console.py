@@ -371,7 +371,8 @@ def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:
         session = load_session()
         if session is None:
             raise ValueError(f"no session. Start with: {invocation()} start bank_system java")
-        minutes = int(session["minutes"])
+        raw = getattr(args, "minutes", None)
+        minutes = int(session["minutes"]) if raw is None else int(raw)
         session = ensure_session(str(session["problem"]), str(session["lang"]), minutes=minutes)
     else:
         if problem not in problems():

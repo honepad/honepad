@@ -105,7 +105,7 @@ def write_work_spec(problem: str, level: int, dest_dir: Path) -> Path | None:
     if not src.is_file():
         return None
     dest = dest_dir / "spec.md"
-    dest.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+    _replace_text(dest, src.read_text(encoding="utf-8"))
     return dest
 
 

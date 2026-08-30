@@ -1529,6 +1529,32 @@ def test_start_without_minutes_keeps_saved_duration(monkeypatch, tmp_path: Path,
     assert after["started_at"] == first["started_at"]
 
 
+@pytest.mark.parametrize(
+    "argv",
+    (["console", "--minutes", "30"], ["vscode", "--minutes", "30", "--no-open"]),
+)
+def test_resume_current_session_honors_minutes(
+    monkeypatch, tmp_path: Path, capsys, argv: list[str]
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert (
+        main(["start", "bank_system", "python3", "--minutes", "90", "--reset", "--no-console"]) == 0
+    )
+    first = load_session()
+    assert first is not None
+    assert first["minutes"] == 90
+    capsys.readouterr()
+    if argv[0] == "console":
+        monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
+    assert main(argv) == 0
+    out = capsys.readouterr().out
+    after = load_session()
+    assert after is not None
+    assert after["minutes"] == 30
+    assert "NOTE:" in out
+    assert "clock is now 30" in out
+
+
 def test_save_session_drops_unknown_keys(monkeypatch, tmp_path: Path) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
@@ -1604,6 +1630,34 @@ def test_reset_breaks_work_hardlink_to_pack(monkeypatch, tmp_path: Path, capsys)
     finally:
         if solution.read_text(encoding="utf-8") != original:
             solution.write_text(original, encoding="utf-8")
+
+
+def test_write_work_spec_breaks_hardlink_to_pack(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    spec = tmp_path / "work" / "bank_system" / "python3" / "spec.md"
+    stub = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "stub.py"
+    original = stub.read_text(encoding="utf-8")
+    spec.unlink()
+    os.link(stub, spec)
+    try:
+        assert spec.stat().st_ino == stub.stat().st_ino
+        code = main(["start", "bank_system", "python3", "--no-console"])
+        captured = capsys.readouterr()
+        out = captured.out + captured.err
+        assert code == 0
+        assert "Traceback" not in out
+        assert stub.read_text(encoding="utf-8") == original
+        assert spec.is_file()
+        assert not spec.is_symlink()
+        assert spec.stat().st_ino != stub.stat().st_ino
+        text = spec.read_text(encoding="utf-8")
+        assert "create_account" in text
+        assert text != original
+    finally:
+        if stub.read_text(encoding="utf-8") != original:
+            stub.write_text(original, encoding="utf-8")
 
 
 def test_loop_console_bad_json_keeps_last_session(monkeypatch, tmp_path: Path) -> None:
