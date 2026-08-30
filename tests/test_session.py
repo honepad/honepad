@@ -1,5 +1,7 @@
 import io
 import json
+import os
+import shutil
 import sys
 from pathlib import Path
 
@@ -608,6 +610,25 @@ def test_work_compile_error_prints_fail(monkeypatch, tmp_path: Path, capsys) -> 
     assert "UNLOCKED" not in out
 
 
+@pytest.mark.skipif(
+    shutil.which("cc") is None and shutil.which("gcc") is None,
+    reason="cc/gcc not found",
+)
+def test_work_compile_error_prints_c_work_path(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "c", "--reset"]) == 0
+    capsys.readouterr()
+    work = work_src("bank_system", "c")
+    work.write_text("this is not c\n", encoding="utf-8")
+    assert main(["run", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert work.name in out
+    assert "Traceback" not in out
+    assert "UNLOCKED" not in out
+
+
 def test_work_timeout_java_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
@@ -684,6 +705,7 @@ def test_work_timeout_python_prints_fail(monkeypatch, tmp_path: Path, capsys) ->
     assert "FAIL:" in out
     assert "timed out" in out
     assert "python3" in out
+    assert work.name in out
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
 
@@ -1201,6 +1223,52 @@ def test_load_session_rejects_unknown_lang(monkeypatch, tmp_path: Path) -> None:
         load_session()
 
 
+def _write_python_lang_session(tmp_path: Path) -> Path:
+    session_file = tmp_path / "session.json"
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return session_file
+
+
+def test_default_unknown_lang_python_suggests_python3(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(_write_python_lang_session(tmp_path)))
+    code = main([])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "unknown language: python" in out
+    assert "FAIL: 'unknown language" not in out
+    assert "python3" in out
+    assert "NEXT:" in out
+    assert "langs" in out
+    assert "Traceback" not in out
+
+
+def test_timer_unknown_lang_python_suggests_python3(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(_write_python_lang_session(tmp_path)))
+    code = main(["timer"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "unknown language: python" in out
+    assert "FAIL: 'unknown language" not in out
+    assert "python3" in out
+    assert "NEXT:" in out
+    assert "langs" in out
+    assert "Traceback" not in out
+
+
 def test_load_session_rejects_unknown_problem(monkeypatch, tmp_path: Path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
@@ -1355,6 +1423,31 @@ def test_reset_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None
         assert "Traceback" not in out
         assert solution.read_text(encoding="utf-8") == original
         assert work.is_symlink()
+    finally:
+        if solution.read_text(encoding="utf-8") != original:
+            solution.write_text(original, encoding="utf-8")
+
+
+def test_reset_breaks_work_hardlink_to_pack(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    original = solution.read_text(encoding="utf-8")
+    work.unlink()
+    os.link(solution, work)
+    try:
+        code = main(["start", "bank_system", "python3", "--reset", "--no-console"])
+        captured = capsys.readouterr()
+        out = captured.out + captured.err
+        assert code == 0
+        assert "Traceback" not in out
+        assert solution.read_text(encoding="utf-8") == original
+        assert work.is_file()
+        assert not work.is_symlink()
+        assert work.stat().st_ino != solution.stat().st_ino
+        assert work.read_text(encoding="utf-8")
     finally:
         if solution.read_text(encoding="utf-8") != original:
             solution.write_text(original, encoding="utf-8")

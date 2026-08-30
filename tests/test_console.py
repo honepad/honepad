@@ -10,7 +10,7 @@ import pytest
 
 from honepad.catalog import repo_root
 from honepad.cli import main
-from honepad.console import _confirm_unlock, _read_choice, dispatch, render_banner
+from honepad.console import _confirm_unlock, _read_choice, dispatch, loop_console, render_banner
 from honepad.javatest import java_ident
 from honepad.pythontest import pytest_ident
 from honepad.session import ensure_work_copy, load_session
@@ -66,6 +66,39 @@ def test_banner_time_up_when_remaining_zero() -> None:
     assert "will not unlock" in text.lower()
     assert "quit then start" in text.lower()
     assert "keeps work" in text.lower()
+
+
+def test_loop_console_reprints_time_up_when_clock_hits_zero(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    session = {
+        "problem": "bank_system",
+        "lang": "python3",
+        "started_at": 1_700_000_000,
+        "minutes": 90,
+        "unlocked": 1,
+    }
+    calls = {"n": 0}
+
+    def fake_remaining(started_at: int, minutes: int, now: int | None = None) -> int:
+        calls["n"] += 1
+        return 60 if calls["n"] == 1 else 0
+
+    monkeypatch.setattr("honepad.console.remaining_s", fake_remaining)
+    stdout = io.StringIO()
+    code = loop_console(
+        dict(session),
+        stdin=io.StringIO("\nq\n"),
+        stdout=stdout,
+        live=False,
+    )
+    out = stdout.getvalue()
+    assert code == 0
+    idx = out.find("TIME UP")
+    assert idx != -1
+    assert "TIME UP" not in out[:idx]
+    assert "will not unlock" in out[idx:].lower()
+    assert "Unlock?" not in out
+    assert "OK: quit" in out
 
 
 def test_color_disabled_without_tty(monkeypatch) -> None:
@@ -287,6 +320,34 @@ def test_console_unimplemented_lang_fails(monkeypatch, tmp_path: Path, capsys) -
     assert "start bank_system java" in out
 
 
+def test_console_unknown_lang_python_suggests_python3(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["console", "bank_system", "python"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "unknown language: python" in out
+    assert "FAIL: 'unknown language" not in out
+    assert "python3" in out
+    assert "NEXT:" in out
+    assert "langs" in out
+    assert "Traceback" not in out
+
+
+def test_vscode_unknown_lang_python_suggests_python3(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["vscode", "bank_system", "python", "--no-open"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "unknown language: python" in out
+    assert "FAIL: 'unknown language" not in out
+    assert "python3" in out
+    assert "NEXT:" in out
+    assert "langs" in out
+    assert "Traceback" not in out
+
+
 def _pipe_stdin(data: bytes) -> io.TextIOWrapper:
     read_fd, write_fd = os.pipe()
     os.write(write_fd, data)
@@ -308,6 +369,45 @@ def test_live_menu_key_does_not_need_enter() -> None:
     finally:
         stdin.close()
     assert got == "1"
+
+
+def test_live_read_choice_timeout_reprints_time_up(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 1,
+        "minutes": 90,
+        "unlocked": 1,
+    }
+    stdin = _pipe_stdin(b"q")
+    stdout = io.StringIO()
+    shown_time_up = [False]
+    calls = {"n": 0}
+
+    def fake_select(rlist, wlist, xlist, timeout=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return [], [], []
+        return list(rlist), [], []
+
+    monkeypatch.setattr("honepad.console.select.select", fake_select)
+    try:
+        got = _read_choice(
+            session,
+            stdin,
+            stdout,
+            live=True,
+            clock_fn=lambda: 0,
+            shown_time_up=shown_time_up,
+        )
+    finally:
+        stdin.close()
+    assert got == "q"
+    out = stdout.getvalue()
+    assert "TIME UP" in out
+    assert "will not unlock" in out.lower()
+    assert shown_time_up[0] is True
 
 
 def test_live_menu_enter_alone_is_empty() -> None:

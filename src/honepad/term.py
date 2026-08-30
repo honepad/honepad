@@ -183,6 +183,24 @@ def start_next() -> str:
     return f"NEXT: {invocation()} start bank_system java"
 
 
+def print_fail(exc: BaseException) -> None:
+    print(status_fail(f"FAIL: {exc}"))
+    text = str(exc)
+    if text.startswith("no runner for "):
+        print(start_next())
+        return
+    if not text.startswith("unknown language:"):
+        return
+    from honepad.catalog import languages, suggest_language
+    from honepad.runner import _RUNNERS
+
+    prefer = [row["id"] for row in languages() if row["id"] in _RUNNERS]
+    hint = suggest_language(text.split(":", 1)[1].strip(), prefer=prefer)
+    if hint is not None:
+        print(f"Did you mean {hint}?")
+    print(f"NEXT: {invocation()} langs")
+
+
 def work_reset_next() -> str:
     return f"NEXT: edit the work file or {invocation()} start --reset"
 

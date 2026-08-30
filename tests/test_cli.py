@@ -266,7 +266,21 @@ def test_start_picker_typo_reprompts(monkeypatch, tmp_path, capsys) -> None:
     assert session["lang"] == "python3"
     assert session["problem"] == "bank_system"
     assert "not a choice" in out
+    assert "Did you mean python3?" in out
     assert "OK: LEVEL" in out
+
+
+def test_start_picker_problem_typo_does_not_suggest_language(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "python3\njava\nbank_system\n")
+    assert main(["start", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
+    assert "not a choice: java" in out
+    assert "Did you mean java?" not in out
 
 
 def test_run_workers_without_session_defaults_to_max_level(monkeypatch, tmp_path, capsys) -> None:
