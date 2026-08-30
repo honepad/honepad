@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from honepad.catalog import language, repo_root
+from honepad.catalog import language, problems, repo_root
 from honepad.cli import main
 from honepad.runner import _RUNNERS
 from honepad.session import ensure_work_copy, load_session, remaining_s, work_src
@@ -16,6 +16,15 @@ from honepad.workstub import (
     methods_through_level,
     naming_for,
 )
+
+
+def test_class_name_for_covers_every_catalog_problem() -> None:
+    ids = problems()
+    assert ids
+    for problem in ids:
+        name = class_name_for(problem)
+        assert name
+        assert name.isidentifier()
 
 
 def test_java_method_includes_leading_javadoc() -> None:

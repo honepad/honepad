@@ -12,14 +12,13 @@ from typing import Any, TextIO
 from honepad.catalog import language
 from honepad.runner import _RUNNERS
 from honepad.session import (
+    drop_level,
     ensure_session,
     ensure_work_copy,
     load_session,
-    lock_to_level,
     note_clock_restarted,
     remaining_s,
     restart_all,
-    slice_work_to_level,
     work_src,
 )
 from honepad.term import (
@@ -312,20 +311,12 @@ def _reset_back(session: dict[str, Any], stdout: TextIO) -> int:
         stdout.write("NEXT: already LEVEL 1\n")
         stdout.flush()
         return 1
-    lock_to_level(session, unlocked - 1)
-    nxt = ensure_session(
-        str(session["problem"]),
-        str(session["lang"]),
-        minutes=int(session["minutes"]),
-        reset=False,
-    )
+    nxt, work = drop_level(session, minutes=int(session["minutes"]))
     session.clear()
     session.update(nxt)
-    work = slice_work_to_level(str(session["problem"]), str(session["lang"]), unlocked - 1)
-    write_workspace(str(session["problem"]), str(session["lang"]), unlocked - 1)
     stdout.write(f"OK: LEVEL {session['unlocked']}\n{work_line(work)}\n")
     stdout.flush()
-    return _print_spec(str(session["problem"]), unlocked - 1, stdout)
+    return _print_spec(str(session["problem"]), int(session["unlocked"]), stdout)
 
 
 def _reset_all(session: dict[str, Any], stdout: TextIO) -> int:

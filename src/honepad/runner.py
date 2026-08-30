@@ -15,6 +15,7 @@ from typing import Any
 
 from honepad.catalog import language, repo_root
 from honepad.traces import load_cases, method_name
+from honepad.workstub import class_name_for
 
 RUN_TIMEOUT_S = 30
 COMPILE_TIMEOUT_S = 120
@@ -93,21 +94,12 @@ def python_entry(problem: str, kind: str) -> Path:
     return pack_src("python3", problem, kind, "solution.py", "stub.py")
 
 
-def class_for_problem(problem: str) -> str:
-    return {
-        "bank_system": "Simulation",
-        "in_memory_database": "InMemoryDatabase",
-        "file_storage": "Simulation",
-        "workers": "Simulation",
-    }[problem]
-
-
 def run_python_body(
     problem: str,
     level: int,
     kind: str = "solution",
 ) -> Report:
-    cls = _load_python_class(python_entry(problem, kind), class_for_problem(problem))
+    cls = _load_python_class(python_entry(problem, kind), class_name_for(problem))
     cases = load_cases(problem, level)
     failed: list[Fail] = []
     passed = 0
@@ -217,8 +209,8 @@ def report_from_proc(
 
 def run_prepare_cmd(
     argv: list[str],
-    cwd: Path,
-    lang_id: str,
+    cwd: Path | None = None,
+    lang_id: str = "",
     timeout: float = COMPILE_TIMEOUT_S,
 ) -> subprocess.CompletedProcess[str]:
     try:
@@ -249,17 +241,7 @@ def run_compiled(
         cases_path = tmpdir / "cases.json"
         cases_path.write_text(json.dumps(cases), encoding="utf-8")
         argv = prepare(tmpdir, str(cases_path))
-        try:
-            proc = subprocess.run(
-                argv,
-                check=False,
-                capture_output=True,
-                text=True,
-                cwd=tmpdir,
-                timeout=RUN_TIMEOUT_S,
-            )
-        except subprocess.TimeoutExpired as exc:
-            raise RuntimeError(f"{lang_id} timed out after {RUN_TIMEOUT_S}s") from exc
+        proc = run_prepare_cmd(argv, tmpdir, lang_id, timeout=RUN_TIMEOUT_S)
     return report_from_proc(proc, problem, lang_id, level)
 
 
@@ -274,16 +256,11 @@ def run_script(
     with tempfile.TemporaryDirectory() as tmp:
         cases_path = Path(tmp) / "cases.json"
         cases_path.write_text(json.dumps(cases), encoding="utf-8")
-        try:
-            proc = subprocess.run(
-                [*argv, str(cases_path)],
-                check=False,
-                capture_output=True,
-                text=True,
-                timeout=RUN_TIMEOUT_S,
-            )
-        except subprocess.TimeoutExpired as exc:
-            raise RuntimeError(f"{lang_id} timed out after {RUN_TIMEOUT_S}s") from exc
+        proc = run_prepare_cmd(
+            [*argv, str(cases_path)],
+            lang_id=lang_id,
+            timeout=RUN_TIMEOUT_S,
+        )
     return report_from_proc(proc, problem, lang_id, level)
 
 
@@ -295,7 +272,7 @@ def run_javascript(problem: str, level: int, kind: str = "solution") -> Report:
         "javascript",
         level,
         kind,
-        ["node", str(adapter), str(src), class_for_problem(problem)],
+        ["node", str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -307,7 +284,7 @@ def run_ruby(problem: str, level: int, kind: str = "solution") -> Report:
         "ruby",
         level,
         kind,
-        ["ruby", str(adapter), str(src), class_for_problem(problem)],
+        ["ruby", str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -319,7 +296,7 @@ def run_perl(problem: str, level: int, kind: str = "solution") -> Report:
         "perl",
         level,
         kind,
-        ["perl", str(adapter), str(src), class_for_problem(problem)],
+        ["perl", str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -347,7 +324,7 @@ def run_tcl(problem: str, level: int, kind: str = "solution") -> Report:
         "tcl",
         level,
         kind,
-        [_tclsh(), str(adapter), str(src), class_for_problem(problem)],
+        [_tclsh(), str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -366,7 +343,7 @@ def run_r(problem: str, level: int, kind: str = "solution") -> Report:
         "r",
         level,
         kind,
-        [_rscript(), str(adapter), str(src), class_for_problem(problem)],
+        [_rscript(), str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -414,7 +391,7 @@ def run_elixir(problem: str, level: int, kind: str = "solution") -> Report:
         "elixir",
         level,
         kind,
-        [_elixir(), str(adapter), str(src), class_for_problem(problem)],
+        [_elixir(), str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -483,7 +460,7 @@ def _scala() -> str:
 def run_scala(problem: str, level: int, kind: str = "solution") -> Report:
     src = scala_entry(problem, kind)
     scala_dir = repo_root() / "langs" / "scala"
-    class_name = class_for_problem(problem)
+    class_name = class_name_for(problem)
 
     def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(scala_dir / "Adapter.scala", tmpdir / "Adapter.scala")
@@ -575,7 +552,7 @@ def run_erlang(problem: str, level: int, kind: str = "solution") -> Report:
         "erlang",
         level,
         kind,
-        [_escript(), str(adapter), str(src), class_for_problem(problem)],
+        [_escript(), str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -587,7 +564,7 @@ def run_dart(problem: str, level: int, kind: str = "solution") -> Report:
         "dart",
         level,
         kind,
-        [_dart(), "run", str(adapter), str(src), class_for_problem(problem)],
+        [_dart(), "run", str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -606,7 +583,7 @@ def run_julia(problem: str, level: int, kind: str = "solution") -> Report:
         "julia",
         level,
         kind,
-        [_julia(), str(adapter), str(src), class_for_problem(problem)],
+        [_julia(), str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -628,7 +605,7 @@ def run_coffeescript(problem: str, level: int, kind: str = "solution") -> Report
         "coffeescript",
         level,
         kind,
-        [*_coffee(), str(adapter), str(src), class_for_problem(problem)],
+        [*_coffee(), str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -640,7 +617,7 @@ def run_bash(problem: str, level: int, kind: str = "solution") -> Report:
         "bash",
         level,
         kind,
-        ["bash", str(adapter), str(src), class_for_problem(problem)],
+        ["bash", str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -652,7 +629,7 @@ def run_shell(problem: str, level: int, kind: str = "solution") -> Report:
         "shell",
         level,
         kind,
-        ["bash", str(adapter), str(src), class_for_problem(problem)],
+        ["bash", str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -677,7 +654,7 @@ def run_powershell(problem: str, level: int, kind: str = "solution") -> Report:
             "-File",
             str(adapter),
             str(src),
-            class_for_problem(problem),
+            class_name_for(problem),
         ],
     )
 
@@ -720,7 +697,7 @@ def run_clojure(problem: str, level: int, kind: str = "solution") -> Report:
         "clojure",
         level,
         kind,
-        [*_clojure(), str(adapter), str(src), class_for_problem(problem)],
+        [*_clojure(), str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -746,7 +723,7 @@ def run_smalltalk(problem: str, level: int, kind: str = "solution") -> Report:
             str(adapter),
             "-a",
             str(src),
-            class_for_problem(problem),
+            class_name_for(problem),
         ],
     )
 
@@ -759,7 +736,7 @@ def run_common_lisp(problem: str, level: int, kind: str = "solution") -> Report:
         "common-lisp",
         level,
         kind,
-        [_sbcl(), "--script", str(adapter), str(src), class_for_problem(problem)],
+        [_sbcl(), "--script", str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -771,7 +748,7 @@ def run_groovy(problem: str, level: int, kind: str = "solution") -> Report:
         "groovy",
         level,
         kind,
-        [_groovy(), str(adapter), str(src), class_for_problem(problem)],
+        [_groovy(), str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -794,7 +771,7 @@ def run_octave(problem: str, level: int, kind: str = "solution") -> Report:
             str(adapter.parent),
             str(adapter),
             str(src),
-            class_for_problem(problem),
+            class_name_for(problem),
         ],
     )
 
@@ -807,7 +784,7 @@ def run_lua(problem: str, level: int, kind: str = "solution") -> Report:
         "lua",
         level,
         kind,
-        [_lua(), str(adapter), str(src), class_for_problem(problem)],
+        [_lua(), str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -819,7 +796,7 @@ def run_php(problem: str, level: int, kind: str = "solution") -> Report:
         "php",
         level,
         kind,
-        ["php", str(adapter), str(src), class_for_problem(problem)],
+        ["php", str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -830,7 +807,7 @@ def go_entry(problem: str, kind: str) -> Path:
 def run_go(problem: str, level: int, kind: str = "solution") -> Report:
     src = go_entry(problem, kind)
     adapter = repo_root() / "langs" / "go" / "adapter.go"
-    ctor = class_for_problem(problem)
+    ctor = class_name_for(problem)
 
     def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(adapter, tmpdir / "adapter.go")
@@ -854,7 +831,7 @@ def run_rust(problem: str, level: int, kind: str = "solution") -> Report:
     rust_dir = repo_root() / "langs" / "rust"
     adapter = rust_dir / "adapter.rs"
     harness = rust_dir / "harness.rs"
-    ctor = class_for_problem(problem)
+    ctor = class_name_for(problem)
 
     def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         src_dir = tmpdir / "src"
@@ -892,7 +869,7 @@ def java_entry(problem: str, kind: str) -> Path:
 def run_java(problem: str, level: int, kind: str = "solution") -> Report:
     src = java_entry(problem, kind)
     java_dir = repo_root() / "langs" / "java"
-    class_name = class_for_problem(problem)
+    class_name = class_name_for(problem)
 
     def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(java_dir / "Adapter.java", tmpdir / "Adapter.java")
@@ -917,7 +894,7 @@ def csharp_entry(problem: str, kind: str) -> Path:
 def run_csharp(problem: str, level: int, kind: str = "solution") -> Report:
     src = csharp_entry(problem, kind)
     csharp_dir = repo_root() / "langs" / "csharp"
-    class_name = class_for_problem(problem)
+    class_name = class_name_for(problem)
 
     def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(csharp_dir / "Adapter.cs", tmpdir / "Adapter.cs")
@@ -938,7 +915,7 @@ def fsharp_entry(problem: str, kind: str) -> Path:
 def run_fsharp(problem: str, level: int, kind: str = "solution") -> Report:
     src = fsharp_entry(problem, kind)
     fsharp_dir = repo_root() / "langs" / "fsharp"
-    class_name = class_for_problem(problem)
+    class_name = class_name_for(problem)
 
     def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(fsharp_dir / "Adapter.fs", tmpdir / "Adapter.fs")
@@ -991,7 +968,7 @@ def run_typescript(problem: str, level: int, kind: str = "solution") -> Report:
         "typescript",
         level,
         kind,
-        ["node", str(adapter), str(src), class_for_problem(problem)],
+        ["node", str(adapter), str(src), class_name_for(problem)],
     )
 
 
@@ -1010,7 +987,7 @@ def _kotlinc() -> str:
 def run_kotlin(problem: str, level: int, kind: str = "solution") -> Report:
     src = kotlin_entry(problem, kind)
     kotlin_dir = repo_root() / "langs" / "kotlin"
-    class_name = class_for_problem(problem)
+    class_name = class_name_for(problem)
 
     def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(kotlin_dir / "Adapter.kt", tmpdir / "Adapter.kt")
@@ -1067,7 +1044,7 @@ def _cxx() -> str:
 def run_cpp(problem: str, level: int, kind: str = "solution") -> Report:
     src = cpp_entry(problem, kind)
     cpp_dir = repo_root() / "langs" / "cpp"
-    ctor_name = class_for_problem(problem)
+    ctor_name = class_name_for(problem)
 
     def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(cpp_dir / "adapter.cpp", tmpdir / "adapter.cpp")
@@ -1197,7 +1174,7 @@ def run_fortran(problem: str, level: int, kind: str = "solution") -> Report:
 def run_c(problem: str, level: int, kind: str = "solution") -> Report:
     src = c_entry(problem, kind)
     c_dir = repo_root() / "langs" / "c"
-    ctor_name = class_for_problem(problem)
+    ctor_name = class_name_for(problem)
 
     def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(c_dir / "adapter.c", tmpdir / "adapter.c")
@@ -1247,7 +1224,7 @@ def _swiftc() -> str:
 def run_swift(problem: str, level: int, kind: str = "solution") -> Report:
     src = swift_entry(problem, kind)
     swift_dir = repo_root() / "langs" / "swift"
-    ctor_name = class_for_problem(problem)
+    ctor_name = class_name_for(problem)
 
     def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         shutil.copy(swift_dir / "Adapter.swift", tmpdir / "Adapter.swift")

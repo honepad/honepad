@@ -220,3 +220,22 @@ def restart_all(problem: str, lang: str, minutes: int = 90) -> dict[str, Any]:
 
 def slice_work_to_level(problem: str, lang_id: str, level: int) -> Path:
     return ensure_work_copy(problem, lang_id, reset=True, level=level)
+
+
+def drop_level(session: dict[str, Any], minutes: int | None = None) -> tuple[dict[str, Any], Path]:
+    from honepad.workspace import write_workspace
+
+    unlocked = int(session["unlocked"])
+    session = lock_to_level(session, unlocked - 1)
+    problem = str(session["problem"])
+    lang_id = str(session["lang"])
+    session = ensure_session(
+        problem,
+        lang_id,
+        minutes=int(session["minutes"]) if minutes is None else minutes,
+        reset=False,
+    )
+    unlocked = int(session["unlocked"])
+    work = slice_work_to_level(problem, lang_id, unlocked)
+    write_workspace(problem, lang_id, unlocked)
+    return session, work

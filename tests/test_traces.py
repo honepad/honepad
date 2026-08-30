@@ -990,6 +990,11 @@ def test_run_script_removes_cases_file(monkeypatch) -> None:
     assert not Path(str(captured["cases_path"])).exists()
 
 
+def test_run_script_missing_binary_raises() -> None:
+    with pytest.raises(RuntimeError, match="not on PATH"):
+        run_script("bank_system", "javascript", 1, "solution", ["no-such-honepad-bin"])
+
+
 def test_run_prepare_cmd_times_out() -> None:
     with pytest.raises(RuntimeError, match="timed out") as excinfo:
         run_prepare_cmd(

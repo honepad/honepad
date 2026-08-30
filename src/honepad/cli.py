@@ -13,14 +13,13 @@ from honepad.catalog import language, languages, problems
 from honepad.console import cmd_console, cmd_vscode, loop_console
 from honepad.runner import _RUNNERS, run
 from honepad.session import (
+    drop_level,
     ensure_session,
     ensure_work_copy,
     load_session,
-    lock_to_level,
     max_level,
     note_clock_restarted,
     remaining_s,
-    slice_work_to_level,
     unlock_next,
     work_src,
 )
@@ -182,11 +181,8 @@ def cmd_start(args: argparse.Namespace) -> int:
                 print(work_line(work_src(args.problem, row["id"])))
                 print(f"NEXT: {invocation()} start")
                 return 1
-            session = lock_to_level(session, unlocked - 1)
-            session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=False)
+            session, work = drop_level(session, minutes=args.minutes)
             unlocked = int(session["unlocked"])
-            work = slice_work_to_level(args.problem, row["id"], unlocked)
-            write_workspace(args.problem, row["id"], unlocked)
         else:
             session = ensure_session(
                 args.problem, args.lang, minutes=args.minutes, reset=args.reset
@@ -229,7 +225,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     print(status_note("NOTE: honepad console opens a live menu (run, submit, reset, vscode)."))
     print(status_ok(f"OK: LEVEL {unlocked} remaining_s={left}"))
     print(paint_spec(spec.read_text(encoding="utf-8")))
-    if not getattr(args, "no_console", False) and sys.stdin.isatty() and sys.stdout.isatty():
+    if not getattr(args, "no_console", False) and _can_prompt():
         return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
     return 0
 
