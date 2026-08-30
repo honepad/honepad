@@ -13,8 +13,11 @@ from honepad.runner import (
     report_from_proc,
     run,
     run_compiled,
+    run_csharp,
+    run_go,
     run_prepare_cmd,
     run_python,
+    run_rust,
     run_script,
 )
 from honepad.traces import load_cases
@@ -1009,3 +1012,101 @@ def test_run_prepare_cmd_times_out() -> None:
 def test_run_prepare_cmd_default_timeout_is_compile_budget() -> None:
     assert COMPILE_TIMEOUT_S > RUN_TIMEOUT_S
     assert run_prepare_cmd.__defaults__[-1] == COMPILE_TIMEOUT_S
+
+
+_GO = shutil.which("go")
+_CARGO = shutil.which("cargo")
+_DOTNET = shutil.which("dotnet")
+
+
+def test_compiled_langs_prepare_builds_before_run() -> None:
+    text = (repo_root() / "src" / "honepad" / "runner.py").read_text(encoding="utf-8")
+    assert 'return ["go", "run"' not in text
+    assert 'return ["cargo", "run"' not in text
+    assert 'return ["dotnet", "run"' not in text
+    assert '["go", "build", "-o", "run", "."]' in text
+    assert '["cargo", "build", "--quiet"]' in text
+    assert '["dotnet", "build", "-o", "out", "--verbosity", "quiet"]' in text
+
+
+def _execute_argv_after_prepare(monkeypatch, run_fn, *args) -> list[str]:
+    captured: dict[str, list[str]] = {}
+    real = run_prepare_cmd
+
+    def spy(
+        argv: list[str],
+        cwd: Path | None = None,
+        lang_id: str = "",
+        timeout: float = COMPILE_TIMEOUT_S,
+    ):
+        if timeout == RUN_TIMEOUT_S:
+            captured["argv"] = list(argv)
+            n = len(load_cases("bank_system", 1))
+            return subprocess.CompletedProcess(
+                argv, 0, stdout=f'{{"passed": {n}, "failed": []}}\n', stderr=""
+            )
+        return real(argv, cwd, lang_id, timeout)
+
+    monkeypatch.setattr("honepad.runner.run_prepare_cmd", spy)
+    run_fn(*args)
+    return captured["argv"]
+
+
+@pytest.mark.skipif(_GO is None, reason="go not found")
+def test_go_prepare_execute_argv_is_built_binary(monkeypatch) -> None:
+    argv = _execute_argv_after_prepare(monkeypatch, run_go, "bank_system", 1, "stub")
+    assert Path(argv[0]).name == "run"
+    assert Path(argv[0]).name not in {"go", "cargo", "dotnet"}
+
+
+@pytest.mark.skipif(_CARGO is None, reason="cargo not found")
+def test_rust_prepare_execute_argv_is_built_binary(monkeypatch) -> None:
+    argv = _execute_argv_after_prepare(monkeypatch, run_rust, "bank_system", 1, "stub")
+    assert Path(argv[0]).name == "honepadrun"
+    assert argv[0].endswith(str(Path("target") / "debug" / "honepadrun"))
+
+
+@pytest.mark.skipif(_DOTNET is None, reason="dotnet not found")
+def test_csharp_prepare_execute_argv_is_built_binary(monkeypatch) -> None:
+    argv = _execute_argv_after_prepare(monkeypatch, run_csharp, "bank_system", 1, "stub")
+    assert Path(argv[0]).name == "honepadrun"
+    assert Path(argv[0]).name not in {"go", "cargo", "dotnet"}
+
+
+@pytest.mark.skipif(_GO is None, reason="go not found")
+def test_go_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypatch) -> None:
+    broken = tmp_path / "stub.go"
+    broken.write_text("package main\nthis is not go\n", encoding="utf-8")
+    monkeypatch.setattr("honepad.runner.go_entry", lambda *_a, **_k: broken)
+    with pytest.raises(RuntimeError) as excinfo:
+        run_go("bank_system", 1, "stub")
+    msg = str(excinfo.value)
+    assert "timed out" not in msg.lower()
+    assert "30s" not in msg
+    assert "error" in msg.lower() or "stub.go" in msg
+
+
+@pytest.mark.skipif(_CARGO is None, reason="cargo not found")
+def test_rust_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypatch) -> None:
+    broken = tmp_path / "stub.rs"
+    broken.write_text("this is not rust\n", encoding="utf-8")
+    monkeypatch.setattr("honepad.runner.rust_entry", lambda *_a, **_k: broken)
+    with pytest.raises(RuntimeError) as excinfo:
+        run_rust("bank_system", 1, "stub")
+    msg = str(excinfo.value)
+    assert "timed out" not in msg.lower()
+    assert "30s" not in msg
+    assert "error" in msg.lower() or "rustc" in msg.lower()
+
+
+@pytest.mark.skipif(_DOTNET is None, reason="dotnet not found")
+def test_csharp_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypatch) -> None:
+    broken = tmp_path / "stub.cs"
+    broken.write_text("this is not csharp\n", encoding="utf-8")
+    monkeypatch.setattr("honepad.runner.csharp_entry", lambda *_a, **_k: broken)
+    with pytest.raises(RuntimeError) as excinfo:
+        run_csharp("bank_system", 1, "stub")
+    msg = str(excinfo.value)
+    assert "timed out" not in msg.lower()
+    assert "30s" not in msg
+    assert "error" in msg.lower() or "cs" in msg.lower()

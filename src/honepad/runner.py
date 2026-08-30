@@ -817,7 +817,12 @@ def run_go(problem: str, level: int, kind: str = "solution") -> Report:
             encoding="utf-8",
         )
         (tmpdir / "go.mod").write_text("module honepadrun\n\ngo 1.22\n", encoding="utf-8")
-        return ["go", "run", ".", cases_path]
+        compiled = run_prepare_cmd(["go", "build", "-o", "run", "."], tmpdir, "go")
+        if compiled.returncode != 0:
+            raise RuntimeError(
+                f"{src}: {compiled.stderr or compiled.stdout or 'go compile failed'}"
+            )
+        return [str(tmpdir / "run"), cases_path]
 
     return run_compiled(problem, "go", level, prepare)
 
@@ -857,7 +862,12 @@ def run_rust(problem: str, level: int, kind: str = "solution") -> Report:
             'serde_json = "1"\n',
             encoding="utf-8",
         )
-        return ["cargo", "run", "--quiet", "--", cases_path]
+        compiled = run_prepare_cmd(["cargo", "build", "--quiet"], tmpdir, "rust")
+        if compiled.returncode != 0:
+            raise RuntimeError(
+                f"{src}: {compiled.stderr or compiled.stdout or 'cargo compile failed'}"
+            )
+        return [str(tmpdir / "target" / "debug" / "honepadrun"), cases_path]
 
     return run_compiled(problem, "rust", level, prepare)
 
@@ -891,6 +901,24 @@ def csharp_entry(problem: str, kind: str) -> Path:
     return pack_src("csharp", problem, kind, "solution.cs", "stub.cs")
 
 
+def _prepare_dotnet_env() -> None:
+    os.environ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
+    os.environ["DOTNET_NOLOGO"] = "1"
+    os.environ["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1"
+    # net8.0 apphost on a later SDK (Homebrew 10) needs the host dir and roll-forward.
+    os.environ["DOTNET_ROLL_FORWARD"] = "LatestMajor"
+    if os.environ.get("DOTNET_ROOT"):
+        return
+    path = shutil.which("dotnet")
+    if not path:
+        return
+    resolved = Path(path).resolve().parent
+    for candidate in (resolved, resolved.parent / "libexec", resolved.parent):
+        if (candidate / "host").is_dir():
+            os.environ["DOTNET_ROOT"] = str(candidate)
+            return
+
+
 def run_csharp(problem: str, level: int, kind: str = "solution") -> Report:
     src = csharp_entry(problem, kind)
     csharp_dir = repo_root() / "langs" / "csharp"
@@ -900,10 +928,17 @@ def run_csharp(problem: str, level: int, kind: str = "solution") -> Report:
         shutil.copy(csharp_dir / "Adapter.cs", tmpdir / "Adapter.cs")
         shutil.copy(csharp_dir / "honepadrun.csproj", tmpdir / "honepadrun.csproj")
         shutil.copy(src, tmpdir / "Solution.cs")
-        os.environ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
-        os.environ["DOTNET_NOLOGO"] = "1"
-        os.environ["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1"
-        return ["dotnet", "run", "--quiet", "--", cases_path, class_name]
+        _prepare_dotnet_env()
+        compiled = run_prepare_cmd(
+            ["dotnet", "build", "-o", "out", "--verbosity", "quiet"],
+            tmpdir,
+            "csharp",
+        )
+        if compiled.returncode != 0:
+            raise RuntimeError(
+                f"{src}: {compiled.stderr or compiled.stdout or 'dotnet compile failed'}"
+            )
+        return [str(tmpdir / "out" / "honepadrun"), cases_path, class_name]
 
     return run_compiled(problem, "csharp", level, prepare)
 
@@ -921,10 +956,17 @@ def run_fsharp(problem: str, level: int, kind: str = "solution") -> Report:
         shutil.copy(fsharp_dir / "Adapter.fs", tmpdir / "Adapter.fs")
         shutil.copy(fsharp_dir / "honepadrun.fsproj", tmpdir / "honepadrun.fsproj")
         shutil.copy(src, tmpdir / "Solution.fs")
-        os.environ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
-        os.environ["DOTNET_NOLOGO"] = "1"
-        os.environ["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1"
-        return ["dotnet", "run", "--quiet", "--", cases_path, class_name]
+        _prepare_dotnet_env()
+        compiled = run_prepare_cmd(
+            ["dotnet", "build", "-o", "out", "--verbosity", "quiet"],
+            tmpdir,
+            "fsharp",
+        )
+        if compiled.returncode != 0:
+            raise RuntimeError(
+                f"{src}: {compiled.stderr or compiled.stdout or 'dotnet compile failed'}"
+            )
+        return [str(tmpdir / "out" / "honepadrun"), cases_path, class_name]
 
     return run_compiled(problem, "fsharp", level, prepare)
 
