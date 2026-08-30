@@ -197,6 +197,7 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
             stdout.flush()
             return open_vscode(path)
         stdout.write(status_fail(f"FAIL: unknown option {choice!r}") + "\n")
+        stdout.write(f"Keys: {render_keys()}\n")
         stdout.flush()
         return 1
     except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
@@ -249,6 +250,7 @@ def _confirm_unlock(stdin: TextIO, stdout: TextIO, *, live: bool) -> bool | None
             ch = stdin.read(1)
             if ch == "":
                 return None
+            _drain_pending(stdin)
             stdout.write(f"{ch}\n")
             stdout.flush()
             return ch.lower() == "y"
@@ -307,6 +309,7 @@ def _reset_back(session: dict[str, Any], stdout: TextIO) -> int:
     unlocked = int(session["unlocked"])
     if unlocked <= 1:
         stdout.write(status_fail("FAIL: already level 1") + "\n")
+        stdout.write("NEXT: already LEVEL 1\n")
         stdout.flush()
         return 1
     lock_to_level(session, unlocked - 1)
@@ -320,7 +323,7 @@ def _reset_back(session: dict[str, Any], stdout: TextIO) -> int:
     session.update(nxt)
     work = slice_work_to_level(str(session["problem"]), str(session["lang"]), unlocked - 1)
     write_workspace(str(session["problem"]), str(session["lang"]), unlocked - 1)
-    stdout.write(f"OK: unlocked={session['unlocked']}\n{work_line(work)}\n")
+    stdout.write(f"OK: LEVEL {session['unlocked']}\n{work_line(work)}\n")
     stdout.flush()
     return _print_spec(str(session["problem"]), unlocked - 1, stdout)
 
@@ -331,7 +334,7 @@ def _reset_all(session: dict[str, Any], stdout: TextIO) -> int:
     session.update(nxt)
     work = ensure_work_copy(str(session["problem"]), str(session["lang"]), reset=True, level=1)
     write_workspace(str(session["problem"]), str(session["lang"]), 1)
-    stdout.write(f"OK: unlocked=1\n{work_line(work)}\n")
+    stdout.write(f"OK: LEVEL {session['unlocked']}\n{work_line(work)}\n")
     stdout.flush()
     return _print_spec(str(session["problem"]), 1, stdout)
 
@@ -429,6 +432,15 @@ def _drain_escape(stdin: TextIO) -> None:
             return
         if stdin.read(1) == "":
             return
+
+
+def _drain_pending(stdin: TextIO) -> None:
+    try:
+        stdin.fileno()
+    except (AttributeError, OSError):
+        stdin.read()
+        return
+    _drain_escape(stdin)
 
 
 def _read_choice(

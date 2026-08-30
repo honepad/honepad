@@ -150,7 +150,7 @@ def test_start_unimplemented_catalog_lang_exits(monkeypatch, tmp_path, capsys) -
     assert "factory job" not in out
     assert "NEXT:" in out
     assert "start bank_system java" in out
-    assert "OK: unlocked=" not in out
+    assert "OK: LEVEL" not in out
     assert "Bank system level" not in out
     assert "STUB:" not in out
     assert "WORK:" not in out
@@ -180,7 +180,7 @@ def test_start_without_args_on_tty_picks_lang_then_problem(monkeypatch, tmp_path
     assert "python3" in out
     assert "bank_system" in out
     assert UNIMPLEMENTED_CATALOG_LANG not in out
-    assert "OK: unlocked=" in out
+    assert "OK: LEVEL" in out
 
 
 def test_start_picker_accepts_numbers(monkeypatch, tmp_path, capsys) -> None:
@@ -283,7 +283,7 @@ def test_start_unknown_lang_id_exits(monkeypatch, tmp_path, capsys) -> None:
     assert code in (1, 2)
     assert "FAIL" in out
     assert "notalang" in out
-    assert "OK: unlocked=" not in out
+    assert "OK: LEVEL" not in out
     assert "Bank system level" not in out
     assert "STUB:" not in out
     assert "WORK:" not in out
@@ -307,7 +307,7 @@ def test_start_java_missing_javac_fails_before_session(monkeypatch, tmp_path, ca
     assert "javac" in out
     assert "PATH" in out
     assert "NEXT:" in out
-    assert "OK: unlocked=" not in out
+    assert "OK: LEVEL" not in out
     assert not session_file.is_file()
 
 

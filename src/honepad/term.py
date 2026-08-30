@@ -17,7 +17,7 @@ _DIM = "\033[2m"
 _MENU_ITEMS = (
     ("1", "run"),
     ("2", "submit (local)"),
-    ("3", "reset work"),
+    ("3", "reset / back"),
     ("4", "spec"),
     ("5", "vscode"),
     ("q", "quit"),

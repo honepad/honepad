@@ -10,7 +10,7 @@ import pytest
 
 from honepad.catalog import repo_root
 from honepad.cli import main
-from honepad.console import _read_choice, dispatch, render_banner
+from honepad.console import _confirm_unlock, _read_choice, dispatch, render_banner
 from honepad.javatest import java_ident
 from honepad.pythontest import pytest_ident
 from honepad.session import ensure_work_copy, load_session
@@ -380,10 +380,42 @@ def test_console_quit(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "1 run" in out
     assert "2 submit" in out
     assert "2 submit (local)" in out
-    assert "3 reset work" in out
+    assert "3 reset / back" in out
     assert "5 vscode" in out
     assert "OK: quit" in out
     assert "file://" in out
+
+
+def test_confirm_unlock_live_y_prefix() -> None:
+    stdin = io.StringIO("yrest")
+    stdout = io.StringIO()
+    assert _confirm_unlock(stdin, stdout, live=True) is True
+    assert stdin.read() == ""
+
+
+def test_confirm_unlock_live_yes_drains_leftover() -> None:
+    stdin = io.StringIO("yes")
+    stdout = io.StringIO()
+    assert _confirm_unlock(stdin, stdout, live=True) is True
+    assert stdin.read() == ""
+
+
+def test_confirm_unlock_live_n() -> None:
+    stdin = io.StringIO("n")
+    stdout = io.StringIO()
+    assert _confirm_unlock(stdin, stdout, live=True) is False
+
+
+def test_confirm_unlock_line_yes() -> None:
+    stdin = io.StringIO("yes\n")
+    stdout = io.StringIO()
+    assert _confirm_unlock(stdin, stdout, live=False) is True
+
+
+def test_confirm_unlock_line_yrest() -> None:
+    stdin = io.StringIO("yrest\n")
+    stdout = io.StringIO()
+    assert _confirm_unlock(stdin, stdout, live=False) is False
 
 
 def _write_python_solution(tmp_path: Path) -> Path:
@@ -491,7 +523,7 @@ def test_console_reset_back_drops_one_level(monkeypatch, tmp_path: Path, capsys)
     assert main(["console"]) == 0
     out = capsys.readouterr().out
     assert "Type back" in out
-    assert "OK: unlocked=1" in out
+    assert "OK: LEVEL 1" in out
     assert load_session()["unlocked"] == 1
     text = work.read_text(encoding="utf-8")
     assert "def create_account(" in text
@@ -510,7 +542,7 @@ def test_console_reset_all_starts_level1(monkeypatch, tmp_path: Path, capsys) ->
     assert main(["console"]) == 0
     out = capsys.readouterr().out
     assert "Type all" in out
-    assert "OK: unlocked=1" in out
+    assert "OK: LEVEL 1" in out
     after = load_session()
     assert after["unlocked"] == 1
     assert int(after["started_at"]) >= started
@@ -528,6 +560,7 @@ def test_console_reset_back_at_level1_fails(monkeypatch, tmp_path: Path, capsys)
     assert main(["console"]) == 0
     out = capsys.readouterr().out
     assert "already level 1" in out
+    assert "NEXT: already LEVEL 1" in out
     assert load_session()["unlocked"] == 1
 
 
@@ -567,7 +600,7 @@ def test_start_back_restarts_dead_clock(monkeypatch, tmp_path: Path, capsys) -> 
     out = capsys.readouterr().out
     assert load_session()["unlocked"] == 1
     assert "remaining_s=0" not in out
-    assert "unlocked=1" in out
+    assert "LEVEL 1" in out
 
 
 def test_start_back_drops_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -585,7 +618,7 @@ def test_start_back_drops_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
     capsys.readouterr()
     assert main(["start", "bank_system", "java", "--back", "--no-console"]) == 0
     out = capsys.readouterr().out
-    assert "unlocked=1" in out
+    assert "LEVEL 1" in out
     assert load_session()["unlocked"] == 1
     text = work.read_text(encoding="utf-8")
     assert "createAccount" in text
@@ -615,6 +648,56 @@ def test_console_spec(monkeypatch, tmp_path: Path, capsys) -> None:
     out = capsys.readouterr().out
     assert "level" in out.lower()
     assert "create" in out.lower()
+
+
+def test_dispatch_unknown_prints_keys() -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "python3",
+        "started_at": 100,
+        "minutes": 90,
+        "unlocked": 1,
+    }
+    buf = io.StringIO()
+    assert dispatch("9", session, buf) == 1
+    out = buf.getvalue()
+    assert "FAIL: unknown option" in out
+    assert "Keys:" in out
+    assert "1 run" in out
+    assert "2 submit" in out
+    assert "3 reset" in out
+    assert "q quit" in out
+
+
+def test_start_reset_and_back_prints_next(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--back"]) == 1
+    out = capsys.readouterr().out
+    assert "use --reset or --back" in out
+    assert "NEXT:" in out
+    assert "start --reset" in out
+
+
+def test_start_back_wrong_problem_prints_next(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    assert main(["start", "workers", "python3", "--back", "--no-console"]) == 1
+    out = capsys.readouterr().out
+    assert "--back needs the current problem" in out
+    assert "NEXT:" in out
+    assert "start bank_system python3 --back" in out
+
+
+def test_start_back_already_level1_prints_next(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    assert main(["start", "bank_system", "python3", "--back", "--no-console"]) == 1
+    out = capsys.readouterr().out
+    assert "already level 1" in out
+    assert "NEXT:" in out
+    assert "start" in out
 
 
 def test_dispatch_vscode_opens_workspace(monkeypatch, tmp_path: Path) -> None:

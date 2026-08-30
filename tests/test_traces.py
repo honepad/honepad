@@ -851,6 +851,22 @@ def test_report_from_proc_rejects_non_object_json() -> None:
         report_from_proc(proc, "bank_system", "java", 1)
 
 
+def test_report_from_proc_rejects_non_object_failed_rows() -> None:
+    proc = subprocess.CompletedProcess(
+        ["adapter"], 0, stdout='{"passed": 0, "failed": [1]}\n', stderr=""
+    )
+    with pytest.raises(RuntimeError, match="invalid JSON"):
+        report_from_proc(proc, "bank_system", "java", 1)
+
+
+def test_report_from_proc_rejects_null_failed() -> None:
+    proc = subprocess.CompletedProcess(
+        ["adapter"], 0, stdout='{"passed": 0, "failed": null}\n', stderr=""
+    )
+    with pytest.raises(RuntimeError, match="invalid JSON"):
+        report_from_proc(proc, "bank_system", "java", 1)
+
+
 def test_report_from_proc_rejects_passed_count_mismatch() -> None:
     proc = subprocess.CompletedProcess(
         ["adapter"], 0, stdout='{"passed": 99, "failed": []}\n', stderr=""
@@ -870,6 +886,16 @@ def test_report_from_proc_reads_json_after_print_prefix() -> None:
     assert report.ok
     assert report.passed == n
     assert "************500" in report.debug
+
+
+def test_report_from_proc_last_passed_object_wins() -> None:
+    n = len(load_cases("bank_system", 1))
+    stdout = '{"passed": 0, "failed": []}\n************{"passed": ' + str(n) + ', "failed": []}\n'
+    proc = subprocess.CompletedProcess(["adapter"], 0, stdout=stdout, stderr="")
+    report = report_from_proc(proc, "bank_system", "java", 1)
+    assert report.ok
+    assert report.passed == n
+    assert '{"passed": 0' in report.debug
 
 
 def test_java_work_system_out_print_still_reports(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -899,6 +925,37 @@ def test_java_work_system_out_print_still_reports(monkeypatch, tmp_path: Path, c
     assert "DEBUG:" in out
     assert "************" in out
     assert "passed=" in out
+    assert "through LEVEL 1" in out
+
+
+def test_python_work_print_still_reports(monkeypatch, tmp_path: Path, capsys) -> None:
+    from honepad.cli import main
+
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    text = (
+        repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    ).read_text(encoding="utf-8")
+    needle = "result = account.deposit(amount)"
+    assert needle in text
+    work.write_text(
+        text.replace(
+            needle,
+            'print("************")\n        ' + needle,
+            1,
+        ),
+        encoding="utf-8",
+    )
+    code = main(["run", "bank_system", "--lang", "python3", "--level", "1"])
+    out = capsys.readouterr().out
+    assert code == 0, out
+    assert "Expecting value" not in out
+    assert "DEBUG:" in out
+    assert "************" in out
+    assert "passed=" in out
+    assert "through LEVEL 1" in out
 
 
 def test_report_from_proc_rejects_nonzero_empty_failed() -> None:
