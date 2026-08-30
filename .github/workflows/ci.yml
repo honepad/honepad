@@ -1,10 +1,13 @@
 name: CI
 
+# Tests run on pull_request (and merge_group if a queue is added).
+# A green squash of an up-to-date PR is the same tree; do not rebuild
+# on push to main. workflow_dispatch is the escape hatch.
 on:
   pull_request:
-  push:
     branches: [main]
-  workflow_dispatch:
+  merge_group: {}
+  workflow_dispatch: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -52,9 +55,13 @@ jobs:
       - run: ruff format --check src tests
 
   test:
-    name: Test
+    name: Test (${{ matrix.shard }})
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [unit, script, compiled, jvm, stats]
     steps:
       - uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2
         with:
@@ -65,39 +72,50 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
-      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
-        with:
-          go-version: "1.26"
-      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
-        with:
-          toolchain: stable
-      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
-        with:
-          php-version: "8.3"
-          coverage: none
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        if: matrix.shard == 'unit' || matrix.shard == 'script' || matrix.shard == 'jvm'
         with:
           distribution: temurin
           java-version: "21"
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        if: matrix.shard == 'compiled'
+        with:
+          go-version: "1.26"
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        if: matrix.shard == 'compiled'
+        with:
+          toolchain: stable
+      - uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        if: matrix.shard == 'script'
+        with:
+          php-version: "8.3"
+          coverage: none
       - uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        if: matrix.shard == 'compiled'
         with:
           dotnet-version: "8.0.x"
       - uses: fwilhe2/setup-kotlin@ee9692514da313706b193d808526812102a344e4 # v2.0
+        if: matrix.shard == 'jvm'
         with:
           version: "2.1.21"
       - uses: swift-actions/setup-swift@7ca6abe6b3b0e8b5421b88be48feee39cbf52c6a # v2.4.0
+        if: matrix.shard == 'compiled'
         with:
           swift-version: "6.0"
       - uses: dart-lang/setup-dart@7654d458321ee25acccccfdb86cd48bd95768ff1 # v1.8.0
+        if: matrix.shard == 'script'
         with:
           sdk: stable
       - uses: coursier/setup-action@fd1707a76b027efdfb66ca79318b4d29b72e5a02 # v3.0.0
+        if: matrix.shard == 'jvm'
         with:
           apps: scala:2.13.16 scalac:2.13.16
       - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32 # v3.0.2
+        if: matrix.shard == 'script'
         with:
           version: "1.10"
       - uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        if: matrix.shard == 'compiled'
         with:
           path: |
             ~/.cargo/registry
@@ -105,16 +123,19 @@ jobs:
             ~/.nuget/packages
           key: compile-cache-${{ runner.os }}
       - name: Update apt
+        if: matrix.shard != 'unit' && matrix.shard != 'jvm'
         run: sudo apt-get update
       - name: Install script langs
-        run: sudo apt-get install -y lua5.4 tcl
+        if: matrix.shard == 'script'
+        run: sudo apt-get install -y lua5.4 tcl groovy elixir sbcl clojure
       - name: Install stats langs
+        if: matrix.shard == 'stats'
         run: sudo apt-get install -y r-base-core r-cran-jsonlite octave
       - name: Install compiled langs
+        if: matrix.shard == 'compiled'
         run: sudo apt-get install -y nim gdc gfortran fp-compiler ghc ocaml
-      - name: Install jvm/beam langs
-        run: sudo apt-get install -y groovy elixir sbcl clojure
       - name: Install GNU Smalltalk
+        if: matrix.shard == 'script'
         run: |
           set -euo pipefail
           tmp=$(mktemp -d)
@@ -126,17 +147,8 @@ jobs:
           sudo apt-get install -y unzip zip libsigsegv2
           sudo dpkg --force-depends -i "$tmp/libgst7.deb" "$tmp/gnu-smalltalk-common.deb" "$tmp/gnu-smalltalk.deb"
           gst --version
-      - run: python3 -m pip install -e ".[dev]"
-      - run: npm install -g coffeescript@2.7.0
-      - run: python3 -m pytest -n 2 --durations=15
-      # pytest covers the matrix; these are CLI smokes.
-      - run: python3 -m honepad.cli run bank_system --lang python3 --level 4
-      - run: python3 -m honepad.cli run in_memory_database --lang python3 --level 4
-      - run: python3 -m honepad.cli run file_storage --lang python3 --level 4
-      - run: python3 -m honepad.cli run workers --lang python3 --level 3
-      - run: python3 -m honepad.cli run bank_system --lang go --level 4
-      - run: python3 -m honepad.cli run bank_system --lang perl --level 4
       - name: Install PowerShell
+        if: matrix.shard == 'script'
         run: |
           set -euo pipefail
           if ! command -v pwsh >/dev/null 2>&1; then
@@ -147,8 +159,29 @@ jobs:
             sudo apt-get install -f -y
           fi
           pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()'
-      - run: bash factory/scripts/write-ledger.sh --self-test
+      - run: python3 -m pip install -e ".[dev]"
+      - name: Install CoffeeScript
+        if: matrix.shard == 'script'
+        run: npm install -g coffeescript@2.7.0
+      - name: Pytest shard
+        run: python3 factory/scripts/ci-pytest-shard.py --run ${{ matrix.shard }} -- -n 2 --durations=15
+      # pytest covers the matrix; these are CLI smokes.
+      - if: matrix.shard == 'unit'
+        run: python3 -m honepad.cli run bank_system --lang python3 --level 4
+      - if: matrix.shard == 'unit'
+        run: python3 -m honepad.cli run in_memory_database --lang python3 --level 4
+      - if: matrix.shard == 'unit'
+        run: python3 -m honepad.cli run file_storage --lang python3 --level 4
+      - if: matrix.shard == 'unit'
+        run: python3 -m honepad.cli run workers --lang python3 --level 3
+      - if: matrix.shard == 'compiled'
+        run: python3 -m honepad.cli run bank_system --lang go --level 4
+      - if: matrix.shard == 'script'
+        run: python3 -m honepad.cli run bank_system --lang perl --level 4
+      - if: matrix.shard == 'unit'
+        run: bash factory/scripts/write-ledger.sh --self-test
       - name: Next job respects human_gate
+        if: matrix.shard == 'unit'
         run: |
           python3 - <<'PY'
           import json, subprocess, sys
@@ -175,9 +208,6 @@ jobs:
       - name: Require jobs
         run: |
           set -euo pipefail
-          for r in stealth lint test; do
-            echo "$r=${{ needs[format('{0}', 'stealth')].result }}"
-          done
           test "${{ needs.stealth.result }}" = success
           test "${{ needs.lint.result }}" = success
           test "${{ needs.test.result }}" = success

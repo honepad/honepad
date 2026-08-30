@@ -1,8 +1,21 @@
+import importlib.util
 import json
 import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _shard_mod():
+    path = ROOT / "factory" / "scripts" / "ci-pytest-shard.py"
+    spec = importlib.util.spec_from_file_location("ci_pytest_shard", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_SHARD = _shard_mod()
 
 
 def test_next_job_stops_on_human_gate() -> None:
@@ -27,9 +40,27 @@ def test_next_job_stops_on_human_gate() -> None:
     assert job_lines == []
 
 
+def _ci_on_block(text: str) -> str:
+    start = text.index("\non:")
+    end = text.index("\nconcurrency:")
+    return text[start:end]
+
+
+def test_ci_does_not_rebuild_on_push_to_main() -> None:
+    text = (ROOT / ".github/workflows/ci.yml").read_text()
+    on_block = _ci_on_block(text)
+    assert "pull_request:" in on_block
+    assert "workflow_dispatch:" in on_block
+    assert "merge_group:" in on_block
+    assert "push:" not in on_block
+    assert "tags:" not in on_block
+    assert "name: CI" in text
+    assert "needs: [stealth, lint, test]" in text
+
+
 def test_ci_test_job_splits_apt_install() -> None:
     text = (ROOT / ".github/workflows/ci.yml").read_text()
-    assert text.count("apt-get update") == 1
+    assert text.count("sudo apt-get update") == 1
     assert "sudo apt-get update && sudo apt-get install -y lua5.4" not in text
     wanted = {
         "lua5.4",
@@ -57,10 +88,13 @@ def test_ci_test_job_splits_apt_install() -> None:
     assert "Install script langs" in text
     assert "Install stats langs" in text
     assert "Install compiled langs" in text
-    assert "Install jvm/beam langs" in text
     assert "Install GNU Smalltalk" in text
     assert "gnu-smalltalk_${ver}_amd64.deb" in text
     assert "Install PowerShell" in text
+    assert "matrix.shard == 'script'" in text
+    assert "matrix.shard == 'compiled'" in text
+    assert "matrix.shard == 'stats'" in text
+    assert "matrix.shard == 'jvm'" in text
 
 
 def test_ci_test_job_keeps_short_cli_smoke() -> None:
@@ -68,19 +102,49 @@ def test_ci_test_job_keeps_short_cli_smoke() -> None:
     assert "pytest covers the matrix; these are CLI smokes" in text
     runs = [line.strip() for line in text.splitlines() if "honepad.cli run" in line]
     assert runs == [
-        "- run: python3 -m honepad.cli run bank_system --lang python3 --level 4",
-        "- run: python3 -m honepad.cli run in_memory_database --lang python3 --level 4",
-        "- run: python3 -m honepad.cli run file_storage --lang python3 --level 4",
-        "- run: python3 -m honepad.cli run workers --lang python3 --level 3",
-        "- run: python3 -m honepad.cli run bank_system --lang go --level 4",
-        "- run: python3 -m honepad.cli run bank_system --lang perl --level 4",
+        "run: python3 -m honepad.cli run bank_system --lang python3 --level 4",
+        "run: python3 -m honepad.cli run in_memory_database --lang python3 --level 4",
+        "run: python3 -m honepad.cli run file_storage --lang python3 --level 4",
+        "run: python3 -m honepad.cli run workers --lang python3 --level 3",
+        "run: python3 -m honepad.cli run bank_system --lang go --level 4",
+        "run: python3 -m honepad.cli run bank_system --lang perl --level 4",
     ]
-    assert "python3 -m pytest -n 2 --durations=15" in text
+    assert "factory/scripts/ci-pytest-shard.py --run" in text
+    assert "shard: [unit, script, compiled, jvm, stats]" in text
     assert "name: Stealth" in text
     assert "name: Lint" in text
     assert "name: Next job respects human_gate" in text
     assert 'if state.get("human_gate"):' in text
     assert "- run: bash factory/scripts/next-job.sh\n" not in text
+
+
+def test_ci_pytest_shard_tokens_do_not_collide() -> None:
+    assert _SHARD.langs_in("test_javascript_bank_and_db") == ["javascript"]
+    assert _SHARD.langs_in("test_java_all_problems") == ["java"]
+    assert _SHARD.langs_in("test_csharp_all_problems") == ["csharp"]
+    assert _SHARD.langs_in("test_c_all_problems") == ["c"]
+    assert _SHARD.langs_in("test_clojure_all_problems") == ["clojure"]
+    assert _SHARD.langs_in("test_d_all_problems") == ["d"]
+    assert _SHARD.langs_in("test_db_solution_all_levels") == []
+    assert _SHARD.langs_in("test_r_all_problems") == ["r"]
+    assert _SHARD.langs_in("test_report_from_proc_rejects_non_object_json") == []
+    traces = "tests/test_traces.py"
+    assert _SHARD.assign_shard(f"{traces}::test_java_all_problems") == "jvm"
+    assert _SHARD.assign_shard(f"{traces}::test_javascript_bank_and_db") == "script"
+    assert _SHARD.assign_shard(f"{traces}::test_c_all_problems") == "compiled"
+    assert _SHARD.assign_shard(f"{traces}::test_csharp_all_problems") == "compiled"
+    assert _SHARD.assign_shard(f"{traces}::test_clojure_all_problems") == "script"
+    assert _SHARD.assign_shard(
+        "tests/test_session.py::test_java_method_includes_leading_javadoc"
+    ) == ("unit")
+
+
+def test_ci_pytest_shard_covers_collected_tests() -> None:
+    buckets = _SHARD.check_partition(_SHARD.collect_nodeids())
+    assert tuple(buckets) == _SHARD.SHARDS
+    for name, rows in buckets.items():
+        assert rows, name
+        assert all(_SHARD.assign_shard(nodeid) == name for nodeid in rows)
 
 
 def test_makefile_check_accepts_parked_human_gate() -> None:
