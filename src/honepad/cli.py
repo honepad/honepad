@@ -27,6 +27,7 @@ from honepad.session import (
 from honepad.term import (
     invocation,
     paint_spec,
+    print_fail,
     spec_line,
     start_next,
     status_fail,
@@ -55,7 +56,7 @@ def cmd_default(_args: argparse.Namespace) -> int:
     try:
         session = load_session()
     except ValueError as exc:
-        print(status_fail(f"FAIL: {exc}"))
+        print_fail(exc)
         return 1
     if session is None:
         if _can_prompt():
@@ -144,22 +145,8 @@ def _is_work_file_problem(exc: BaseException) -> bool:
     return "work file" in text or "/work/" in text or "work." in text
 
 
-def _is_unknown_lang(exc: BaseException) -> bool:
-    return str(exc).startswith("unknown language:")
-
-
-def _unknown_lang_id(exc: BaseException) -> str:
-    return str(exc).split(":", 1)[1].strip()
-
-
 def _print_fail(exc: BaseException) -> None:
-    print(status_fail(f"FAIL: {exc}"))
-    if not _is_unknown_lang(exc):
-        return
-    hint = suggest_language(_unknown_lang_id(exc), prefer=_runner_ids())
-    if hint is not None:
-        print(f"Did you mean {hint}?")
-    print(f"NEXT: {invocation()} langs")
+    print_fail(exc)
 
 
 def _check_level(problem: str, level: int) -> None:
@@ -392,7 +379,7 @@ def cmd_timer(args: argparse.Namespace) -> int:
             minutes = require_minutes(args.minutes)
             started = int(time.time())
     except ValueError as exc:
-        print(status_fail(f"FAIL: {exc}"))
+        print_fail(exc)
         return 1
     if session is not None:
         left = remaining_s(started, minutes)

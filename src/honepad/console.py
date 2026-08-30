@@ -29,10 +29,10 @@ from honepad.term import (
     gradient,
     invocation,
     paint_spec,
+    print_fail,
     render_keys,
     render_prompt,
     spec_line,
-    start_next,
     status_fail,
     status_note,
     work_line,
@@ -262,9 +262,7 @@ def _print_spec_link(problem: str, lang: str) -> None:
 
 
 def _print_fail(exc: BaseException) -> None:
-    print(status_fail(f"FAIL: {exc}"))
-    if str(exc).startswith("no runner for "):
-        print(start_next())
+    print_fail(exc)
 
 
 def _confirm_unlock(stdin: TextIO, stdout: TextIO, *, live: bool) -> bool | None:
