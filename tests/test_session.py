@@ -688,6 +688,7 @@ public class Simulation {
     assert "FAIL:" in out
     assert "timed out" in out
     assert "java" in out
+    assert str(work) in out
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
 

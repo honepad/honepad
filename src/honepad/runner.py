@@ -213,6 +213,7 @@ def run_prepare_cmd(
     cwd: Path | None = None,
     lang_id: str = "",
     timeout: float = COMPILE_TIMEOUT_S,
+    src: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(
@@ -226,7 +227,8 @@ def run_prepare_cmd(
     except FileNotFoundError as exc:
         raise RuntimeError(f"{lang_id}: {argv[0]} not on PATH") from exc
     except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(f"{lang_id} timed out after {timeout}s") from exc
+        prefix = f"{src}: " if src is not None else ""
+        raise RuntimeError(f"{prefix}{lang_id} timed out after {timeout}s") from exc
 
 
 def compile_fail(src: Path, proc: subprocess.CompletedProcess[str], fallback: str) -> RuntimeError:
@@ -238,6 +240,7 @@ def run_compiled(
     lang_id: str,
     level: int,
     prepare,
+    src: Path | None = None,
 ) -> Report:
     """prepare(tmpdir: Path, cases_path: str) -> list[str]  (argv to run in tmpdir)."""
     cases = load_cases(problem, level)
@@ -246,7 +249,7 @@ def run_compiled(
         cases_path = tmpdir / "cases.json"
         cases_path.write_text(json.dumps(cases), encoding="utf-8")
         argv = prepare(tmpdir, str(cases_path))
-        proc = run_prepare_cmd(argv, tmpdir, lang_id, timeout=RUN_TIMEOUT_S)
+        proc = run_prepare_cmd(argv, tmpdir, lang_id, timeout=RUN_TIMEOUT_S, src=src)
     return report_from_proc(proc, problem, lang_id, level)
 
 
@@ -429,7 +432,7 @@ def run_haskell(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "ghc compile failed")
         return [str(tmpdir / "run"), cases_path]
 
-    return run_compiled(problem, "haskell", level, prepare)
+    return run_compiled(problem, "haskell", level, prepare, src=src)
 
 
 def ocaml_entry(problem: str, kind: str) -> Path:
@@ -488,7 +491,7 @@ def run_scala(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "scalac failed")
         return [_scala(), "-nc", "-classpath", ".", "Adapter", cases_path, class_name]
 
-    return run_compiled(problem, "scala", level, prepare)
+    return run_compiled(problem, "scala", level, prepare, src=src)
 
 
 def d_entry(problem: str, kind: str) -> Path:
@@ -526,7 +529,7 @@ def run_d(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "d compile failed")
         return [str(tmpdir / "run"), cases_path]
 
-    return run_compiled(problem, "d", level, prepare)
+    return run_compiled(problem, "d", level, prepare, src=src)
 
 
 def run_ocaml(problem: str, level: int, kind: str = "solution") -> Report:
@@ -546,7 +549,7 @@ def run_ocaml(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "ocaml compile failed")
         return [str(tmpdir / "run"), cases_path]
 
-    return run_compiled(problem, "ocaml", level, prepare)
+    return run_compiled(problem, "ocaml", level, prepare, src=src)
 
 
 def run_erlang(problem: str, level: int, kind: str = "solution") -> Report:
@@ -827,7 +830,7 @@ def run_go(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "go compile failed")
         return [str(tmpdir / "run"), cases_path]
 
-    return run_compiled(problem, "go", level, prepare)
+    return run_compiled(problem, "go", level, prepare, src=src)
 
 
 def rust_entry(problem: str, kind: str) -> Path:
@@ -870,7 +873,7 @@ def run_rust(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "cargo compile failed")
         return [str(tmpdir / "target" / "debug" / "honepadrun"), cases_path]
 
-    return run_compiled(problem, "rust", level, prepare)
+    return run_compiled(problem, "rust", level, prepare, src=src)
 
 
 def java_entry(problem: str, kind: str) -> Path:
@@ -895,7 +898,7 @@ def run_java(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "javac failed")
         return ["java", "Adapter", cases_path, class_name]
 
-    return run_compiled(problem, "java", level, prepare)
+    return run_compiled(problem, "java", level, prepare, src=src)
 
 
 def csharp_entry(problem: str, kind: str) -> Path:
@@ -939,7 +942,7 @@ def run_csharp(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "dotnet compile failed")
         return [str(tmpdir / "out" / "honepadrun"), cases_path, class_name]
 
-    return run_compiled(problem, "csharp", level, prepare)
+    return run_compiled(problem, "csharp", level, prepare, src=src)
 
 
 def fsharp_entry(problem: str, kind: str) -> Path:
@@ -965,7 +968,7 @@ def run_fsharp(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "dotnet compile failed")
         return [str(tmpdir / "out" / "honepadrun"), cases_path, class_name]
 
-    return run_compiled(problem, "fsharp", level, prepare)
+    return run_compiled(problem, "fsharp", level, prepare, src=src)
 
 
 def freepascal_entry(problem: str, kind: str) -> Path:
@@ -996,7 +999,7 @@ def run_freepascal(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "fpc compile failed")
         return [str(tmpdir / "run"), cases_path]
 
-    return run_compiled(problem, "freepascal", level, prepare)
+    return run_compiled(problem, "freepascal", level, prepare, src=src)
 
 
 def run_typescript(problem: str, level: int, kind: str = "solution") -> Report:
@@ -1065,7 +1068,7 @@ def run_kotlin(problem: str, level: int, kind: str = "solution") -> Report:
             class_name,
         ]
 
-    return run_compiled(problem, "kotlin", level, prepare)
+    return run_compiled(problem, "kotlin", level, prepare, src=src)
 
 
 def cpp_entry(problem: str, kind: str) -> Path:
@@ -1105,7 +1108,7 @@ def run_cpp(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "c++ compile failed")
         return [str(tmpdir / "run"), cases_path]
 
-    return run_compiled(problem, "cpp", level, prepare)
+    return run_compiled(problem, "cpp", level, prepare, src=src)
 
 
 def c_entry(problem: str, kind: str) -> Path:
@@ -1154,7 +1157,7 @@ def run_nim(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "nim compile failed")
         return [str(tmpdir / "run"), cases_path]
 
-    return run_compiled(problem, "nim", level, prepare)
+    return run_compiled(problem, "nim", level, prepare, src=src)
 
 
 def fortran_entry(problem: str, kind: str) -> Path:
@@ -1205,7 +1208,7 @@ def run_fortran(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "gfortran compile failed")
         return [str(tmpdir / "run"), cases_path]
 
-    return run_compiled(problem, "fortran", level, prepare)
+    return run_compiled(problem, "fortran", level, prepare, src=src)
 
 
 def run_c(problem: str, level: int, kind: str = "solution") -> Report:
@@ -1244,7 +1247,7 @@ def run_c(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "c compile failed")
         return [str(tmpdir / "run"), cases_path]
 
-    return run_compiled(problem, "c", level, prepare)
+    return run_compiled(problem, "c", level, prepare, src=src)
 
 
 def swift_entry(problem: str, kind: str) -> Path:
@@ -1288,7 +1291,7 @@ def run_swift(problem: str, level: int, kind: str = "solution") -> Report:
             raise compile_fail(src, compiled, "swiftc failed")
         return [str(tmpdir / "run"), cases_path]
 
-    return run_compiled(problem, "swift", level, prepare)
+    return run_compiled(problem, "swift", level, prepare, src=src)
 
 
 _RUNNERS = {

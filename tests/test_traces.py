@@ -1045,7 +1045,7 @@ def test_run_prepare_cmd_times_out() -> None:
 
 def test_run_prepare_cmd_default_timeout_is_compile_budget() -> None:
     assert COMPILE_TIMEOUT_S > RUN_TIMEOUT_S
-    assert run_prepare_cmd.__defaults__[-1] == COMPILE_TIMEOUT_S
+    assert run_prepare_cmd.__defaults__[-2] == COMPILE_TIMEOUT_S
 
 
 def test_compile_fail_prefixes_src() -> None:
@@ -1078,6 +1078,7 @@ def _execute_argv_after_prepare(monkeypatch, run_fn, *args) -> list[str]:
         cwd: Path | None = None,
         lang_id: str = "",
         timeout: float = COMPILE_TIMEOUT_S,
+        src: Path | None = None,
     ):
         if timeout == RUN_TIMEOUT_S:
             captured["argv"] = list(argv)
@@ -1085,7 +1086,7 @@ def _execute_argv_after_prepare(monkeypatch, run_fn, *args) -> list[str]:
             return subprocess.CompletedProcess(
                 argv, 0, stdout=f'{{"passed": {n}, "failed": []}}\n', stderr=""
             )
-        return real(argv, cwd, lang_id, timeout)
+        return real(argv, cwd, lang_id, timeout, src=src)
 
     monkeypatch.setattr("honepad.runner.run_prepare_cmd", spy)
     run_fn(*args)
