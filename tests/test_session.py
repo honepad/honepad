@@ -1892,6 +1892,51 @@ def test_submit_rejects_patched_os_exit_fake_json(monkeypatch, tmp_path: Path, c
     assert load_session()["unlocked"] == 1
 
 
+def test_submit_rejects_fake_json_on_fd3_os_exit(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        f"import os\nos.write(3, {payload.encode()!r} + b'\\n')\nos._exit(0)\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+def test_submit_rejects_import_time_values_differ_patch(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text(
+        "import honepad.runner\n"
+        "honepad.runner._values_differ = lambda *a, **k: False\n"
+        "class Simulation:\n"
+        "    def __getattr__(self, name):\n"
+        "        return lambda *a, **k: None\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "UNLOCKED" not in out
+    assert load_session()["unlocked"] == 1
+
+
 def test_java_unlock_merge_targets_simulation_not_last_brace(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:

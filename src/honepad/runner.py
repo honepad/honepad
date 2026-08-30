@@ -99,8 +99,9 @@ def run_python_body(
     level: int,
     kind: str = "solution",
 ) -> Report:
-    cls = _load_python_class(python_entry(problem, kind), class_name_for(problem))
     cases = load_cases(problem, level)
+    differ = _values_differ
+    cls = _load_python_class(python_entry(problem, kind), class_name_for(problem))
     failed: list[Fail] = []
     passed = 0
     for case in cases:
@@ -120,7 +121,7 @@ def run_python_body(
                     Fail(case["id"], i, method, args, expected, f"exc:{type(exc).__name__}")
                 )
                 break
-            if _values_differ(actual, expected):
+            if differ(actual, expected):
                 failed.append(Fail(case["id"], i, method, args, expected, actual))
                 break
         else:
