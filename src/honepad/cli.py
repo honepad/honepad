@@ -325,11 +325,15 @@ def cmd_run(args: argparse.Namespace) -> int:
         if may_unlock:
             try:
                 ensure_work_copy(args.problem, lang, reset=False, level=nxt, require_merge=True)
-                write_workspace(args.problem, lang, nxt)
             except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
                 print(status_fail(f"FAIL: {exc}"))
                 print(work_reset_next())
                 return 1
+            workspace_exc: BaseException | None = None
+            try:
+                write_workspace(args.problem, lang, nxt)
+            except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
+                workspace_exc = exc
             print(status_ok("OK"))
             unlocked = unlock_next(session)
             if unlocked is not None:
@@ -337,6 +341,8 @@ def cmd_run(args: argparse.Namespace) -> int:
                 spec = problem_dir(args.problem) / "spec" / f"level{unlocked}.md"
                 if spec.is_file():
                     print(paint_spec(spec.read_text(encoding="utf-8")).rstrip() + "\n")
+            if workspace_exc is not None:
+                print(status_note(f"NOTE: workspace {workspace_exc}"))
             return 0
         print(status_ok("OK"))
         print(

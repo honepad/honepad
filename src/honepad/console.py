@@ -511,6 +511,7 @@ def _read_choice(
                     continue
                 stdout.write("\r\033[K\n")
                 stdout.flush()
+                _drain_pending(stdin)
                 return ch
             _reload_session(session)
             left = _left()

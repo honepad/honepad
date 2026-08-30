@@ -448,6 +448,24 @@ def test_live_menu_key_does_not_need_enter() -> None:
     assert got == "1"
 
 
+def test_live_menu_key_drains_leftover() -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 1,
+        "minutes": 90,
+        "unlocked": 2,
+    }
+    stdin = _pipe_stdin(b"12")
+    try:
+        got = _read_choice(session, stdin, io.StringIO(), live=True, clock_fn=lambda: 12)
+        leftover = stdin.read()
+    finally:
+        stdin.close()
+    assert got == "1"
+    assert leftover == ""
+
+
 def test_live_read_choice_timeout_reprints_time_up(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     session = {
@@ -639,6 +657,26 @@ def test_console_run_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> Non
     assert "2 submit" in out
     assert out.count("LEVEL 1") >= 1
     assert out.count("honepad  bank_system") == 1
+
+
+def test_live_menu_leftover_keys_do_not_submit(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    _write_python_solution(tmp_path)
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    stdin = _pipe_stdin(b"12y")
+    stdout = io.StringIO()
+    try:
+        code = loop_console(session, stdin=stdin, stdout=stdout, live=True)
+    finally:
+        stdin.close()
+    out = stdout.getvalue() + capsys.readouterr().out
+    assert code == 0
+    assert "UNLOCKED" not in out
+    assert load_session()["unlocked"] == 1
+    assert "passed=" in out
 
 
 def test_console_two_runs_keep_one_banner(monkeypatch, tmp_path: Path, capsys) -> None:

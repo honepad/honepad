@@ -171,6 +171,30 @@ def test_run_submit_flag_unlocks(monkeypatch, tmp_path: Path, capsys) -> None:
     assert load_session()["unlocked"] == 2
 
 
+def test_submit_unlocks_when_workspace_write_fails(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    src = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    work.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise OSError("workspace boom")
+
+    monkeypatch.setattr("honepad.cli.write_workspace", boom)
+    code = main(["run", "bank_system", "--submit"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert load_session()["unlocked"] == 2
+    assert "def top_spenders" in work.read_text(encoding="utf-8")
+    assert "Traceback" not in out
+    assert "UNLOCKED: level 2" in out
+    assert "OK" in out
+    assert "NOTE:" in out
+    assert "workspace boom" in out
+
+
 def test_stub_runs_do_not_unlock_next_level(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
@@ -2347,6 +2371,44 @@ def test_js_unlock_merge_ignores_brace_in_string() -> None:
     merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
     assert 'note = "{"' in merged
     assert "topSpenders" in merged
+
+
+def test_js_unlock_merge_inserts_method_when_call_exists() -> None:
+    work = """class Simulation {
+  constructor() {}
+  createAccount(t, id) { return true; }
+  deposit(t, id, amount) { this.topSpenders(t, 1); return 0; }
+  transfer(t, a, b, amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/javascript/problems/bank_system/stub.js").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
+    merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+    assert "this.topSpenders(t, 1)" in merged
+    decls = [
+        line.strip()
+        for line in merged.splitlines()
+        if line.strip().startswith("topSpenders(") and "{" in line
+    ]
+    assert decls
+    assert "not implemented" in decls[0]
+
+
+def test_java_unlock_merge_inserts_method_when_call_exists() -> None:
+    work = """public class Simulation {
+  public Simulation() {}
+  public Boolean createAccount(long t, String id) { return true; }
+  public Integer deposit(long t, String id, int amount) { this.topSpenders(t, 1); return 0; }
+  public Integer transfer(long t, String a, String b, int amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("java"))
+    merged = merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    assert "this.topSpenders(t, 1)" in merged
+    assert "public List<String> topSpenders" in merged
 
 
 def test_js_unlock_merge_ignores_brace_in_template() -> None:
