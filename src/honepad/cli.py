@@ -65,7 +65,7 @@ def cmd_default(_args: argparse.Namespace) -> int:
                     problem=None,
                     lang=None,
                     level=None,
-                    minutes=90,
+                    minutes=None,
                     reset=False,
                     back=False,
                     no_console=False,
@@ -73,7 +73,7 @@ def cmd_default(_args: argparse.Namespace) -> int:
             )
         _print_start_usage()
         return 1
-    return cmd_console(argparse.Namespace(problem=None, lang=None, minutes=90))
+    return cmd_console(argparse.Namespace(problem=None, lang=None, minutes=None))
 
 
 def _print_start_usage() -> None:

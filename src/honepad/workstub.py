@@ -125,8 +125,6 @@ def naming_for(lang_id: str) -> str:
 
 def _js_declares_line(line: str, name: str, nxt: str | None = None) -> bool:
     stripped = line.strip()
-    if stripped.endswith(";"):
-        return False
     body = stripped
     if body.startswith("async "):
         body = body[len("async ") :].lstrip()
@@ -134,6 +132,8 @@ def _js_declares_line(line: str, name: str, nxt: str | None = None) -> bool:
         return False
     if "{" in body:
         return True
+    if stripped.endswith(";"):
+        return False
     return bool(nxt) and nxt.strip().startswith("{")
 
 

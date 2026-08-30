@@ -1563,6 +1563,26 @@ def test_start_without_minutes_keeps_saved_duration(monkeypatch, tmp_path: Path,
     assert after["started_at"] == first["started_at"]
 
 
+@pytest.mark.parametrize("argv", ([], ["console"]))
+def test_bare_honepad_keeps_saved_minutes(
+    monkeypatch, tmp_path: Path, capsys, argv: list[str]
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert (
+        main(["start", "bank_system", "python3", "--minutes", "30", "--reset", "--no-console"]) == 0
+    )
+    first = load_session()
+    assert first is not None
+    assert first["minutes"] == 30
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
+    assert main(argv) == 0
+    after = load_session()
+    assert after is not None
+    assert after["minutes"] == 30
+    assert after["started_at"] == first["started_at"]
+
+
 @pytest.mark.parametrize(
     "argv",
     (["console", "--minutes", "30"], ["vscode", "--minutes", "30", "--no-open"]),
@@ -2616,6 +2636,36 @@ def test_js_unlock_merge_keeps_allman_methods() -> None:
     assert _decl_count("deposit") == 1
     assert _decl_count("transfer") == 1
     assert "topSpenders(t, 1)" in merged
+    top = [
+        line.strip()
+        for line in merged.splitlines()
+        if line.strip().startswith("topSpenders(") and "{" in line
+    ]
+    assert len(top) == 1
+    assert "not implemented" in top[0]
+
+
+def test_js_unlock_merge_keeps_oneline_methods() -> None:
+    work = """class Simulation {
+  constructor() {}
+  createAccount(timestamp, account_id) { return true; };
+  deposit(timestamp, account_id, amount) { this.topSpenders(t, 1); return 0; };
+  transfer(timestamp, source_account_id, target_account_id, amount) { return 0; };
+}
+"""
+    full = (repo_root() / "langs/javascript/problems/bank_system/stub.js").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
+    merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+
+    def _decl_count(name: str) -> int:
+        return sum(1 for line in merged.splitlines() if line.strip().startswith(f"{name}("))
+
+    assert _decl_count("createAccount") == 1
+    assert _decl_count("deposit") == 1
+    assert _decl_count("transfer") == 1
+    assert "this.topSpenders(t, 1)" in merged
     top = [
         line.strip()
         for line in merged.splitlines()
