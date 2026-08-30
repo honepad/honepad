@@ -124,13 +124,24 @@ def naming_for(lang_id: str) -> str:
 
 
 def _declares(text: str, ext: str, name: str) -> bool:
+    lines = _code_lines(text, ext)
     if ext == "java" or ext in {"js", "ts"}:
-        return f"{name}(" in text
+        needle = f"{name}("
+        for line in lines:
+            idx = 0
+            while True:
+                pos = line.find(needle, idx)
+                if pos < 0:
+                    break
+                if pos == 0 or not (line[pos - 1].isalnum() or line[pos - 1] == "_"):
+                    return True
+                idx = pos + 1
+        return False
     if ext == "py":
-        return f"def {name}(" in text
+        return any(f"def {name}(" in line for line in lines)
     if ext == "rb":
-        return f"def {name}(" in text or f"def {name} " in text
-    return any(token in text for token in _name_forms(name))
+        return any(f"def {name}(" in line or f"def {name} " in line for line in lines)
+    return any(token in line for line in lines for token in _name_forms(name))
 
 
 def _slice_java(text: str, allowed: set[str], class_name: str) -> str:

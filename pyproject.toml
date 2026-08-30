@@ -13,7 +13,7 @@ authors = [{ name = "Sebastien Tardif" }]
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "ruff>=0.8"]
+dev = ["pytest>=8.0", "ruff>=0.16.5"]
 
 [project.scripts]
 honepad = "honepad.cli:main"

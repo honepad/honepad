@@ -248,8 +248,11 @@ def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Pa
         f"URI: {file_uri(work)}",
         "",
         "VS Code: Terminal > Run Task > Run public tests, or Submit (unlock next level).",
-        f"`{sys.executable} -m honepad run {problem} --lang {lang}` does not unlock.",
-        f"`{sys.executable} -m honepad submit {problem} --lang {lang}` unlocks the next level.",
+        f"`{sys.executable} -m honepad run {problem} --lang {lang} --kind work` does not unlock.",
+        (
+            f"`{sys.executable} -m honepad submit {problem} --lang {lang} "
+            f"--kind work` unlocks the next level."
+        ),
         "Submit asks y / n (console) or a VS Code pick (task input) before unlock.",
         "",
     ]
@@ -281,7 +284,7 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
             "label": "Run public tests",
             "type": "shell",
             "command": sys.executable,
-            "args": ["-m", "honepad", "run", problem, "--lang", lang],
+            "args": ["-m", "honepad", "run", problem, "--lang", lang, "--kind", "work"],
             "group": {"kind": "test", "isDefault": True},
             "presentation": {"reveal": "always", "panel": "shared"},
             "problemMatcher": [],
@@ -297,6 +300,8 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
                 problem,
                 "--lang",
                 lang,
+                "--kind",
+                "work",
                 "--confirm",
                 "${input:unlockConfirm}",
             ],

@@ -73,6 +73,58 @@
     ]
   },
   {
+    "id": "l2-zero-outgoing",
+    "level": 2,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "create_account",
+        "a": [
+          2,
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          3,
+          "acc1",
+          1000
+        ],
+        "e": 1000
+      },
+      {
+        "m": "transfer",
+        "a": [
+          4,
+          "acc1",
+          "acc2",
+          500
+        ],
+        "e": 500
+      },
+      {
+        "m": "top_spenders",
+        "a": [
+          5,
+          2
+        ],
+        "e": [
+          "acc1(500)",
+          "acc2(0)"
+        ]
+      }
+    ]
+  },
+  {
     "id": "l2-tie",
     "level": 2,
     "calls": [

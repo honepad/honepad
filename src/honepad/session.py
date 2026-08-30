@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -57,6 +58,8 @@ def ensure_work_copy(
 ) -> Path:
     dest = work_src(problem, lang_id)
     dest.parent.mkdir(parents=True, exist_ok=True)
+    if dest.is_symlink():
+        raise RuntimeError(f"work file is a symlink: {dest}")
     row = language(lang_id)
     ext = str(row["ext"])
     stub = repo_root() / "langs" / lang_id / "problems" / problem / f"stub.{ext}"
@@ -120,22 +123,31 @@ def load_session(path: Path | None = None) -> dict[str, Any] | None:
         if key not in payload:
             raise ValueError(f"{target} missing {key}")
     try:
-        payload["started_at"] = int(payload["started_at"])
-        payload["minutes"] = int(payload["minutes"])
-        payload["unlocked"] = int(payload["unlocked"])
-    except (TypeError, ValueError) as exc:
+        started_at = int(payload["started_at"])
+        minutes = int(payload["minutes"])
+        unlocked = int(payload["unlocked"])
+    except (TypeError, ValueError, OverflowError) as exc:
         raise ValueError(f"{target} {exc}") from exc
+    if minutes < 1:
+        raise ValueError(f"{target} minutes must be >= 1")
     problem = str(payload["problem"])
     lang = str(payload["lang"])
     if not _single_segment(problem) or problem not in problems():
         raise ValueError(f"invalid problem {problem!r}")
     try:
         language(lang)
-    except KeyError as exc:
+    except (KeyError, ValueError) as exc:
         raise ValueError(f"unknown language: {lang}") from exc
-    payload["problem"] = problem
-    payload["lang"] = lang
-    return payload
+    top = max_level(problem)
+    if unlocked < 1 or unlocked > top:
+        raise ValueError(f"{target} unlocked must be 1..{top}")
+    return {
+        "problem": problem,
+        "lang": lang,
+        "started_at": started_at,
+        "minutes": minutes,
+        "unlocked": unlocked,
+    }
 
 
 def _single_segment(name: str) -> bool:
@@ -149,8 +161,32 @@ def _single_segment(name: str) -> bool:
 def save_session(session: dict[str, Any], path: Path | None = None) -> Path:
     target = path or session_path()
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(json.dumps(session, indent=2) + "\n", encoding="utf-8")
+    payload = {
+        "problem": session["problem"],
+        "lang": session["lang"],
+        "started_at": int(session["started_at"]),
+        "minutes": int(session["minutes"]),
+        "unlocked": int(session["unlocked"]),
+    }
+    fd, tmp_name = tempfile.mkstemp(prefix=".session.", suffix=".tmp", dir=str(target.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, indent=2) + "\n")
+        os.replace(tmp_name, target)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
     return target
+
+
+def require_minutes(minutes: int) -> int:
+    value = int(minutes)
+    if value < 1:
+        raise ValueError("minutes must be >= 1")
+    return value
 
 
 def new_session(problem: str, lang: str, minutes: int = 90) -> dict[str, Any]:
@@ -158,7 +194,7 @@ def new_session(problem: str, lang: str, minutes: int = 90) -> dict[str, Any]:
         "problem": problem,
         "lang": lang,
         "started_at": int(time.time()),
-        "minutes": minutes,
+        "minutes": require_minutes(minutes),
         "unlocked": 1,
     }
 
@@ -180,7 +216,7 @@ def ensure_session(
     restarted = False
     if left == 0:
         current["started_at"] = int(time.time())
-        current["minutes"] = minutes
+        current["minutes"] = require_minutes(minutes)
         restarted = True
     save_session(current)
     current["clock_restarted"] = restarted
@@ -220,3 +256,22 @@ def restart_all(problem: str, lang: str, minutes: int = 90) -> dict[str, Any]:
 
 def slice_work_to_level(problem: str, lang_id: str, level: int) -> Path:
     return ensure_work_copy(problem, lang_id, reset=True, level=level)
+
+
+def drop_level(session: dict[str, Any], minutes: int | None = None) -> tuple[dict[str, Any], Path]:
+    from honepad.workspace import write_workspace
+
+    unlocked = int(session["unlocked"])
+    session = lock_to_level(session, unlocked - 1)
+    problem = str(session["problem"])
+    lang_id = str(session["lang"])
+    session = ensure_session(
+        problem,
+        lang_id,
+        minutes=int(session["minutes"]) if minutes is None else minutes,
+        reset=False,
+    )
+    unlocked = int(session["unlocked"])
+    work = slice_work_to_level(problem, lang_id, unlocked)
+    write_workspace(problem, lang_id, unlocked)
+    return session, work

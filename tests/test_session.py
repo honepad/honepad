@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from honepad.catalog import language, repo_root
+from honepad.catalog import language, problems, repo_root
 from honepad.cli import main
 from honepad.runner import _RUNNERS
-from honepad.session import ensure_work_copy, load_session, remaining_s, work_src
+from honepad.session import ensure_work_copy, load_session, remaining_s, save_session, work_src
 from honepad.workstub import (
     _java_method,
     class_name_for,
@@ -16,6 +16,15 @@ from honepad.workstub import (
     methods_through_level,
     naming_for,
 )
+
+
+def test_class_name_for_covers_every_catalog_problem() -> None:
+    ids = problems()
+    assert ids
+    for problem in ids:
+        name = class_name_for(problem)
+        assert name
+        assert name.isidentifier()
 
 
 def test_java_method_includes_leading_javadoc() -> None:
@@ -1082,6 +1091,7 @@ def test_run_level_zero_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None
     assert code == 1
     out = capsys.readouterr().out
     assert "FAIL:" in out
+    assert "1.." in out
     assert "\nOK\n" not in out
     assert not out.strip().endswith("OK")
     assert "UNLOCKED" not in out
@@ -1158,6 +1168,172 @@ def test_load_session_rejects_unknown_problem(monkeypatch, tmp_path: Path, capsy
     assert "not-a-problem" in out
     with pytest.raises(ValueError, match="problem"):
         load_session()
+
+
+def test_load_session_inf_started_at_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        '{"problem": "bank_system", "lang": "python3",'
+        ' "started_at": 1e309, "minutes": 90, "unlocked": 1}\n',
+        encoding="utf-8",
+    )
+    code = main(["timer"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "Traceback" not in out
+    with pytest.raises(ValueError):
+        load_session()
+
+
+def test_load_session_rejects_unlocked_past_max(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 99,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    code = main(["console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "Traceback" not in out
+    with pytest.raises(ValueError, match="unlocked"):
+        load_session()
+
+
+def test_load_session_rejects_minutes_zero(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 0,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    code = main(["timer"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "Traceback" not in out
+    with pytest.raises(ValueError, match="minutes"):
+        load_session()
+
+
+def test_start_minutes_zero_does_not_write_session(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    code = main(["start", "bank_system", "python3", "--minutes", "0", "--no-console"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL" in out
+    assert "minutes" in out
+    assert "Traceback" not in out
+    assert not session_file.is_file()
+
+
+def test_save_session_drops_unknown_keys(monkeypatch, tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+                "evil": "/etc/passwd",
+                "clock_restarted": True,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    session = load_session()
+    assert session is not None
+    assert "evil" not in session
+    assert "clock_restarted" not in session
+    save_session(session)
+    written = json.loads(session_file.read_text(encoding="utf-8"))
+    assert "evil" not in written
+    assert "clock_restarted" not in written
+    assert set(written) == {"problem", "lang", "started_at", "minutes", "unlocked"}
+
+
+def test_reset_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    original = solution.read_text(encoding="utf-8")
+    work.unlink()
+    work.symlink_to(solution)
+    try:
+        code = main(["start", "bank_system", "python3", "--reset", "--no-console"])
+        captured = capsys.readouterr()
+        out = captured.out + captured.err
+        assert code == 1
+        assert "FAIL" in out
+        assert "Traceback" not in out
+        assert solution.read_text(encoding="utf-8") == original
+        assert work.is_symlink()
+    finally:
+        if solution.read_text(encoding="utf-8") != original:
+            solution.write_text(original, encoding="utf-8")
+
+
+def test_loop_console_bad_json_keeps_last_session(monkeypatch, tmp_path: Path) -> None:
+    from honepad.console import loop_console
+
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session = {
+        "problem": "bank_system",
+        "lang": "python3",
+        "started_at": 1_700_000_000,
+        "minutes": 90,
+        "unlocked": 1,
+    }
+    session_file.write_text(json.dumps(session) + "\n", encoding="utf-8")
+
+    class CorruptThenQuit(io.StringIO):
+        def readline(self, *args: object, **kwargs: object) -> str:
+            session_file.write_text("{not-json\n", encoding="utf-8")
+            return super().readline(*args, **kwargs)
+
+    stdout = io.StringIO()
+    code = loop_console(
+        dict(session),
+        stdin=CorruptThenQuit("\nq\n"),
+        stdout=stdout,
+        live=False,
+    )
+    out = stdout.getvalue()
+    assert code == 0
+    assert "OK: quit" in out
+    assert "Traceback" not in out
 
 
 def _later_method_tokens(problem: str, lang: str) -> list[str]:
@@ -1416,6 +1592,50 @@ def test_submit_class_name_in_comment_does_not_unlock(monkeypatch, tmp_path: Pat
     assert load_session()["unlocked"] == 1
     assert work.read_text(encoding="utf-8") == "# Simulation notes\n"
     assert "def " not in work.read_text(encoding="utf-8")
+
+
+def test_submit_comment_method_name_still_merges_java(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    text = work.read_text(encoding="utf-8")
+    assert "topSpenders" not in text
+    work.write_text(
+        text.replace(
+            "public class Simulation {",
+            "public class Simulation {\n    // topSpenders(\n",
+        ),
+        encoding="utf-8",
+    )
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED: level 2" in out
+    after = work.read_text(encoding="utf-8")
+    assert "public List<String> topSpenders" in after
+
+
+def test_submit_comment_method_name_still_merges_python(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    text = work.read_text(encoding="utf-8")
+    assert "def top_spenders(self" not in text
+    work.write_text(
+        text.replace(
+            "class Simulation:",
+            "class Simulation:\n    # def top_spenders(\n",
+        ),
+        encoding="utf-8",
+    )
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED: level 2" in out
+    after = work.read_text(encoding="utf-8")
+    assert "def top_spenders(self" in after
 
 
 def test_python_syntax_error_includes_line_or_token(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -1827,6 +2047,51 @@ def test_submit_rejects_patched_os_exit_fake_json(monkeypatch, tmp_path: Path, c
         "import os\n"
         f"os._exit = lambda _rc: os.write(1, {payload.encode()!r} + b'\\n')\n"
         "class Simulation:\n    pass\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "UNLOCKED" not in out
+    assert load_session()["unlocked"] == 1
+
+
+def test_submit_rejects_fake_json_on_fd3_os_exit(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        f"import os\nos.write(3, {payload.encode()!r} + b'\\n')\nos._exit(0)\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+def test_submit_rejects_import_time_values_differ_patch(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text(
+        "import honepad.runner\n"
+        "honepad.runner._values_differ = lambda *a, **k: False\n"
+        "class Simulation:\n"
+        "    def __getattr__(self, name):\n"
+        "        return lambda *a, **k: None\n",
         encoding="utf-8",
     )
     code = main(["submit", "bank_system"])

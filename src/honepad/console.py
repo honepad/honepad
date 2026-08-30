@@ -12,14 +12,13 @@ from typing import Any, TextIO
 from honepad.catalog import language
 from honepad.runner import _RUNNERS
 from honepad.session import (
+    drop_level,
     ensure_session,
     ensure_work_copy,
     load_session,
-    lock_to_level,
     note_clock_restarted,
     remaining_s,
     restart_all,
-    slice_work_to_level,
     work_src,
 )
 from honepad.term import (
@@ -73,7 +72,7 @@ def cmd_console(args: argparse.Namespace) -> int:
             reset=False,
             level=int(session["unlocked"]),
         )
-    except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
+    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
         _print_fail(exc)
         return 1
     return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
@@ -100,9 +99,24 @@ def cmd_vscode(args: argparse.Namespace) -> int:
             print("OK: wrote workspace")
             return 0
         return open_vscode(path)
-    except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
+    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
         _print_fail(exc)
         return 1
+
+
+def _reload_session(session: dict[str, Any], stdout: TextIO | None = None) -> dict[str, Any]:
+    try:
+        loaded = load_session()
+    except ValueError as exc:
+        if stdout is not None:
+            stdout.write(status_fail(f"FAIL: {exc}") + "\n")
+            stdout.flush()
+        return session
+    if loaded is None:
+        return session
+    session.clear()
+    session.update(loaded)
+    return session
 
 
 def loop_console(
@@ -118,7 +132,7 @@ def loop_console(
     shown_level = int(session["unlocked"])
     try:
         while True:
-            session = load_session() or session
+            session = _reload_session(session, stdout)
             level_now = int(session["unlocked"])
             if not bannered:
                 stdout.write(render_banner(session) + "\n")
@@ -149,7 +163,11 @@ def loop_console(
                 if confirmed is False:
                     continue
                 stdout.write("\n")
-                last = _apply_reset(confirmed, session, stdout)
+                try:
+                    last = _apply_reset(confirmed, session, stdout)
+                except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
+                    stdout.write(status_fail(f"FAIL: {exc}") + "\n")
+                    last = 1
                 stdout.write("\n")
                 continue
             if choice in {"2", "submit"}:
@@ -200,7 +218,7 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
         stdout.write(f"Keys: {render_keys()}\n")
         stdout.flush()
         return 1
-    except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
+    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
         stdout.write(status_fail(f"FAIL: {exc}") + "\n")
         stdout.flush()
         return 1
@@ -312,20 +330,12 @@ def _reset_back(session: dict[str, Any], stdout: TextIO) -> int:
         stdout.write("NEXT: already LEVEL 1\n")
         stdout.flush()
         return 1
-    lock_to_level(session, unlocked - 1)
-    nxt = ensure_session(
-        str(session["problem"]),
-        str(session["lang"]),
-        minutes=int(session["minutes"]),
-        reset=False,
-    )
+    nxt, work = drop_level(session, minutes=int(session["minutes"]))
     session.clear()
     session.update(nxt)
-    work = slice_work_to_level(str(session["problem"]), str(session["lang"]), unlocked - 1)
-    write_workspace(str(session["problem"]), str(session["lang"]), unlocked - 1)
     stdout.write(f"OK: LEVEL {session['unlocked']}\n{work_line(work)}\n")
     stdout.flush()
-    return _print_spec(str(session["problem"]), unlocked - 1, stdout)
+    return _print_spec(str(session["problem"]), int(session["unlocked"]), stdout)
 
 
 def _reset_all(session: dict[str, Any], stdout: TextIO) -> int:
@@ -490,6 +500,4 @@ def _read_choice(
                 stdout.write("\n")
                 stdout.flush()
                 return ch
-            session_now = load_session()
-            if session_now is not None:
-                session.update(session_now)
+            _reload_session(session)

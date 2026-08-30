@@ -15,11 +15,12 @@ def main(argv: list[str] | None = None) -> int:
     args = sys.argv[1:] if argv is None else argv
     problem, level_s, kind = args[0], args[1], args[2]
     orig_stdout = sys.stdout
-    orig___stdout__ = sys.__stdout__
     orig_stdout.flush()
     saved_fd = os.dup(1)
+    orig_stdout = os.fdopen(os.dup(saved_fd), "w", encoding="utf-8")
     capture = tempfile.TemporaryFile()
     os.dup2(capture.fileno(), 1)
+    os.close(saved_fd)
     sink = os.fdopen(os.dup(capture.fileno()), "w", encoding="utf-8")
     sys.stdout = sink
     sys.__stdout__ = sink
@@ -46,10 +47,8 @@ def main(argv: list[str] | None = None) -> int:
             captured = capture.read()
         except OSError:
             captured = b""
-        os.dup2(saved_fd, 1)
-        os.close(saved_fd)
         sys.stdout = orig_stdout
-        sys.__stdout__ = orig___stdout__
+        sys.__stdout__ = orig_stdout
         try:
             sink.close()
         except OSError:
@@ -59,8 +58,8 @@ def main(argv: list[str] | None = None) -> int:
         text = captured.decode("utf-8", errors="replace")
         if not text.endswith("\n"):
             text += "\n"
-        sys.stdout.write(text)
-        sys.stdout.flush()
+        orig_stdout.write(text)
+        orig_stdout.flush()
     if report is not None:
         payload = {
             "passed": report.passed,
@@ -76,8 +75,8 @@ def main(argv: list[str] | None = None) -> int:
                 for row in report.failed
             ],
         }
-        sys.stdout.write(json.dumps(payload) + "\n")
-        sys.stdout.flush()
+        orig_stdout.write(json.dumps(payload) + "\n")
+        orig_stdout.flush()
     terminate(rc)
 
 

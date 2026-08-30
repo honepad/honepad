@@ -20,7 +20,15 @@ def problem_dir(problem: str) -> Path:
 def load_cases(problem: str, level: int | None = None) -> list[dict[str, Any]]:
     cases_dir = problem_dir(problem) / "cases"
     cases: list[dict[str, Any]] = []
-    for path in sorted(cases_dir.glob("*.json")):
+    if level is None:
+        paths = sorted(cases_dir.glob("*.json"))
+    else:
+        paths = []
+        for n in range(1, level + 1):
+            path = cases_dir / f"level{n}.json"
+            if path.is_file():
+                paths.append(path)
+    for path in paths:
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:

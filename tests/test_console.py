@@ -1153,5 +1153,46 @@ def test_workspace_has_submit_task_not_default(monkeypatch, tmp_path: Path) -> N
     group = submit.get("group")
     if isinstance(group, dict):
         assert group.get("isDefault") is not True
+    run_args = [str(item) for item in default["args"]]
+    submit_args = [str(item) for item in submit["args"]]
+    assert "--kind" in run_args
+    assert "work" in run_args
+    assert run_args[run_args.index("--kind") + 1] == "work"
+    assert "--kind" in submit_args
+    assert "work" in submit_args
+    assert submit_args[submit_args.index("--kind") + 1] == "work"
     readme = (public / "README.md").read_text(encoding="utf-8")
     assert "Submit (unlock next level)" in readme
+    assert "-m honepad run bank_system --lang python3 --kind work" in readme
+    assert "-m honepad submit bank_system --lang python3 --kind work" in readme
+
+
+def test_workspace_run_task_kind_work_mismatch_does_not_replay_solution(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "workers", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    bank_work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    bank_work.parent.mkdir(parents=True, exist_ok=True)
+    bank_work.write_text("class Simulation:\n    pass\n", encoding="utf-8")
+    dest = write_workspace("bank_system", "python3", 1)
+    public = dest.parent / "public"
+    tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
+    by_label = {task["label"]: task for task in tasks["tasks"]}
+    run_args = [str(item) for item in by_label["Run public tests"]["args"]]
+    assert run_args[:2] == ["-m", "honepad"]
+    task_args = run_args[2:]
+    bank_work.unlink()
+    code = main(task_args)
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL:" in out
+    assert "work file missing" in out or "work.py" in out
+    assert "UNLOCKED" not in out
+    assert "\nOK\n" not in out
+    assert not out.strip().endswith("OK")
+    assert "through LEVEL 4 passed=" not in out
+    session = load_session()
+    assert session is not None
+    assert session["problem"] == "workers"
