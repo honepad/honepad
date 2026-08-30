@@ -96,6 +96,17 @@ def bank() -> list[dict]:
             ],
         ),
         c(
+            "l2-zero-outgoing",
+            2,
+            [
+                call("create_account", 1, "acc1", e=True),
+                call("create_account", 2, "acc2", e=True),
+                call("deposit", 3, "acc1", 1000, e=1000),
+                call("transfer", 4, "acc1", "acc2", 500, e=500),
+                call("top_spenders", 5, 2, e=["acc1(500)", "acc2(0)"]),
+            ],
+        ),
+        c(
             "l2-tie",
             2,
             [

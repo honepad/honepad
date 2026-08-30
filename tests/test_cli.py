@@ -278,6 +278,28 @@ def test_run_workers_without_session_defaults_to_max_level(monkeypatch, tmp_path
     assert load_session() is None
 
 
+def test_cases_workers_defaults_to_max_level(capsys) -> None:
+    from honepad.traces import load_cases
+
+    args = build_parser().parse_args(["cases", "workers"])
+    assert args.level is None
+    assert main(["cases", "workers"]) == 0
+    out = capsys.readouterr().out
+    n = len(load_cases("workers", 3))
+    assert '"problem": "workers"' in out
+    assert f'"count": {n}' in out
+    assert n == len(load_cases("workers"))
+
+
+def test_cases_rejects_level_outside_problem_range(capsys) -> None:
+    for problem, level in (("workers", 4), ("workers", 0), ("bank_system", 0)):
+        code = main(["cases", problem, "--level", str(level)])
+        out = capsys.readouterr().out
+        assert code == 1, (problem, level, out)
+        assert "FAIL:" in out
+        assert "1.." in out
+
+
 def test_run_rejects_level_outside_problem_range(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
     for problem, level in (("bank_system", 0), ("workers", 4), ("workers", 99)):

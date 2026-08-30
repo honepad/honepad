@@ -410,7 +410,12 @@ def cmd_timer(args: argparse.Namespace) -> int:
 
 def cmd_cases(args: argparse.Namespace) -> int:
     try:
-        cases = load_cases(args.problem, args.level)
+        if args.level is None:
+            level = max_level(args.problem)
+        else:
+            _check_level(args.problem, args.level)
+            level = args.level
+        cases = load_cases(args.problem, level)
     except (ValueError, KeyError, FileNotFoundError) as exc:
         print(status_fail(f"FAIL: {exc}"))
         return 1
@@ -492,7 +497,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     cases = sub.add_parser("cases", help="count traces")
     cases.add_argument("problem", choices=problems())
-    cases.add_argument("--level", type=int, default=4)
+    cases.add_argument("--level", type=int, default=None)
     cases.set_defaults(func=cmd_cases)
 
     console = sub.add_parser(
