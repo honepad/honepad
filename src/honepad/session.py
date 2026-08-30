@@ -182,12 +182,19 @@ def save_session(session: dict[str, Any], path: Path | None = None) -> Path:
     return target
 
 
+def require_minutes(minutes: int) -> int:
+    value = int(minutes)
+    if value < 1:
+        raise ValueError("minutes must be >= 1")
+    return value
+
+
 def new_session(problem: str, lang: str, minutes: int = 90) -> dict[str, Any]:
     return {
         "problem": problem,
         "lang": lang,
         "started_at": int(time.time()),
-        "minutes": minutes,
+        "minutes": require_minutes(minutes),
         "unlocked": 1,
     }
 
@@ -209,7 +216,7 @@ def ensure_session(
     restarted = False
     if left == 0:
         current["started_at"] = int(time.time())
-        current["minutes"] = minutes
+        current["minutes"] = require_minutes(minutes)
         restarted = True
     save_session(current)
     current["clock_restarted"] = restarted

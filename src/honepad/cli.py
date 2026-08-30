@@ -20,6 +20,7 @@ from honepad.session import (
     max_level,
     note_clock_restarted,
     remaining_s,
+    require_minutes,
     unlock_next,
     work_src,
 )
@@ -391,7 +392,7 @@ def cmd_timer(args: argparse.Namespace) -> int:
             minutes = int(session["minutes"])
             started = int(session["started_at"])
         else:
-            minutes = args.minutes
+            minutes = require_minutes(args.minutes)
             started = int(time.time())
     except ValueError as exc:
         print(status_fail(f"FAIL: {exc}"))

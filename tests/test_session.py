@@ -1240,6 +1240,18 @@ def test_load_session_rejects_minutes_zero(monkeypatch, tmp_path: Path, capsys) 
         load_session()
 
 
+def test_start_minutes_zero_does_not_write_session(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    code = main(["start", "bank_system", "python3", "--minutes", "0", "--no-console"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL" in out
+    assert "minutes" in out
+    assert "Traceback" not in out
+    assert not session_file.is_file()
+
+
 def test_save_session_drops_unknown_keys(monkeypatch, tmp_path: Path) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
