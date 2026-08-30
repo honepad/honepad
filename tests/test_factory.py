@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import os
 import subprocess
 from pathlib import Path
 
@@ -147,9 +148,16 @@ def test_ci_pytest_shard_covers_collected_tests() -> None:
         assert all(_SHARD.assign_shard(nodeid) == name for nodeid in rows)
 
 
+def test_ensure_scala_script_is_executable() -> None:
+    path = ROOT / "factory" / "scripts" / "ensure-scala.sh"
+    assert path.is_file()
+    assert os.access(path, os.X_OK)
+
+
 def test_makefile_check_accepts_parked_human_gate() -> None:
     text = (ROOT / "Makefile").read_text()
     assert "factory/scripts/write-ledger.sh --self-test" in text
+    assert "factory/scripts/ensure-scala.sh" in text
     assert "factory/scripts/next-job.sh" in text
     assert "\tbash factory/scripts/next-job.sh\n" not in text
     assert "human_gate" in text

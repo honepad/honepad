@@ -26,6 +26,27 @@ from honepad.traces import load_cases
 # Same sentinel as tests/test_cli.py. Must stay off _RUNNERS.
 UNIMPLEMENTED_CATALOG_LANG = "vb"
 
+
+def test_scalac_finds_coursier_bin(tmp_path: Path, monkeypatch) -> None:
+    from honepad import runner
+
+    fake = tmp_path / "csbin"
+    fake.mkdir()
+    scalac = fake / "scalac"
+    scalac.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    scalac.chmod(0o755)
+    monkeypatch.setattr(runner, "_coursier_bins", lambda: [fake])
+    monkeypatch.setattr(runner.shutil, "which", lambda _name, **_k: None)
+    assert runner._scalac() == str(scalac)
+
+
+def test_ensure_scala_script_pins_ci_version() -> None:
+    text = (repo_root() / "factory" / "scripts" / "ensure-scala.sh").read_text(encoding="utf-8")
+    assert "2.13.16" in text
+    assert "install" in text
+    assert "scala:" in text
+
+
 _GST = shutil.which("gst")
 
 

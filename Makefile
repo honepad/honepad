@@ -11,6 +11,7 @@ lint: ## ruff
 	ruff format --check src tests
 
 test: ## pytest
+	bash factory/scripts/ensure-scala.sh
 	python3 -m pytest
 
 stealth: ## stealth metadata
@@ -19,6 +20,7 @@ stealth: ## stealth metadata
 check: ## local gate
 	ruff check src tests
 	ruff format --check src tests
+	bash factory/scripts/ensure-scala.sh
 	python3 -m pytest
 	bash factory/scripts/assert-stealth.sh honepad/honepad
 	bash factory/scripts/write-ledger.sh --self-test
