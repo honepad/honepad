@@ -643,6 +643,25 @@ def test_work_syntax_error_python_prints_fail(monkeypatch, tmp_path: Path, capsy
     assert "UNLOCKED" not in out
 
 
+def test_work_print_then_missing_class_prints_load_error(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text("print('hi')\n", encoding="utf-8")
+    assert main(["run", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "work.py" in out
+    assert "Simulation" in out
+    assert "invalid JSON" not in out
+    assert "Traceback" not in out
+    assert "UNLOCKED" not in out
+
+
 def test_work_missing_method_python_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0

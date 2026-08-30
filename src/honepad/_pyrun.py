@@ -55,7 +55,7 @@ def main(argv: list[str] | None = None) -> int:
         except OSError:
             pass
         capture.close()
-    if captured:
+    if captured and report is not None:
         text = captured.decode("utf-8", errors="replace")
         if not text.endswith("\n"):
             text += "\n"
