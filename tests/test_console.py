@@ -140,6 +140,44 @@ def test_loop_console_time_up_again_after_clock_restarts(monkeypatch, tmp_path: 
     assert "OK: quit" in out
 
 
+def test_loop_console_reset_all_reprints_banner_after_time_up(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    session["started_at"] = 1
+    session["minutes"] = 1
+    (tmp_path / "session.json").write_text(json.dumps(session, indent=2) + "\n", encoding="utf-8")
+    session = load_session()
+    assert session is not None
+    stdout = io.StringIO()
+    code = loop_console(
+        dict(session),
+        stdin=io.StringIO("3\nall\nq\n"),
+        stdout=stdout,
+        live=False,
+    )
+    out = stdout.getvalue()
+    assert code == 0
+    ok_idx = out.find("OK: LEVEL 1")
+    assert ok_idx != -1
+    assert "TIME UP" in out[:ok_idx]
+    after = out[ok_idx:]
+    last = after.rfind("remaining_s=")
+    assert last != -1
+    start = last + len("remaining_s=")
+    digits = []
+    for ch in after[start:]:
+        if ch.isdigit():
+            digits.append(ch)
+        else:
+            break
+    assert digits
+    assert int("".join(digits)) > 0
+    assert out.rfind("TIME UP") < ok_idx
+    assert "OK: quit" in out
+
+
 def test_color_disabled_without_tty(monkeypatch) -> None:
     monkeypatch.delenv("FORCE_COLOR", raising=False)
     monkeypatch.delenv("NO_COLOR", raising=False)

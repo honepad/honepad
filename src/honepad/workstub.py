@@ -269,6 +269,9 @@ def _brace_close(text: str, brace: int) -> int:
         if ch == "'":
             i = _skip_quoted(text, i, "'")
             continue
+        if ch == "`":
+            i = _skip_quoted(text, i, "`")
+            continue
         if ch == "{":
             depth += 1
         elif ch == "}":

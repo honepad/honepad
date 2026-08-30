@@ -176,6 +176,9 @@ def loop_console(
                 except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
                     stdout.write(status_fail(f"FAIL: {exc}") + "\n")
                     last = 1
+                else:
+                    bannered = False
+                    shown_time_up[0] = False
                 stdout.write("\n")
                 continue
             if choice in {"2", "submit"}:

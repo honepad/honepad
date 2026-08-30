@@ -714,6 +714,34 @@ def test_work_timeout_python_prints_fail(monkeypatch, tmp_path: Path, capsys) ->
     assert "UNLOCKED" not in out
 
 
+def test_work_timeout_javascript_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "javascript", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "javascript" / "work.js"
+    work.write_text(
+        """class Simulation {
+  constructor() { while (true) {} }
+  createAccount(timestamp, account_id) { return false; }
+  deposit(timestamp, account_id, amount) { return null; }
+  transfer(timestamp, source_account_id, target_account_id, amount) { return null; }
+}
+module.exports = { Simulation };
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("honepad.runner.RUN_TIMEOUT_S", 1)
+    assert main(["run", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "timed out" in out
+    assert "javascript" in out
+    assert work.name in out
+    assert "Traceback" not in out
+    assert "UNLOCKED" not in out
+
+
 def test_work_syntax_error_python_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
@@ -2319,6 +2347,28 @@ def test_js_unlock_merge_ignores_brace_in_string() -> None:
     merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
     assert 'note = "{"' in merged
     assert "topSpenders" in merged
+
+
+def test_js_unlock_merge_ignores_brace_in_template() -> None:
+    work = """class Simulation {
+  constructor() {
+    this.note = `}`;
+  }
+  createAccount(t, id) { this.keep = `keep {`; return true; }
+  deposit(t, id, amount) { return 0; }
+  transfer(t, a, b, amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/javascript/problems/bank_system/stub.js").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
+    merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+    assert "this.note = `}`" in merged
+    assert "this.keep = `keep {`" in merged
+    assert "topSpenders" in merged
+    ctor = merged[merged.find("constructor") : merged.find("createAccount")]
+    assert "topSpenders" not in ctor
 
 
 def test_java_unlock_merge_ignores_brace_in_line_comment() -> None:
