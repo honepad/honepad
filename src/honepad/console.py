@@ -130,6 +130,7 @@ def loop_console(
     use_live = _use_live(stdin, stdout) if live is None else live
     bannered = False
     shown_level = int(session["unlocked"])
+    shown_time_up = [False]
     try:
         while True:
             session = _reload_session(session, stdout)
@@ -141,8 +142,14 @@ def loop_console(
             elif level_now != shown_level:
                 stdout.write(render_banner(session) + "\n")
                 shown_level = level_now
+            elif (
+                remaining_s(int(session["started_at"]), int(session["minutes"])) == 0
+                and not shown_time_up[0]
+            ):
+                stdout.write(render_banner(session) + "\n")
+                shown_time_up[0] = True
             stdout.flush()
-            line = _read_choice(session, stdin, stdout, live=use_live)
+            line = _read_choice(session, stdin, stdout, live=use_live, shown_time_up=shown_time_up)
             if line is None:
                 return last
             choice = line.strip().lower()
@@ -460,7 +467,10 @@ def _read_choice(
     *,
     live: bool,
     clock_fn: Callable[[], int] | None = None,
+    shown_time_up: list[bool] | None = None,
 ) -> str | None:
+    time_up = shown_time_up if shown_time_up is not None else [False]
+
     def _left() -> int:
         if clock_fn is not None:
             return clock_fn()
@@ -501,5 +511,8 @@ def _read_choice(
                 stdout.flush()
                 return ch
             _reload_session(session)
+            if _left() == 0 and not time_up[0]:
+                stdout.write("\n" + render_banner(session) + "\n")
+                time_up[0] = True
             stdout.write(f"\r{_prompt()}\033[K")
             stdout.flush()
