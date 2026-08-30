@@ -9,7 +9,7 @@ import sys
 import time
 from typing import Any
 
-from honepad.catalog import language, languages, problems, suggest_language
+from honepad.catalog import language, languages, problems, suggest_choice
 from honepad.console import cmd_console, cmd_vscode, loop_console
 from honepad.runner import _RUNNERS, run
 from honepad.session import (
@@ -116,7 +116,7 @@ def _read_choice(items: list[str]) -> str | None:
         elif raw in items:
             return raw
         print(status_fail(f"FAIL: not a choice: {raw}"))
-        hint = suggest_language(raw, prefer=items)
+        hint = suggest_choice(raw, items)
         if hint is not None:
             print(f"Did you mean {hint}?")
         sys.stdout.flush()

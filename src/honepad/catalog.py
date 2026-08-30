@@ -44,6 +44,10 @@ def suggest_language(lang_id: str, *, prefer: list[str] | None = None) -> str | 
     return None
 
 
+def suggest_choice(query: str, items: list[str]) -> str | None:
+    return _close_language(query, items)
+
+
 def _close_language(query: str, ids: list[str]) -> str | None:
     if not query or not ids:
         return None
