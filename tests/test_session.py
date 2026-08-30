@@ -1418,6 +1418,50 @@ def test_submit_class_name_in_comment_does_not_unlock(monkeypatch, tmp_path: Pat
     assert "def " not in work.read_text(encoding="utf-8")
 
 
+def test_submit_comment_method_name_still_merges_java(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    text = work.read_text(encoding="utf-8")
+    assert "topSpenders" not in text
+    work.write_text(
+        text.replace(
+            "public class Simulation {",
+            "public class Simulation {\n    // topSpenders(\n",
+        ),
+        encoding="utf-8",
+    )
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED: level 2" in out
+    after = work.read_text(encoding="utf-8")
+    assert "public List<String> topSpenders" in after
+
+
+def test_submit_comment_method_name_still_merges_python(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    text = work.read_text(encoding="utf-8")
+    assert "def top_spenders(self" not in text
+    work.write_text(
+        text.replace(
+            "class Simulation:",
+            "class Simulation:\n    # def top_spenders(\n",
+        ),
+        encoding="utf-8",
+    )
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED: level 2" in out
+    after = work.read_text(encoding="utf-8")
+    assert "def top_spenders(self" in after
+
+
 def test_python_syntax_error_includes_line_or_token(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0

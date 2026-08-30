@@ -234,6 +234,29 @@ def test_start_picker_quit_prints_next(monkeypatch, tmp_path, capsys) -> None:
     assert load_session() is None
 
 
+def test_submit_tty_n_cancels(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    _tty_stdin(monkeypatch, "n\n")
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED" not in out
+    assert "cancelled" in out.lower()
+    assert load_session()["unlocked"] == 1
+
+
+def test_submit_tty_y_unlocks(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    _tty_stdin(monkeypatch, "y\n")
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED: level 2" in out
+    assert load_session()["unlocked"] == 2
+
+
 def test_start_help_mentions_fail_for_unimplemented(capsys) -> None:
     parser = build_parser()
     with pytest.raises(SystemExit) as excinfo:
