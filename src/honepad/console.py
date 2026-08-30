@@ -480,16 +480,16 @@ def _read_choice(
         line = stdin.readline()
         return None if line == "" else line
     with _keys_now(stdin):
+        stdout.write(f"\r{_prompt()}\033[K")
+        stdout.flush()
         while True:
-            stdout.write(f"\r{_prompt()}\033[K")
-            stdout.flush()
             ready, _, _ = select.select([stdin], [], [], 1.0)
             if ready:
                 ch = stdin.read(1)
                 if ch == "":
                     return None
                 if ch in {"\n", "\r"}:
-                    stdout.write("\n")
+                    stdout.write("\r\033[K\n")
                     stdout.flush()
                     return ""
                 if ch == "\x1b":
@@ -497,7 +497,9 @@ def _read_choice(
                     continue
                 if ch.isspace():
                     continue
-                stdout.write("\n")
+                stdout.write("\r\033[K\n")
                 stdout.flush()
                 return ch
             _reload_session(session)
+            stdout.write(f"\r{_prompt()}\033[K")
+            stdout.flush()

@@ -366,6 +366,7 @@ def test_live_menu_space_then_key() -> None:
     assert got == "1"
     out = buf.getvalue()
     assert out.count("\n") == 1
+    assert out.count("\r") == 2
     assert "1 run" not in out
 
 
