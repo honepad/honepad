@@ -139,15 +139,16 @@ def loop_console(
                 stdout.write(render_banner(session) + "\n")
                 bannered = True
                 shown_level = level_now
-            elif level_now != shown_level:
-                stdout.write(render_banner(session) + "\n")
-                shown_level = level_now
-            elif (
-                remaining_s(int(session["started_at"]), int(session["minutes"])) == 0
-                and not shown_time_up[0]
-            ):
-                stdout.write(render_banner(session) + "\n")
-                shown_time_up[0] = True
+            else:
+                left = remaining_s(int(session["started_at"]), int(session["minutes"]))
+                if left > 0:
+                    shown_time_up[0] = False
+                if level_now != shown_level:
+                    stdout.write(render_banner(session) + "\n")
+                    shown_level = level_now
+                elif left == 0 and not shown_time_up[0]:
+                    stdout.write(render_banner(session) + "\n")
+                    shown_time_up[0] = True
             stdout.flush()
             line = _read_choice(session, stdin, stdout, live=use_live, shown_time_up=shown_time_up)
             if line is None:
@@ -509,7 +510,10 @@ def _read_choice(
                 stdout.flush()
                 return ch
             _reload_session(session)
-            if _left() == 0 and not time_up[0]:
+            left = _left()
+            if left > 0:
+                time_up[0] = False
+            elif not time_up[0]:
                 stdout.write("\n" + render_banner(session) + "\n")
                 time_up[0] = True
             stdout.write(f"\r{_prompt()}\033[K")

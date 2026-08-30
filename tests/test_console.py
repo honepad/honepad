@@ -104,6 +104,42 @@ def test_loop_console_reprints_time_up_when_clock_hits_zero(monkeypatch, tmp_pat
     assert "OK: quit" in out
 
 
+def test_loop_console_time_up_again_after_clock_restarts(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    session = {
+        "problem": "bank_system",
+        "lang": "python3",
+        "started_at": 1_700_000_000,
+        "minutes": 90,
+        "unlocked": 1,
+    }
+    calls = {"n": 0}
+
+    def fake_remaining(started_at: int, minutes: int, now: int | None = None) -> int:
+        calls["n"] += 1
+        n = calls["n"]
+        if n <= 2:
+            return 60
+        if n <= 4:
+            return 0
+        if n <= 6:
+            return 30
+        return 0
+
+    monkeypatch.setattr("honepad.console.remaining_s", fake_remaining)
+    stdout = io.StringIO()
+    code = loop_console(
+        dict(session),
+        stdin=io.StringIO("\n\n\nq\n"),
+        stdout=stdout,
+        live=False,
+    )
+    out = stdout.getvalue()
+    assert code == 0
+    assert out.count("TIME UP") == 2
+    assert "OK: quit" in out
+
+
 def test_color_disabled_without_tty(monkeypatch) -> None:
     monkeypatch.delenv("FORCE_COLOR", raising=False)
     monkeypatch.delenv("NO_COLOR", raising=False)
