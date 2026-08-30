@@ -72,7 +72,7 @@ def cmd_console(args: argparse.Namespace) -> int:
             reset=False,
             level=int(session["unlocked"]),
         )
-    except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
+    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
         _print_fail(exc)
         return 1
     return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
@@ -99,9 +99,24 @@ def cmd_vscode(args: argparse.Namespace) -> int:
             print("OK: wrote workspace")
             return 0
         return open_vscode(path)
-    except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
+    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
         _print_fail(exc)
         return 1
+
+
+def _reload_session(session: dict[str, Any], stdout: TextIO | None = None) -> dict[str, Any]:
+    try:
+        loaded = load_session()
+    except ValueError as exc:
+        if stdout is not None:
+            stdout.write(status_fail(f"FAIL: {exc}") + "\n")
+            stdout.flush()
+        return session
+    if loaded is None:
+        return session
+    session.clear()
+    session.update(loaded)
+    return session
 
 
 def loop_console(
@@ -117,7 +132,7 @@ def loop_console(
     shown_level = int(session["unlocked"])
     try:
         while True:
-            session = load_session() or session
+            session = _reload_session(session, stdout)
             level_now = int(session["unlocked"])
             if not bannered:
                 stdout.write(render_banner(session) + "\n")
@@ -148,7 +163,11 @@ def loop_console(
                 if confirmed is False:
                     continue
                 stdout.write("\n")
-                last = _apply_reset(confirmed, session, stdout)
+                try:
+                    last = _apply_reset(confirmed, session, stdout)
+                except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
+                    stdout.write(status_fail(f"FAIL: {exc}") + "\n")
+                    last = 1
                 stdout.write("\n")
                 continue
             if choice in {"2", "submit"}:
@@ -199,7 +218,7 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
         stdout.write(f"Keys: {render_keys()}\n")
         stdout.flush()
         return 1
-    except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
+    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
         stdout.write(status_fail(f"FAIL: {exc}") + "\n")
         stdout.flush()
         return 1
@@ -481,6 +500,4 @@ def _read_choice(
                 stdout.write("\n")
                 stdout.flush()
                 return ch
-            session_now = load_session()
-            if session_now is not None:
-                session.update(session_now)
+            _reload_session(session)

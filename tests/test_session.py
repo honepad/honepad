@@ -8,7 +8,7 @@ import pytest
 from honepad.catalog import language, problems, repo_root
 from honepad.cli import main
 from honepad.runner import _RUNNERS
-from honepad.session import ensure_work_copy, load_session, remaining_s, work_src
+from honepad.session import ensure_work_copy, load_session, remaining_s, save_session, work_src
 from honepad.workstub import (
     _java_method,
     class_name_for,
@@ -1168,6 +1168,160 @@ def test_load_session_rejects_unknown_problem(monkeypatch, tmp_path: Path, capsy
     assert "not-a-problem" in out
     with pytest.raises(ValueError, match="problem"):
         load_session()
+
+
+def test_load_session_inf_started_at_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        '{"problem": "bank_system", "lang": "python3",'
+        ' "started_at": 1e309, "minutes": 90, "unlocked": 1}\n',
+        encoding="utf-8",
+    )
+    code = main(["timer"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "Traceback" not in out
+    with pytest.raises(ValueError):
+        load_session()
+
+
+def test_load_session_rejects_unlocked_past_max(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 99,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    code = main(["console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "Traceback" not in out
+    with pytest.raises(ValueError, match="unlocked"):
+        load_session()
+
+
+def test_load_session_rejects_minutes_zero(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 0,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    code = main(["timer"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "Traceback" not in out
+    with pytest.raises(ValueError, match="minutes"):
+        load_session()
+
+
+def test_save_session_drops_unknown_keys(monkeypatch, tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+                "evil": "/etc/passwd",
+                "clock_restarted": True,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    session = load_session()
+    assert session is not None
+    assert "evil" not in session
+    assert "clock_restarted" not in session
+    save_session(session)
+    written = json.loads(session_file.read_text(encoding="utf-8"))
+    assert "evil" not in written
+    assert "clock_restarted" not in written
+    assert set(written) == {"problem", "lang", "started_at", "minutes", "unlocked"}
+
+
+def test_reset_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    original = solution.read_text(encoding="utf-8")
+    work.unlink()
+    work.symlink_to(solution)
+    try:
+        code = main(["start", "bank_system", "python3", "--reset", "--no-console"])
+        captured = capsys.readouterr()
+        out = captured.out + captured.err
+        assert code == 1
+        assert "FAIL" in out
+        assert "Traceback" not in out
+        assert solution.read_text(encoding="utf-8") == original
+        assert work.is_symlink()
+    finally:
+        if solution.read_text(encoding="utf-8") != original:
+            solution.write_text(original, encoding="utf-8")
+
+
+def test_loop_console_bad_json_keeps_last_session(monkeypatch, tmp_path: Path) -> None:
+    from honepad.console import loop_console
+
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session = {
+        "problem": "bank_system",
+        "lang": "python3",
+        "started_at": 1_700_000_000,
+        "minutes": 90,
+        "unlocked": 1,
+    }
+    session_file.write_text(json.dumps(session) + "\n", encoding="utf-8")
+
+    class CorruptThenQuit(io.StringIO):
+        def readline(self, *args: object, **kwargs: object) -> str:
+            session_file.write_text("{not-json\n", encoding="utf-8")
+            return super().readline(*args, **kwargs)
+
+    stdout = io.StringIO()
+    code = loop_console(
+        dict(session),
+        stdin=CorruptThenQuit("\nq\n"),
+        stdout=stdout,
+        live=False,
+    )
+    out = stdout.getvalue()
+    assert code == 0
+    assert "OK: quit" in out
+    assert "Traceback" not in out
 
 
 def _later_method_tokens(problem: str, lang: str) -> list[str]:

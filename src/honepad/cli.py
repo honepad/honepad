@@ -224,7 +224,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         level = unlocked if args.level is None else args.level
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
-    except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
+    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
         _print_fail(exc)
         return 1
     if level > unlocked:
@@ -341,7 +341,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             try:
                 ensure_work_copy(args.problem, lang, reset=False, level=nxt, require_merge=True)
                 write_workspace(args.problem, lang, nxt)
-            except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
+            except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
                 print(status_fail(f"FAIL: {exc}"))
                 print(work_reset_next())
                 return 1
