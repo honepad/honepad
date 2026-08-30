@@ -1,5 +1,6 @@
 import io
 import json
+import shutil
 import sys
 from pathlib import Path
 
@@ -604,6 +605,25 @@ def test_work_compile_error_prints_fail(monkeypatch, tmp_path: Path, capsys) -> 
     out = captured.out + captured.err
     assert "FAIL:" in out
     assert "Simulation.java" in out
+    assert "Traceback" not in out
+    assert "UNLOCKED" not in out
+
+
+@pytest.mark.skipif(
+    shutil.which("cc") is None and shutil.which("gcc") is None,
+    reason="cc/gcc not found",
+)
+def test_work_compile_error_prints_c_work_path(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "c", "--reset"]) == 0
+    capsys.readouterr()
+    work = work_src("bank_system", "c")
+    work.write_text("this is not c\n", encoding="utf-8")
+    assert main(["run", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert work.name in out
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
 

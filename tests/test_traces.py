@@ -10,6 +10,7 @@ from honepad.runner import (
     _RUNNERS,
     COMPILE_TIMEOUT_S,
     RUN_TIMEOUT_S,
+    compile_fail,
     report_from_proc,
     run,
     run_compiled,
@@ -1045,6 +1046,12 @@ def test_run_prepare_cmd_times_out() -> None:
 def test_run_prepare_cmd_default_timeout_is_compile_budget() -> None:
     assert COMPILE_TIMEOUT_S > RUN_TIMEOUT_S
     assert run_prepare_cmd.__defaults__[-1] == COMPILE_TIMEOUT_S
+
+
+def test_compile_fail_prefixes_src() -> None:
+    src = Path("/tmp/work/solution.c")
+    proc = subprocess.CompletedProcess(["cc"], 1, stdout="", stderr="error: expected identifier")
+    assert str(compile_fail(src, proc, "c compile failed")).startswith(str(src))
 
 
 _GO = shutil.which("go")

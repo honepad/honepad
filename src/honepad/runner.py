@@ -229,6 +229,10 @@ def run_prepare_cmd(
         raise RuntimeError(f"{lang_id} timed out after {timeout}s") from exc
 
 
+def compile_fail(src: Path, proc: subprocess.CompletedProcess[str], fallback: str) -> RuntimeError:
+    return RuntimeError(f"{src}: {proc.stderr or proc.stdout or fallback}")
+
+
 def run_compiled(
     problem: str,
     lang_id: str,
@@ -422,7 +426,7 @@ def run_haskell(problem: str, level: int, kind: str = "solution") -> Report:
             "haskell",
         )
         if compiled.returncode != 0:
-            raise RuntimeError(compiled.stderr or compiled.stdout or "ghc compile failed")
+            raise compile_fail(src, compiled, "ghc compile failed")
         return [str(tmpdir / "run"), cases_path]
 
     return run_compiled(problem, "haskell", level, prepare)
@@ -474,14 +478,14 @@ def run_scala(problem: str, level: int, kind: str = "solution") -> Report:
             "scala",
         )
         if java_compiled.returncode != 0:
-            raise RuntimeError(java_compiled.stderr or java_compiled.stdout or "javac failed")
+            raise compile_fail(src, java_compiled, "javac failed")
         compiled = run_prepare_cmd(
             [_scalac(), "-classpath", ".", "Adapter.scala", "solution.scala"],
             tmpdir,
             "scala",
         )
         if compiled.returncode != 0:
-            raise RuntimeError(compiled.stderr or compiled.stdout or "scalac failed")
+            raise compile_fail(src, compiled, "scalac failed")
         return [_scala(), "-nc", "-classpath", ".", "Adapter", cases_path, class_name]
 
     return run_compiled(problem, "scala", level, prepare)
@@ -519,7 +523,7 @@ def run_d(problem: str, level: int, kind: str = "solution") -> Report:
             "d",
         )
         if compiled.returncode != 0:
-            raise RuntimeError(compiled.stderr or compiled.stdout or "d compile failed")
+            raise compile_fail(src, compiled, "d compile failed")
         return [str(tmpdir / "run"), cases_path]
 
     return run_compiled(problem, "d", level, prepare)
@@ -539,7 +543,7 @@ def run_ocaml(problem: str, level: int, kind: str = "solution") -> Report:
             "ocaml",
         )
         if compiled.returncode != 0:
-            raise RuntimeError(compiled.stderr or compiled.stdout or "ocaml compile failed")
+            raise compile_fail(src, compiled, "ocaml compile failed")
         return [str(tmpdir / "run"), cases_path]
 
     return run_compiled(problem, "ocaml", level, prepare)
@@ -820,9 +824,7 @@ def run_go(problem: str, level: int, kind: str = "solution") -> Report:
         (tmpdir / "go.mod").write_text("module honepadrun\n\ngo 1.22\n", encoding="utf-8")
         compiled = run_prepare_cmd(["go", "build", "-o", "run", "."], tmpdir, "go")
         if compiled.returncode != 0:
-            raise RuntimeError(
-                f"{src}: {compiled.stderr or compiled.stdout or 'go compile failed'}"
-            )
+            raise compile_fail(src, compiled, "go compile failed")
         return [str(tmpdir / "run"), cases_path]
 
     return run_compiled(problem, "go", level, prepare)
@@ -865,9 +867,7 @@ def run_rust(problem: str, level: int, kind: str = "solution") -> Report:
         )
         compiled = run_prepare_cmd(["cargo", "build", "--quiet"], tmpdir, "rust")
         if compiled.returncode != 0:
-            raise RuntimeError(
-                f"{src}: {compiled.stderr or compiled.stdout or 'cargo compile failed'}"
-            )
+            raise compile_fail(src, compiled, "cargo compile failed")
         return [str(tmpdir / "target" / "debug" / "honepadrun"), cases_path]
 
     return run_compiled(problem, "rust", level, prepare)
@@ -892,7 +892,7 @@ def run_java(problem: str, level: int, kind: str = "solution") -> Report:
             "java",
         )
         if compiled.returncode != 0:
-            raise RuntimeError(f"{src}: {compiled.stderr or compiled.stdout or 'javac failed'}")
+            raise compile_fail(src, compiled, "javac failed")
         return ["java", "Adapter", cases_path, class_name]
 
     return run_compiled(problem, "java", level, prepare)
@@ -936,9 +936,7 @@ def run_csharp(problem: str, level: int, kind: str = "solution") -> Report:
             "csharp",
         )
         if compiled.returncode != 0:
-            raise RuntimeError(
-                f"{src}: {compiled.stderr or compiled.stdout or 'dotnet compile failed'}"
-            )
+            raise compile_fail(src, compiled, "dotnet compile failed")
         return [str(tmpdir / "out" / "honepadrun"), cases_path, class_name]
 
     return run_compiled(problem, "csharp", level, prepare)
@@ -964,9 +962,7 @@ def run_fsharp(problem: str, level: int, kind: str = "solution") -> Report:
             "fsharp",
         )
         if compiled.returncode != 0:
-            raise RuntimeError(
-                f"{src}: {compiled.stderr or compiled.stdout or 'dotnet compile failed'}"
-            )
+            raise compile_fail(src, compiled, "dotnet compile failed")
         return [str(tmpdir / "out" / "honepadrun"), cases_path, class_name]
 
     return run_compiled(problem, "fsharp", level, prepare)
@@ -997,7 +993,7 @@ def run_freepascal(problem: str, level: int, kind: str = "solution") -> Report:
             "freepascal",
         )
         if compiled.returncode != 0:
-            raise RuntimeError(compiled.stderr or compiled.stdout or "fpc compile failed")
+            raise compile_fail(src, compiled, "fpc compile failed")
         return [str(tmpdir / "run"), cases_path]
 
     return run_compiled(problem, "freepascal", level, prepare)
@@ -1043,7 +1039,7 @@ def run_kotlin(problem: str, level: int, kind: str = "solution") -> Report:
             "kotlin",
         )
         if java_compiled.returncode != 0:
-            raise RuntimeError(java_compiled.stderr or java_compiled.stdout or "javac failed")
+            raise compile_fail(src, java_compiled, "javac failed")
         compiled = run_prepare_cmd(
             [
                 _kotlinc(),
@@ -1059,7 +1055,7 @@ def run_kotlin(problem: str, level: int, kind: str = "solution") -> Report:
             "kotlin",
         )
         if compiled.returncode != 0:
-            raise RuntimeError(compiled.stderr or compiled.stdout or "kotlinc failed")
+            raise compile_fail(src, compiled, "kotlinc failed")
         return [
             "java",
             "-cp",
@@ -1106,7 +1102,7 @@ def run_cpp(problem: str, level: int, kind: str = "solution") -> Report:
             "cpp",
         )
         if compiled.returncode != 0:
-            raise RuntimeError(compiled.stderr or compiled.stdout or "c++ compile failed")
+            raise compile_fail(src, compiled, "c++ compile failed")
         return [str(tmpdir / "run"), cases_path]
 
     return run_compiled(problem, "cpp", level, prepare)
@@ -1155,7 +1151,7 @@ def run_nim(problem: str, level: int, kind: str = "solution") -> Report:
             "nim",
         )
         if compiled.returncode != 0:
-            raise RuntimeError(compiled.stderr or compiled.stdout or "nim compile failed")
+            raise compile_fail(src, compiled, "nim compile failed")
         return [str(tmpdir / "run"), cases_path]
 
     return run_compiled(problem, "nim", level, prepare)
@@ -1189,9 +1185,7 @@ def run_fortran(problem: str, level: int, kind: str = "solution") -> Report:
             "fortran",
         )
         if compiled_c.returncode != 0:
-            raise RuntimeError(
-                compiled_c.stderr or compiled_c.stdout or "c json helper compile failed"
-            )
+            raise compile_fail(src, compiled_c, "c json helper compile failed")
         compiled = run_prepare_cmd(
             [
                 _gfortran(),
@@ -1208,7 +1202,7 @@ def run_fortran(problem: str, level: int, kind: str = "solution") -> Report:
             "fortran",
         )
         if compiled.returncode != 0:
-            raise RuntimeError(compiled.stderr or compiled.stdout or "gfortran compile failed")
+            raise compile_fail(src, compiled, "gfortran compile failed")
         return [str(tmpdir / "run"), cases_path]
 
     return run_compiled(problem, "fortran", level, prepare)
@@ -1247,7 +1241,7 @@ def run_c(problem: str, level: int, kind: str = "solution") -> Report:
             "c",
         )
         if compiled.returncode != 0:
-            raise RuntimeError(compiled.stderr or compiled.stdout or "c compile failed")
+            raise compile_fail(src, compiled, "c compile failed")
         return [str(tmpdir / "run"), cases_path]
 
     return run_compiled(problem, "c", level, prepare)
@@ -1291,7 +1285,7 @@ def run_swift(problem: str, level: int, kind: str = "solution") -> Report:
             "swift",
         )
         if compiled.returncode != 0:
-            raise RuntimeError(compiled.stderr or compiled.stdout or "swiftc failed")
+            raise compile_fail(src, compiled, "swiftc failed")
         return [str(tmpdir / "run"), cases_path]
 
     return run_compiled(problem, "swift", level, prepare)
