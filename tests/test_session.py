@@ -1513,6 +1513,40 @@ def test_start_minutes_on_resume_updates_running_clock(monkeypatch, tmp_path: Pa
     assert "# keep-me" in work.read_text(encoding="utf-8")
 
 
+def test_start_minutes_shorter_than_elapsed_restarts_clock(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    assert (
+        main(["start", "bank_system", "python3", "--minutes", "90", "--reset", "--no-console"]) == 0
+    )
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text(work.read_text(encoding="utf-8") + "# keep-me\n", encoding="utf-8")
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 2
+    save_session(session)
+    clock["now"] = 1_700_000_000 + 40 * 60
+    assert main(["start", "bank_system", "python3", "--minutes", "30", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    after = load_session()
+    assert after is not None
+    assert after["minutes"] == 30
+    assert after["unlocked"] == 2
+    assert after["started_at"] == int(clock["now"])
+    assert remaining_s(int(after["started_at"]), int(after["minutes"]), int(clock["now"])) == 1800
+    assert "NOTE:" in out
+    assert "clock is now 30" in out
+    assert "# keep-me" in work.read_text(encoding="utf-8")
+
+
 def test_start_without_minutes_keeps_saved_duration(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert (
@@ -2545,6 +2579,50 @@ def test_js_unlock_merge_inserts_method_when_call_exists() -> None:
     ]
     assert decls
     assert "not implemented" in decls[0]
+
+
+def test_js_unlock_merge_keeps_allman_methods() -> None:
+    work = """class Simulation {
+  constructor() {}
+  createAccount(timestamp, account_id)
+  {
+    return true;
+  }
+  deposit(timestamp, account_id, amount)
+  {
+    topSpenders(t, 1)
+    return 0;
+  }
+  transfer(timestamp, source_account_id, target_account_id, amount)
+  {
+    return 0;
+  }
+}
+"""
+    full = (repo_root() / "langs/javascript/problems/bank_system/stub.js").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
+    merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+
+    def _decl_count(name: str) -> int:
+        return sum(
+            1
+            for line in merged.splitlines()
+            if line.strip().startswith(f"{name}(") and not line.strip().endswith(";")
+        )
+
+    assert _decl_count("createAccount") == 1
+    assert _decl_count("deposit") == 1
+    assert _decl_count("transfer") == 1
+    assert "topSpenders(t, 1)" in merged
+    top = [
+        line.strip()
+        for line in merged.splitlines()
+        if line.strip().startswith("topSpenders(") and "{" in line
+    ]
+    assert len(top) == 1
+    assert "not implemented" in top[0]
 
 
 def test_java_unlock_merge_inserts_method_when_call_exists() -> None:

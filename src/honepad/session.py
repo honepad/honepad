@@ -238,6 +238,8 @@ def ensure_session(
     elif minutes is not None and int(current["minutes"]) != minutes:
         current["minutes"] = require_minutes(minutes)
         now_minutes = int(current["minutes"])
+        if remaining_s(int(current["started_at"]), now_minutes) == 0:
+            current["started_at"] = int(time.time())
     save_session(current)
     current["clock_restarted"] = restarted
     if now_minutes is not None:

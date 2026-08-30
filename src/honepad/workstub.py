@@ -123,7 +123,7 @@ def naming_for(lang_id: str) -> str:
     return str(language(lang_id)["naming"])
 
 
-def _js_declares_line(line: str, name: str) -> bool:
+def _js_declares_line(line: str, name: str, nxt: str | None = None) -> bool:
     stripped = line.strip()
     if stripped.endswith(";"):
         return False
@@ -132,7 +132,9 @@ def _js_declares_line(line: str, name: str) -> bool:
         body = body[len("async ") :].lstrip()
     if not body.startswith(f"{name}("):
         return False
-    return "{" in body
+    if "{" in body:
+        return True
+    return bool(nxt) and nxt.strip().startswith("{")
 
 
 def _java_declares_name(text: str, pos: int, name: str) -> bool:
@@ -164,7 +166,11 @@ def _declares(text: str, ext: str, name: str) -> bool:
                 idx = pos + 1
         return False
     if ext in {"js", "ts"}:
-        return any(_js_declares_line(line, name) for line in lines)
+        for i, line in enumerate(lines):
+            nxt = lines[i + 1] if i + 1 < len(lines) else None
+            if _js_declares_line(line, name, nxt):
+                return True
+        return False
     if ext == "py":
         return any(f"def {name}(" in line for line in lines)
     if ext == "rb":
