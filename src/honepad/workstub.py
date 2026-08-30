@@ -232,22 +232,60 @@ def _include_java_doc(text: str, pub: int) -> int:
     return text.rfind("\n", 0, open_pos) + 1
 
 
-def _brace_block(text: str, start: int) -> str:
-    brace = text.find("{", start)
+def _skip_quoted(text: str, start: int, quote: str) -> int:
+    i = start + 1
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch == "\\":
+            i += 2
+            continue
+        if ch == quote:
+            return i + 1
+        i += 1
+    return n
+
+
+def _brace_close(text: str, brace: int) -> int:
+    """Index of the matching `}`, skipping comments and quoted braces."""
     depth = 0
     i = brace
-    while i < len(text):
-        if text[i] == "{":
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch == "/" and i + 1 < n:
+            nxt = text[i + 1]
+            if nxt == "/":
+                nl = text.find("\n", i + 2)
+                i = n if nl < 0 else nl + 1
+                continue
+            if nxt == "*":
+                end = text.find("*/", i + 2)
+                i = n if end < 0 else end + 2
+                continue
+        if ch == '"':
+            i = _skip_quoted(text, i, '"')
+            continue
+        if ch == "'":
+            i = _skip_quoted(text, i, "'")
+            continue
+        if ch == "{":
             depth += 1
-        elif text[i] == "}":
+        elif ch == "}":
             depth -= 1
             if depth == 0:
-                end = i + 1
-                if end < len(text) and text[end] == "\n":
-                    end += 1
-                return text[start:end]
+                return i
         i += 1
     raise ValueError("unbalanced braces")
+
+
+def _brace_block(text: str, start: int) -> str:
+    brace = text.find("{", start)
+    close = _brace_close(text, brace)
+    end = close + 1
+    if end < len(text) and text[end] == "\n":
+        end += 1
+    return text[start:end]
 
 
 def _ensure_java_imports(work: str, full: str, extras: str) -> str:
@@ -543,17 +581,7 @@ def _js_class_close(text: str, class_name: str) -> int:
     if idx < 0:
         raise ValueError(f"missing class {class_name}")
     brace = text.find("{", idx)
-    depth = 0
-    i = brace
-    while i < len(text):
-        if text[i] == "{":
-            depth += 1
-        elif text[i] == "}":
-            depth -= 1
-            if depth == 0:
-                return i
-        i += 1
-    raise ValueError("unbalanced braces")
+    return _brace_close(text, brace)
 
 
 def _name_forms(name: str) -> set[str]:

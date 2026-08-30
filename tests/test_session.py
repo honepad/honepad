@@ -15,6 +15,7 @@ from honepad.workstub import (
     _java_method,
     class_name_for,
     declares_class,
+    merge_unlocked_methods,
     methods_through_level,
     naming_for,
 )
@@ -2283,6 +2284,56 @@ def test_java_unlock_merge_targets_simulation_not_last_brace(
     assert "topSpenders" in simulation
     assert "topSpenders" not in account
     assert "class Account" in body
+
+
+def test_java_unlock_merge_ignores_brace_in_string() -> None:
+    work = """public class Simulation {
+  private final String note = "{";
+  public Simulation() {}
+  public Boolean createAccount(long t, String id) { return true; }
+  public Integer deposit(long t, String id, int amount) { return 0; }
+  public Integer transfer(long t, String a, String b, int amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("java"))
+    merged = merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    assert 'note = "{"' in merged
+    assert "topSpenders" in merged
+
+
+def test_js_unlock_merge_ignores_brace_in_string() -> None:
+    work = """class Simulation {
+  const note = "{";
+  constructor() {}
+  createAccount(t, id) { return true; }
+  deposit(t, id, amount) { return 0; }
+  transfer(t, a, b, amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/javascript/problems/bank_system/stub.js").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
+    merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+    assert 'note = "{"' in merged
+    assert "topSpenders" in merged
+
+
+def test_java_unlock_merge_ignores_brace_in_line_comment() -> None:
+    work = """public class Simulation {
+  // keep {
+  public Simulation() {}
+  public Boolean createAccount(long t, String id) { return true; }
+  public Integer deposit(long t, String id, int amount) { return 0; }
+  public Integer transfer(long t, String a, String b, int amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("java"))
+    merged = merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    assert "// keep {" in merged
+    assert "topSpenders" in merged
 
 
 def test_python_unlock_merge_targets_simulation_not_last_class(
