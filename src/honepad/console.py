@@ -480,9 +480,9 @@ def _read_choice(
         line = stdin.readline()
         return None if line == "" else line
     with _keys_now(stdin):
+        stdout.write(f"\r{_prompt()}\033[K")
+        stdout.flush()
         while True:
-            stdout.write(f"\r{_prompt()}\033[K")
-            stdout.flush()
             ready, _, _ = select.select([stdin], [], [], 1.0)
             if ready:
                 ch = stdin.read(1)
@@ -501,3 +501,5 @@ def _read_choice(
                 stdout.flush()
                 return ch
             _reload_session(session)
+            stdout.write(f"\r{_prompt()}\033[K")
+            stdout.flush()
