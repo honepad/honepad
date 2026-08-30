@@ -1,5 +1,6 @@
 import io
 import json
+import os
 import shutil
 import sys
 from pathlib import Path
@@ -1421,6 +1422,31 @@ def test_reset_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None
         assert "Traceback" not in out
         assert solution.read_text(encoding="utf-8") == original
         assert work.is_symlink()
+    finally:
+        if solution.read_text(encoding="utf-8") != original:
+            solution.write_text(original, encoding="utf-8")
+
+
+def test_reset_breaks_work_hardlink_to_pack(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    original = solution.read_text(encoding="utf-8")
+    work.unlink()
+    os.link(solution, work)
+    try:
+        code = main(["start", "bank_system", "python3", "--reset", "--no-console"])
+        captured = capsys.readouterr()
+        out = captured.out + captured.err
+        assert code == 0
+        assert "Traceback" not in out
+        assert solution.read_text(encoding="utf-8") == original
+        assert work.is_file()
+        assert not work.is_symlink()
+        assert work.stat().st_ino != solution.stat().st_ino
+        assert work.read_text(encoding="utf-8")
     finally:
         if solution.read_text(encoding="utf-8") != original:
             solution.write_text(original, encoding="utf-8")

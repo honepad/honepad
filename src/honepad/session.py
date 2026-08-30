@@ -53,6 +53,20 @@ def _migrate_legacy_java_work(parent: Path, dest: Path) -> None:
         legacy.unlink()
 
 
+def _replace_text(dest: Path, text: str) -> None:
+    fd, tmp_name = tempfile.mkstemp(prefix=".work.", suffix=".tmp", dir=str(dest.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        os.replace(tmp_name, dest)
+    except Exception:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
+
+
 def ensure_work_copy(
     problem: str, lang_id: str, *, reset: bool, level: int, require_merge: bool = False
 ) -> Path:
@@ -72,7 +86,7 @@ def ensure_work_copy(
         if declares_class(current, ext, class_name):
             merged = merge_unlocked_methods(current, full, ext, allowed, class_name)
             if merged != current:
-                dest.write_text(merged, encoding="utf-8")
+                _replace_text(dest, merged)
         elif require_merge:
             raise ValueError(
                 f"work file exists but has no {class_name} class, "
@@ -81,7 +95,7 @@ def ensure_work_copy(
         write_work_spec(problem, level, dest.parent)
         return dest
     sliced = slice_stub(full, ext, allowed, class_name_for(problem))
-    dest.write_text(sliced, encoding="utf-8")
+    _replace_text(dest, sliced)
     write_work_spec(problem, level, dest.parent)
     return dest
 
