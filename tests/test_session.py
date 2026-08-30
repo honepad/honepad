@@ -43,6 +43,58 @@ def test_java_method_includes_leading_javadoc() -> None:
     assert "public List<String> topSpenders" in block
 
 
+def test_bank_merge_stub_names_java_params() -> None:
+    stub = (
+        Path(__file__).resolve().parents[1]
+        / "langs"
+        / "java"
+        / "problems"
+        / "bank_system"
+        / "stub.java"
+    ).read_text(encoding="utf-8")
+    block = _java_method(stub, "mergeAccounts")
+    assert block is not None
+    assert "Move drop onto keep" not in block
+    assert "{@code accountId1}" in block
+    assert "{@code accountId2}" in block
+    py = (
+        Path(__file__).resolve().parents[1]
+        / "langs"
+        / "python3"
+        / "problems"
+        / "bank_system"
+        / "stub.py"
+    ).read_text(encoding="utf-8")
+    assert "Move drop onto keep" not in py
+    assert "account_id_1" in py
+    assert "account_id_2" in py
+
+
+def test_start_replaces_old_merge_javadoc(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    old = (
+        "    /**\n"
+        "     * Move drop onto keep, then delete drop. Returns false if either id\n"
+        "     * is missing or they are the same.\n"
+        "     */\n"
+        "    public boolean mergeAccounts(int timestamp, String accountId1, String accountId2) {\n"
+        "        process(timestamp);\n"
+        "        return false;\n"
+        "    }\n"
+    )
+    text = work.read_text(encoding="utf-8")
+    close = text.rfind("}")
+    work.write_text(text[:close] + old + "}\n", encoding="utf-8")
+    ensure_work_copy("bank_system", "java", reset=False, level=4)
+    after = work.read_text(encoding="utf-8")
+    assert "Move drop onto keep" not in after
+    assert "{@code accountId1}" in after
+    assert "{@code accountId2}" in after
+    assert "process(timestamp)" in after
+
+
 def test_remaining_s_floors_at_zero() -> None:
     assert remaining_s(started_at=100, minutes=1, now=100) == 60
     assert remaining_s(started_at=100, minutes=1, now=161) == 0

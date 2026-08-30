@@ -346,13 +346,13 @@ def _python_method(text: str, name: str) -> str | None:
 
 
 def _inject_java_docs(work: str, full: str, allowed: set[str]) -> str:
-    inserts: list[tuple[int, str]] = []
+    edits: list[tuple[int, int, str]] = []
     for name in allowed:
         start = _java_method_start(work, name)
         if start is None:
             continue
         pub = work.find("public ", start)
-        if pub < 0 or start < pub:
+        if pub < 0:
             continue
         stub_start = _java_method_start(full, name)
         if stub_start is None:
@@ -363,9 +363,14 @@ def _inject_java_docs(work: str, full: str, allowed: set[str]) -> str:
         doc = full[stub_start:stub_pub]
         if "/**" not in doc:
             continue
-        inserts.append((pub, doc))
-    for pos, doc in sorted(inserts, reverse=True):
-        work = work[:pos] + doc + work[pos:]
+        if start < pub:
+            if "Move drop onto keep" not in work[start:pub]:
+                continue
+            edits.append((start, pub, doc))
+            continue
+        edits.append((pub, pub, doc))
+    for begin, end, doc in sorted(edits, reverse=True):
+        work = work[:begin] + doc + work[end:]
     return work
 
 
@@ -416,6 +421,14 @@ def _python_doc_lines(full: str, name: str) -> str | None:
 
 
 def _inject_python_docs(work: str, full: str, allowed: set[str]) -> str:
+    for name in allowed:
+        block = _python_method(work, name)
+        if block is None or "Move drop onto keep" not in block:
+            continue
+        old_doc = _python_doc_lines(work, name)
+        new_doc = _python_doc_lines(full, name)
+        if old_doc and new_doc and old_doc != new_doc:
+            work = work.replace(old_doc, new_doc, 1)
     lines = work.splitlines(keepends=True)
     inserts: list[tuple[int, list[str]]] = []
     i = 0

@@ -52,8 +52,10 @@ public class Simulation {
     }
 
     /**
-     * Move drop onto keep, then delete drop. Returns false if either id
-     * is missing or they are the same.
+     * Merge {@code accountId2} into {@code accountId1}, then delete
+     * {@code accountId2}. Moves balance, outgoing, payments, history,
+     * and pending cashbacks. Returns false if either id is missing or
+     * they are the same.
      */
     public boolean mergeAccounts(int timestamp, String accountId1, String accountId2) {
         return false;
