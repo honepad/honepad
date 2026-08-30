@@ -216,30 +216,41 @@ def new_session(problem: str, lang: str, minutes: int = 90) -> dict[str, Any]:
 def ensure_session(
     problem: str,
     lang: str,
-    minutes: int = 90,
+    minutes: int | None = None,
     reset: bool = False,
 ) -> dict[str, Any]:
     current = None if reset else load_session()
+    duration = 90 if minutes is None else minutes
     if current is None or current.get("problem") != problem:
-        session = new_session(problem, lang, minutes)
+        session = new_session(problem, lang, duration)
         save_session(session)
         return session
     current.pop("clock_restarted", None)
+    current.pop("clock_now_minutes", None)
     current["lang"] = lang
     left = remaining_s(int(current["started_at"]), int(current["minutes"]))
     restarted = False
+    now_minutes: int | None = None
     if left == 0:
         current["started_at"] = int(time.time())
-        current["minutes"] = require_minutes(minutes)
+        current["minutes"] = require_minutes(duration)
         restarted = True
+    elif minutes is not None and int(current["minutes"]) != minutes:
+        current["minutes"] = require_minutes(minutes)
+        now_minutes = int(current["minutes"])
     save_session(current)
     current["clock_restarted"] = restarted
+    if now_minutes is not None:
+        current["clock_now_minutes"] = now_minutes
     return current
 
 
 def note_clock_restarted(session: dict[str, Any]) -> None:
     if session.pop("clock_restarted", False):
         print("NOTE: previous clock was 0. New clock started. Work file kept.")
+    now_minutes = session.pop("clock_now_minutes", None)
+    if now_minutes is not None:
+        print(f"NOTE: clock is now {now_minutes} minutes")
 
 
 def unlock_next(session: dict[str, Any]) -> int | None:

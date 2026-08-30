@@ -424,6 +424,55 @@ def test_run_kind_work_problem_mismatch(monkeypatch, tmp_path: Path, capsys) -> 
     assert after["unlocked"] == unlocked
 
 
+@pytest.mark.parametrize("argv", (["submit", "bank_system"], ["run", "bank_system", "--submit"]))
+def test_submit_without_session_does_not_run_solution(
+    monkeypatch, tmp_path: Path, capsys, argv: list[str]
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    code = main(argv)
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL:" in out
+    assert "no session" in out
+    assert "NEXT:" in out
+    assert "start" in out
+    assert "UNLOCKED" not in out
+    assert "\nOK\n" not in out
+    assert not out.strip().endswith("OK")
+    assert "through LEVEL" not in out
+    assert load_session() is None
+
+
+@pytest.mark.parametrize("argv", (["submit", "bank_system"], ["run", "bank_system", "--submit"]))
+def test_submit_wrong_problem_does_not_run_solution(
+    monkeypatch, tmp_path: Path, capsys, argv: list[str]
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "workers", "python3", "--reset", "--no-console"]) == 0
+    before = load_session()
+    assert before is not None
+    assert before["problem"] == "workers"
+    unlocked = before["unlocked"]
+    started = before["started_at"]
+    capsys.readouterr()
+    code = main(argv)
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL:" in out
+    assert "no session" in out or "mismatch" in out
+    assert "NEXT:" in out
+    assert "start" in out
+    assert "UNLOCKED" not in out
+    assert "\nOK\n" not in out
+    assert not out.strip().endswith("OK")
+    assert "through LEVEL" not in out
+    after = load_session()
+    assert after is not None
+    assert after["problem"] == "workers"
+    assert after["unlocked"] == unlocked
+    assert after["started_at"] == started
+
+
 def test_start_copies_work_file_away_from_pack(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
@@ -1430,6 +1479,54 @@ def test_start_minutes_zero_does_not_write_session(monkeypatch, tmp_path: Path, 
     assert "minutes" in out
     assert "Traceback" not in out
     assert not session_file.is_file()
+
+
+def test_start_minutes_on_resume_updates_running_clock(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    assert (
+        main(["start", "bank_system", "python3", "--minutes", "90", "--reset", "--no-console"]) == 0
+    )
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text(work.read_text(encoding="utf-8") + "# keep-me\n", encoding="utf-8")
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 2
+    save_session(session)
+    clock["now"] = 1_700_000_000 + 60
+    assert main(["start", "bank_system", "python3", "--minutes", "30", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    after = load_session()
+    assert after is not None
+    assert after["minutes"] == 30
+    assert after["started_at"] == 1_700_000_000
+    assert after["unlocked"] == 2
+    assert remaining_s(int(after["started_at"]), int(after["minutes"]), int(clock["now"])) == 1740
+    assert "NOTE:" in out
+    assert "clock is now 30" in out
+    assert "# keep-me" in work.read_text(encoding="utf-8")
+
+
+def test_start_without_minutes_keeps_saved_duration(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert (
+        main(["start", "bank_system", "python3", "--minutes", "30", "--reset", "--no-console"]) == 0
+    )
+    first = load_session()
+    assert first is not None
+    assert first["minutes"] == 30
+    capsys.readouterr()
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    after = load_session()
+    assert after is not None
+    assert after["minutes"] == 30
+    assert after["started_at"] == first["started_at"]
 
 
 def test_save_session_drops_unknown_keys(monkeypatch, tmp_path: Path) -> None:

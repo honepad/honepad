@@ -9,7 +9,7 @@ import sys
 import time
 from typing import Any
 
-from honepad.catalog import language, languages, problems, suggest_choice
+from honepad.catalog import language, language_ids, languages, problems, suggest_choice
 from honepad.console import cmd_console, cmd_vscode, loop_console
 from honepad.runner import _RUNNERS, run
 from honepad.session import (
@@ -155,11 +155,32 @@ def _check_level(problem: str, level: int) -> None:
         raise ValueError(f"{problem} has levels 1..{top}")
 
 
+def _require_problem(problem: str) -> None:
+    if problem not in problems():
+        raise ValueError(f"invalid problem: {problem}")
+
+
+def _is_lang_token(name: str) -> bool:
+    return name in _RUNNERS or name in language_ids()
+
+
 def cmd_start(args: argparse.Namespace) -> int:
+    if (
+        args.problem
+        and not args.lang
+        and args.problem not in problems()
+        and _is_lang_token(args.problem)
+    ):
+        args.lang = args.problem
+        args.problem = None
     if not args.problem or not args.lang:
         if not (_can_prompt() and _fill_start_args(args)):
-            print(status_fail("FAIL: start needs a problem and a language"))
-            print(start_next())
+            if args.lang and not args.problem:
+                print(status_fail("FAIL: start needs a problem"))
+                print(f"NEXT: {invocation()} start bank_system {args.lang}")
+            else:
+                print(status_fail("FAIL: start needs a problem and a language"))
+                print(start_next())
             print("problems: " + ", ".join(problems()))
             return 1
     try:
@@ -172,6 +193,7 @@ def cmd_start(args: argparse.Namespace) -> int:
             print(status_fail("FAIL: use --reset or --back, not both"))
             print(f"NEXT: {invocation()} start --reset")
             return 1
+        _require_problem(args.problem)
         if args.level is not None:
             _check_level(args.problem, args.level)
         if row["id"] == "java":
@@ -250,6 +272,7 @@ def cmd_start(args: argparse.Namespace) -> int:
 
 def cmd_run(args: argparse.Namespace) -> int:
     try:
+        _require_problem(args.problem)
         session = load_session()
         lang = args.lang or (
             str(session["lang"])
@@ -261,6 +284,10 @@ def cmd_run(args: argparse.Namespace) -> int:
             and session.get("problem") == args.problem
             and str(session.get("lang")) == lang
         )
+        if getattr(args, "unlock", False) and not same:
+            print(status_fail("FAIL: no session"))
+            print(f"NEXT: {invocation()} start {args.problem} {lang}")
+            return 1
         unlocked_now = int(session["unlocked"]) if same and session is not None else None
         practice = same and (args.level is None or args.level == unlocked_now)
         top = max_level(args.problem)
@@ -356,6 +383,11 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 
 def cmd_submit(args: argparse.Namespace) -> int:
+    try:
+        _require_problem(args.problem)
+    except ValueError as exc:
+        _print_fail(exc)
+        return 1
     confirm = getattr(args, "confirm", None)
     if confirm is not None:
         if str(confirm).strip().lower() not in {"y", "yes"}:
@@ -401,6 +433,7 @@ def cmd_timer(args: argparse.Namespace) -> int:
 
 def cmd_cases(args: argparse.Namespace) -> int:
     try:
+        _require_problem(args.problem)
         if args.level is None:
             level = max_level(args.problem)
         else:
@@ -408,7 +441,7 @@ def cmd_cases(args: argparse.Namespace) -> int:
             level = args.level
         cases = load_cases(args.problem, level)
     except (ValueError, KeyError, FileNotFoundError) as exc:
-        print(status_fail(f"FAIL: {exc}"))
+        _print_fail(exc)
         return 1
     print(json.dumps({"problem": args.problem, "count": len(cases)}, indent=2))
     return 0
@@ -433,10 +466,10 @@ def build_parser() -> argparse.ArgumentParser:
             "Unimplemented catalog langs print FAIL and exit 1."
         ),
     )
-    start.add_argument("problem", nargs="?", choices=problems())
+    start.add_argument("problem", nargs="?")
     start.add_argument("lang", nargs="?")
     start.add_argument("--level", type=int, default=None)
-    start.add_argument("--minutes", type=int, default=90)
+    start.add_argument("--minutes", type=int, default=None)
     start.add_argument("--reset", action="store_true")
     start.add_argument("--back", action="store_true")
     start.add_argument("--no-console", action="store_true")
@@ -451,7 +484,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Unimplemented catalog langs print FAIL and exit 1."
         ),
     )
-    run_p.add_argument("problem", choices=problems())
+    run_p.add_argument("problem")
     run_p.add_argument("--lang", default=None)
     run_p.add_argument("--level", type=int, default=None)
     run_p.add_argument("--kind", choices=("solution", "stub", "work"), default=None)
@@ -471,7 +504,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Nothing is sent. Unimplemented catalog langs print FAIL and exit 1."
         ),
     )
-    submit.add_argument("problem", choices=problems())
+    submit.add_argument("problem")
     submit.add_argument("--lang", default=None)
     submit.add_argument("--level", type=int, default=None)
     submit.add_argument("--kind", choices=("solution", "stub", "work"), default=None)
@@ -487,7 +520,7 @@ def build_parser() -> argparse.ArgumentParser:
     timer.set_defaults(func=cmd_timer)
 
     cases = sub.add_parser("cases", help="count traces")
-    cases.add_argument("problem", choices=problems())
+    cases.add_argument("problem")
     cases.add_argument("--level", type=int, default=None)
     cases.set_defaults(func=cmd_cases)
 
@@ -502,9 +535,9 @@ def build_parser() -> argparse.ArgumentParser:
             "4 spec, 5 vscode workspace. Paths use OSC 8 file:// links."
         ),
     )
-    console.add_argument("problem", nargs="?", choices=problems())
+    console.add_argument("problem", nargs="?")
     console.add_argument("lang", nargs="?")
-    console.add_argument("--minutes", type=int, default=90)
+    console.add_argument("--minutes", type=int, default=None)
     console.set_defaults(func=cmd_console)
 
     vscode = sub.add_parser(
@@ -515,9 +548,9 @@ def build_parser() -> argparse.ArgumentParser:
             "then open it with `code` when on PATH."
         ),
     )
-    vscode.add_argument("problem", nargs="?", choices=problems())
+    vscode.add_argument("problem", nargs="?")
     vscode.add_argument("lang", nargs="?")
-    vscode.add_argument("--minutes", type=int, default=90)
+    vscode.add_argument("--minutes", type=int, default=None)
     vscode.add_argument("--no-open", action="store_true")
     vscode.set_defaults(func=cmd_vscode)
     return p

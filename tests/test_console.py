@@ -382,6 +382,18 @@ def test_console_needs_both_args(monkeypatch, tmp_path: Path, capsys) -> None:
     out = capsys.readouterr().out
     assert "FAIL:" in out
     assert "both problem and lang" in out
+    assert "NEXT:" in out
+    assert "console bank_system java" in out
+
+
+def test_vscode_needs_both_args(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["vscode", "bank_system"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "both problem and lang" in out
+    assert "NEXT:" in out
+    assert "vscode bank_system java" in out
 
 
 def test_console_unimplemented_lang_fails(monkeypatch, tmp_path: Path, capsys) -> None:

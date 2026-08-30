@@ -189,6 +189,15 @@ def print_fail(exc: BaseException) -> None:
     if text.startswith("no runner for "):
         print(start_next())
         return
+    if text.startswith("invalid problem"):
+        from honepad.catalog import problems, suggest_choice
+
+        query = text[len("invalid problem") :].lstrip(" :").strip("'\"")
+        hint = suggest_choice(query, problems())
+        if hint is not None:
+            print(f"Did you mean {hint}?")
+        print(start_next())
+        return
     if not text.startswith("unknown language:"):
         return
     from honepad.catalog import languages, suggest_language

@@ -242,6 +242,63 @@ def test_start_unknown_lang_python_suggests_python3(monkeypatch, tmp_path, capsy
     assert load_session() is None
 
 
+def test_start_unknown_problem_suggests_bank_system(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["start", "bank_systm", "java", "--no-console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "invalid problem" in out
+    assert "bank_systm" in out
+    assert "Did you mean bank_system" in out
+    assert "NEXT:" in out
+    assert "start" in out
+    assert "Traceback" not in out
+    assert load_session() is None
+
+
+def test_run_unknown_problem_suggests_bank_system(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    code = main(["run", "bank_systm"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "invalid problem" in out
+    assert "bank_systm" in out
+    assert "Did you mean bank_system" in out
+    assert "NEXT:" in out
+    assert "start" in out
+    assert "Traceback" not in out
+
+
+def test_start_java_alone_is_language_not_problem(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["start", "java", "--no-console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "needs a problem" in out
+    assert "java" in out
+    assert "invalid problem" not in out
+    assert "NEXT:" in out
+    assert "Traceback" not in out
+    assert load_session() is None
+
+
+def test_start_java_on_tty_picks_problem(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "bank_system\n")
+    assert main(["start", "java", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "java"
+    assert session["problem"] == "bank_system"
+    assert "language:" not in out
+    assert "problem:" in out
+    assert "OK: LEVEL" in out
+
+
 def test_run_unknown_lang_js_suggests_javascript(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
     code = main(["run", "bank_system", "--lang", "js"])
