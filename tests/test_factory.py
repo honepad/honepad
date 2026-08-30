@@ -34,7 +34,7 @@ def test_ci_test_job_splits_apt_install() -> None:
     wanted = {
         "lua5.4",
         "tcl",
-        "r-base",
+        "r-base-core",
         "r-cran-jsonlite",
         "octave",
         "nim",
@@ -75,7 +75,7 @@ def test_ci_test_job_keeps_short_cli_smoke() -> None:
         "- run: python3 -m honepad.cli run bank_system --lang go --level 4",
         "- run: python3 -m honepad.cli run bank_system --lang perl --level 4",
     ]
-    assert "python3 -m pytest" in text
+    assert "python3 -m pytest -n 2 --durations=15" in text
     assert "name: Stealth" in text
     assert "name: Lint" in text
     assert "name: Next job respects human_gate" in text

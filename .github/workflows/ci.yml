@@ -97,12 +97,19 @@ jobs:
       - uses: julia-actions/setup-julia@fa02766e078afaaf09b14210362cee14137e6a32 # v3.0.2
         with:
           version: "1.10"
+      - uses: actions/cache@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.nuget/packages
+          key: compile-cache-${{ runner.os }}
       - name: Update apt
         run: sudo apt-get update
       - name: Install script langs
         run: sudo apt-get install -y lua5.4 tcl
       - name: Install stats langs
-        run: sudo apt-get install -y r-base r-cran-jsonlite octave
+        run: sudo apt-get install -y r-base-core r-cran-jsonlite octave
       - name: Install compiled langs
         run: sudo apt-get install -y nim gdc gfortran fp-compiler ghc ocaml
       - name: Install jvm/beam langs
@@ -121,7 +128,7 @@ jobs:
           gst --version
       - run: python3 -m pip install -e ".[dev]"
       - run: npm install -g coffeescript@2.7.0
-      - run: python3 -m pytest
+      - run: python3 -m pytest -n 2 --durations=15
       # pytest covers the matrix; these are CLI smokes.
       - run: python3 -m honepad.cli run bank_system --lang python3 --level 4
       - run: python3 -m honepad.cli run in_memory_database --lang python3 --level 4
