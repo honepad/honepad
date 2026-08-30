@@ -1091,6 +1091,7 @@ def test_run_level_zero_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None
     assert code == 1
     out = capsys.readouterr().out
     assert "FAIL:" in out
+    assert "1.." in out
     assert "\nOK\n" not in out
     assert not out.strip().endswith("OK")
     assert "UNLOCKED" not in out

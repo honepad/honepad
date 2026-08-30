@@ -131,7 +131,7 @@ def load_session(path: Path | None = None) -> dict[str, Any] | None:
         raise ValueError(f"invalid problem {problem!r}")
     try:
         language(lang)
-    except KeyError as exc:
+    except (KeyError, ValueError) as exc:
         raise ValueError(f"unknown language: {lang}") from exc
     payload["problem"] = problem
     payload["lang"] = lang

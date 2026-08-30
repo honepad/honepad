@@ -9,7 +9,7 @@ import sys
 import time
 from typing import Any
 
-from honepad.catalog import language, languages, problems
+from honepad.catalog import language, languages, problems, suggest_language
 from honepad.console import cmd_console, cmd_vscode, loop_console
 from honepad.runner import _RUNNERS, run
 from honepad.session import (
@@ -100,20 +100,24 @@ def _print_choices(title: str, items: list[str]) -> None:
 
 
 def _read_choice(items: list[str]) -> str | None:
-    line = sys.stdin.readline()
-    if line == "":
-        return None
-    raw = line.strip()
-    if raw in {"", "q", "quit"}:
-        return None
-    if raw.isdigit():
-        n = int(raw)
-        if 1 <= n <= len(items):
-            return items[n - 1]
-        return None
-    if raw in items:
-        return raw
-    return None
+    while True:
+        line = sys.stdin.readline()
+        if line == "":
+            return None
+        raw = line.strip()
+        if raw in {"", "q", "quit"}:
+            return None
+        if raw.isdigit():
+            n = int(raw)
+            if 1 <= n <= len(items):
+                return items[n - 1]
+        elif raw in items:
+            return raw
+        print(status_fail(f"FAIL: not a choice: {raw}"))
+        hint = suggest_language(raw, prefer=items)
+        if hint is not None:
+            print(f"Did you mean {hint}?")
+        sys.stdout.flush()
 
 
 def _fill_start_args(args: argparse.Namespace) -> bool:
@@ -139,6 +143,30 @@ def _is_work_file_problem(exc: BaseException) -> bool:
     return "work file" in text or "/work/" in text or "work." in text
 
 
+def _is_unknown_lang(exc: BaseException) -> bool:
+    return str(exc).startswith("unknown language:")
+
+
+def _unknown_lang_id(exc: BaseException) -> str:
+    return str(exc).split(":", 1)[1].strip()
+
+
+def _print_fail(exc: BaseException) -> None:
+    print(status_fail(f"FAIL: {exc}"))
+    if not _is_unknown_lang(exc):
+        return
+    hint = suggest_language(_unknown_lang_id(exc), prefer=_runner_ids())
+    if hint is not None:
+        print(f"Did you mean {hint}?")
+    print(f"NEXT: {invocation()} langs")
+
+
+def _check_level(problem: str, level: int) -> None:
+    top = max_level(problem)
+    if level < 1 or level > top:
+        raise ValueError(f"{problem} has levels 1..{top}")
+
+
 def cmd_start(args: argparse.Namespace) -> int:
     if not args.problem or not args.lang:
         if not (_can_prompt() and _fill_start_args(args)):
@@ -156,6 +184,8 @@ def cmd_start(args: argparse.Namespace) -> int:
             print(status_fail("FAIL: use --reset or --back, not both"))
             print(f"NEXT: {invocation()} start --reset")
             return 1
+        if args.level is not None:
+            _check_level(args.problem, args.level)
         if row["id"] == "java":
             missing = next(
                 (name for name in ("javac", "java") if shutil.which(name) is None),
@@ -195,7 +225,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
     except (KeyError, ValueError, FileNotFoundError, OSError) as exc:
-        print(status_fail(f"FAIL: {exc}"))
+        _print_fail(exc)
         return 1
     if level > unlocked:
         print(status_fail(f"LOCKED: LEVEL {level} (open through LEVEL {unlocked})"))
@@ -245,9 +275,11 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
         unlocked_now = int(session["unlocked"]) if same and session is not None else None
         practice = same and (args.level is None or args.level == unlocked_now)
+        top = max_level(args.problem)
         if args.level is None:
-            level = unlocked_now if practice and unlocked_now is not None else 4
+            level = unlocked_now if practice and unlocked_now is not None else top
         else:
+            _check_level(args.problem, args.level)
             level = args.level
         kind = args.kind
         if kind is None:
@@ -270,7 +302,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         RuntimeError,
         ValueError,
     ) as exc:
-        print(status_fail(f"FAIL: {exc}"))
+        _print_fail(exc)
         if _is_work_file_problem(exc):
             print(work_reset_next())
         return 1

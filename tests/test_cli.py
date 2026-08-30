@@ -132,8 +132,11 @@ def test_run_unknown_lang_id_exits(monkeypatch, tmp_path, capsys) -> None:
     code = main(["run", "bank_system", "--lang", "notalang", "--level", "1"])
     captured = capsys.readouterr()
     out = captured.out + captured.err
-    assert code in (1, 2)
-    assert "notalang" in out
+    assert code == 1
+    assert "unknown language: notalang" in out
+    assert "FAIL: 'unknown language" not in out
+    assert "NEXT:" in out
+    assert "langs" in out
     assert "Traceback" not in out
 
 
@@ -224,6 +227,82 @@ def test_bare_honepad_no_session_on_tty_picks(monkeypatch, tmp_path, capsys) -> 
     assert "OK: quit" in out
 
 
+def test_start_unknown_lang_python_suggests_python3(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["start", "bank_system", "python", "--no-console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "unknown language: python" in out
+    assert "FAIL: 'unknown language" not in out
+    assert "python3" in out
+    assert "NEXT:" in out
+    assert "langs" in out
+    assert "Traceback" not in out
+    assert load_session() is None
+
+
+def test_run_unknown_lang_js_suggests_javascript(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    code = main(["run", "bank_system", "--lang", "js"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "unknown language: js" in out
+    assert "FAIL: 'unknown language" not in out
+    assert "javascript" in out
+    assert "NEXT:" in out
+    assert "langs" in out
+    assert "Traceback" not in out
+
+
+def test_start_picker_typo_reprompts(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "python\npython3\nbank_system\n")
+    assert main(["start", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
+    assert "not a choice" in out
+    assert "OK: LEVEL" in out
+
+
+def test_run_workers_without_session_defaults_to_max_level(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    assert main(["run", "workers", "--lang", "python3", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "through LEVEL 3" in out
+    assert "through LEVEL 4" not in out
+    assert load_session() is None
+
+
+def test_run_rejects_level_outside_problem_range(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    for problem, level in (("bank_system", 0), ("workers", 4), ("workers", 99)):
+        code = main(
+            ["run", problem, "--level", str(level), "--lang", "python3", "--kind", "solution"]
+        )
+        out = capsys.readouterr().out
+        assert code == 1, (problem, level, out)
+        assert "FAIL:" in out
+        assert "1.." in out
+        assert "LOCKED" not in out
+        assert "UNLOCKED" not in out
+
+
+def test_start_rejects_level_above_problem_max(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["start", "workers", "python3", "--level", "4", "--no-console"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL:" in out
+    assert "1.." in out
+    assert "LOCKED" not in out
+    assert "OK: LEVEL" not in out
+
+
 def test_start_picker_quit_prints_next(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     _tty_stdin(monkeypatch, "q\n")
@@ -303,8 +382,12 @@ def test_start_unknown_lang_id_exits(monkeypatch, tmp_path, capsys) -> None:
     code = main(["start", "bank_system", "notalang"])
     captured = capsys.readouterr()
     out = captured.out + captured.err
-    assert code in (1, 2)
+    assert code == 1
     assert "FAIL" in out
+    assert "unknown language: notalang" in out
+    assert "FAIL: 'unknown language" not in out
+    assert "NEXT:" in out
+    assert "langs" in out
     assert "notalang" in out
     assert "OK: LEVEL" not in out
     assert "Bank system level" not in out

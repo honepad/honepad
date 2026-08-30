@@ -45,6 +45,18 @@ def test_gca_and_ica_present() -> None:
         assert lang in ids
 
 
+def test_unknown_language_raises_value_error() -> None:
+    try:
+        language("python")
+    except ValueError as exc:
+        assert "unknown language: python" in str(exc)
+        assert str(exc) == "unknown language: python"
+        return
+    except KeyError as exc:
+        raise AssertionError(f"expected ValueError, got KeyError: {exc}") from exc
+    raise AssertionError("expected ValueError")
+
+
 def test_python3_is_import_adapter() -> None:
     assert language("python3")["adapter"] == "python-import"
     assert language("python3")["ci"] is True
