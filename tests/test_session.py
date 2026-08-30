@@ -605,7 +605,9 @@ def test_work_compile_error_prints_fail(monkeypatch, tmp_path: Path, capsys) -> 
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
-    assert "Simulation.java" in out
+    assert str(work) in out
+    lowered = out.lower()
+    assert "error" in lowered or "expected" in lowered or "javac" in lowered
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
 
@@ -624,7 +626,7 @@ def test_work_compile_error_prints_c_work_path(monkeypatch, tmp_path: Path, caps
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
-    assert work.name in out
+    assert str(work) in out
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
 
@@ -1474,7 +1476,7 @@ def test_loop_console_bad_json_keeps_last_session(monkeypatch, tmp_path: Path) -
 
     stdout = io.StringIO()
     code = loop_console(
-        dict(session),
+        session,
         stdin=CorruptThenQuit("\nq\n"),
         stdout=stdout,
         live=False,
@@ -1482,6 +1484,11 @@ def test_loop_console_bad_json_keeps_last_session(monkeypatch, tmp_path: Path) -
     out = stdout.getvalue()
     assert code == 0
     assert "OK: quit" in out
+    assert "FAIL:" in out
+    assert session_file.name in out or "session" in out
+    assert session["problem"] == "bank_system"
+    assert session["lang"] == "python3"
+    assert session["unlocked"] == 1
     assert "Traceback" not in out
 
 

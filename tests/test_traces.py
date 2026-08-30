@@ -1051,7 +1051,7 @@ def test_run_prepare_cmd_default_timeout_is_compile_budget() -> None:
 def test_compile_fail_prefixes_src() -> None:
     src = Path("/tmp/work/solution.c")
     proc = subprocess.CompletedProcess(["cc"], 1, stdout="", stderr="error: expected identifier")
-    assert str(compile_fail(src, proc, "c compile failed")).startswith(str(src))
+    assert str(compile_fail(src, proc, "c compile failed")) == f"{src}: error: expected identifier"
 
 
 _GO = shutil.which("go")

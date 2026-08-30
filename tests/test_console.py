@@ -4,6 +4,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -95,8 +96,10 @@ def test_loop_console_reprints_time_up_when_clock_hits_zero(monkeypatch, tmp_pat
     assert code == 0
     idx = out.find("TIME UP")
     assert idx != -1
-    assert "TIME UP" not in out[:idx]
+    assert "remaining_s=60" in out[:idx]
+    assert out.count("TIME UP") == 1
     assert "will not unlock" in out[idx:].lower()
+    assert "will not unlock" not in out[:idx].lower()
     assert "Unlock?" not in out
     assert "OK: quit" in out
 
@@ -376,38 +379,45 @@ def test_live_read_choice_timeout_reprints_time_up(monkeypatch, tmp_path: Path) 
     session = {
         "problem": "bank_system",
         "lang": "java",
-        "started_at": 1,
+        "started_at": int(time.time()),
         "minutes": 90,
         "unlocked": 1,
     }
     stdin = _pipe_stdin(b"q")
     stdout = io.StringIO()
     shown_time_up = [False]
-    calls = {"n": 0}
+    select_calls = {"n": 0}
+    remaining_calls = {"n": 0}
 
     def fake_select(rlist, wlist, xlist, timeout=None):
-        calls["n"] += 1
-        if calls["n"] == 1:
+        select_calls["n"] += 1
+        if select_calls["n"] == 1:
             return [], [], []
         return list(rlist), [], []
 
+    def fake_remaining(started_at: int, minutes: int, now: int | None = None) -> int:
+        remaining_calls["n"] += 1
+        return 60 if remaining_calls["n"] == 1 else 0
+
     monkeypatch.setattr("honepad.console.select.select", fake_select)
+    monkeypatch.setattr("honepad.console.remaining_s", fake_remaining)
     try:
         got = _read_choice(
             session,
             stdin,
             stdout,
             live=True,
-            clock_fn=lambda: 0,
+            clock_fn=None,
             shown_time_up=shown_time_up,
         )
     finally:
         stdin.close()
     assert got == "q"
     out = stdout.getvalue()
-    assert "TIME UP" in out
-    assert "will not unlock" in out.lower()
     assert shown_time_up[0] is True
+    assert "TIME UP" in out
+    assert out.count("TIME UP") == 1
+    assert "will not unlock" in out.lower()
 
 
 def test_live_menu_enter_alone_is_empty() -> None:
