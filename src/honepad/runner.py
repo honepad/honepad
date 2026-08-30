@@ -451,17 +451,62 @@ def scala_entry(problem: str, kind: str) -> Path:
     return pack_src("scala", problem, kind, "solution.scala", "stub.scala")
 
 
+def _coursier_bins() -> list[Path]:
+    home = Path.home()
+    return [
+        home / "Library" / "Application Support" / "Coursier" / "bin",
+        home / ".local" / "share" / "coursier" / "bin",
+    ]
+
+
+def _prepend_path(folder: Path) -> None:
+    text = str(folder)
+    current = os.environ.get("PATH", "")
+    parts = current.split(os.pathsep) if current else []
+    if text and text not in parts:
+        os.environ["PATH"] = text + os.pathsep + current
+
+
+def _tool(name: str) -> str | None:
+    found = shutil.which(name)
+    if found:
+        return found
+    for folder in _coursier_bins():
+        cand = folder / name
+        if cand.is_file() and os.access(cand, os.X_OK):
+            _prepend_path(folder)
+            return str(cand)
+    return None
+
+
+def _ensure_scala() -> None:
+    script = repo_root() / "factory" / "scripts" / "ensure-scala.sh"
+    subprocess.run(["bash", str(script)], check=False)
+    for folder in _coursier_bins():
+        if (folder / "scalac").is_file():
+            _prepend_path(folder)
+            return
+
+
 def _scalac() -> str:
-    path = shutil.which("scalac")
-    if path:
-        return path
+    found = _tool("scalac")
+    if found:
+        return found
+    _ensure_scala()
+    found = _tool("scalac")
+    if found:
+        return found
     raise RuntimeError("scalac not found")
 
 
 def _scala() -> str:
-    path = shutil.which("scala")
-    if path:
-        return path
+    found = _tool("scala")
+    if found:
+        return found
+    _ensure_scala()
+    found = _tool("scala")
+    if found:
+        return found
     raise RuntimeError("scala not found")
 
 

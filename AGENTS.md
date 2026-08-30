@@ -5,6 +5,7 @@ Python 3.10+. Local gate before every commit is `make check`:
 ```bash
 ruff check src tests
 ruff format --check src tests
+bash factory/scripts/ensure-scala.sh
 python3 -m pytest
 bash factory/scripts/assert-stealth.sh honepad/honepad
 bash factory/scripts/write-ledger.sh --self-test
