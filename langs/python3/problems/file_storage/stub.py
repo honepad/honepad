@@ -34,7 +34,10 @@ class Simulation:
         raise NotImplementedError
 
     def merge_user(self, user_id1, user_id2):
-        """Move drop onto keep. Keep remaining capacity, or ""."""
+        """Merge user_id2 into user_id1, then delete user_id2.
+
+        Remaining capacity of user_id1, or "".
+        """
         raise NotImplementedError
 
     def backup_user(self, user_id):

@@ -56,8 +56,9 @@ public class Simulation {
     }
 
     /**
-     * Move drop onto keep. Returns keep remaining capacity, or
-     * {@code ""}.
+     * Merge {@code userId2} into {@code userId1}, then delete
+     * {@code userId2}. Returns remaining capacity of {@code userId1},
+     * or {@code ""}.
      */
     public String mergeUser(String userId1, String userId2) {
         return "";

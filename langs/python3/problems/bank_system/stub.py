@@ -33,7 +33,11 @@ class Simulation:
         raise NotImplementedError
 
     def merge_accounts(self, timestamp, account_id_1, account_id_2):
-        """Move drop onto keep. False if missing or the same id."""
+        """Merge account_id_2 into account_id_1, then delete account_id_2.
+
+        Moves balance, outgoing, payments, history, and pending cashbacks.
+        False if either id is missing or they are the same.
+        """
         raise NotImplementedError
 
     def get_balance(self, timestamp, account_id, time_at):
