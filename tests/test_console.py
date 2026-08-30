@@ -140,6 +140,44 @@ def test_loop_console_time_up_again_after_clock_restarts(monkeypatch, tmp_path: 
     assert "OK: quit" in out
 
 
+def test_loop_console_reset_all_reprints_banner_after_time_up(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    session["started_at"] = 1
+    session["minutes"] = 1
+    (tmp_path / "session.json").write_text(json.dumps(session, indent=2) + "\n", encoding="utf-8")
+    session = load_session()
+    assert session is not None
+    stdout = io.StringIO()
+    code = loop_console(
+        dict(session),
+        stdin=io.StringIO("3\nall\nq\n"),
+        stdout=stdout,
+        live=False,
+    )
+    out = stdout.getvalue()
+    assert code == 0
+    ok_idx = out.find("OK: LEVEL 1")
+    assert ok_idx != -1
+    assert "TIME UP" in out[:ok_idx]
+    after = out[ok_idx:]
+    last = after.rfind("remaining_s=")
+    assert last != -1
+    start = last + len("remaining_s=")
+    digits = []
+    for ch in after[start:]:
+        if ch.isdigit():
+            digits.append(ch)
+        else:
+            break
+    assert digits
+    assert int("".join(digits)) > 0
+    assert out.rfind("TIME UP") < ok_idx
+    assert "OK: quit" in out
+
+
 def test_color_disabled_without_tty(monkeypatch) -> None:
     monkeypatch.delenv("FORCE_COLOR", raising=False)
     monkeypatch.delenv("NO_COLOR", raising=False)
@@ -344,6 +382,18 @@ def test_console_needs_both_args(monkeypatch, tmp_path: Path, capsys) -> None:
     out = capsys.readouterr().out
     assert "FAIL:" in out
     assert "both problem and lang" in out
+    assert "NEXT:" in out
+    assert "console bank_system java" in out
+
+
+def test_vscode_needs_both_args(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["vscode", "bank_system"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "both problem and lang" in out
+    assert "NEXT:" in out
+    assert "vscode bank_system java" in out
 
 
 def test_console_unimplemented_lang_fails(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -408,6 +458,24 @@ def test_live_menu_key_does_not_need_enter() -> None:
     finally:
         stdin.close()
     assert got == "1"
+
+
+def test_live_menu_key_drains_leftover() -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 1,
+        "minutes": 90,
+        "unlocked": 2,
+    }
+    stdin = _pipe_stdin(b"12")
+    try:
+        got = _read_choice(session, stdin, io.StringIO(), live=True, clock_fn=lambda: 12)
+        leftover = stdin.read()
+    finally:
+        stdin.close()
+    assert got == "1"
+    assert leftover == ""
 
 
 def test_live_read_choice_timeout_reprints_time_up(monkeypatch, tmp_path: Path) -> None:
@@ -601,6 +669,26 @@ def test_console_run_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> Non
     assert "2 submit" in out
     assert out.count("LEVEL 1") >= 1
     assert out.count("honepad  bank_system") == 1
+
+
+def test_live_menu_leftover_keys_do_not_submit(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    _write_python_solution(tmp_path)
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    stdin = _pipe_stdin(b"12y")
+    stdout = io.StringIO()
+    try:
+        code = loop_console(session, stdin=stdin, stdout=stdout, live=True)
+    finally:
+        stdin.close()
+    out = stdout.getvalue() + capsys.readouterr().out
+    assert code == 0
+    assert "UNLOCKED" not in out
+    assert load_session()["unlocked"] == 1
+    assert "passed=" in out
 
 
 def test_console_two_runs_keep_one_banner(monkeypatch, tmp_path: Path, capsys) -> None:

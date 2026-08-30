@@ -123,9 +123,34 @@ def naming_for(lang_id: str) -> str:
     return str(language(lang_id)["naming"])
 
 
+def _js_declares_line(line: str, name: str, nxt: str | None = None) -> bool:
+    stripped = line.strip()
+    body = stripped
+    if body.startswith("async "):
+        body = body[len("async ") :].lstrip()
+    if not body.startswith(f"{name}("):
+        return False
+    if "{" in body:
+        return True
+    if stripped.endswith(";"):
+        return False
+    return bool(nxt) and nxt.strip().startswith("{")
+
+
+def _java_declares_name(text: str, pos: int, name: str) -> bool:
+    pub = text.rfind("public ", 0, pos)
+    if pub < 0:
+        return False
+    sig = text[pub + len("public ") : pos + len(name)]
+    if "{" in sig:
+        return False
+    tokens = sig.split()
+    return bool(tokens) and tokens[-1] == name
+
+
 def _declares(text: str, ext: str, name: str) -> bool:
     lines = _code_lines(text, ext)
-    if ext == "java" or ext in {"js", "ts"}:
+    if ext == "java":
         needle = f"{name}("
         for line in lines:
             idx = 0
@@ -133,9 +158,18 @@ def _declares(text: str, ext: str, name: str) -> bool:
                 pos = line.find(needle, idx)
                 if pos < 0:
                     break
-                if pos == 0 or not (line[pos - 1].isalnum() or line[pos - 1] == "_"):
+                if pos > 0 and (line[pos - 1].isalnum() or line[pos - 1] == "_"):
+                    idx = pos + 1
+                    continue
+                if _java_declares_name(line, pos, name):
                     return True
                 idx = pos + 1
+        return False
+    if ext in {"js", "ts"}:
+        for i, line in enumerate(lines):
+            nxt = lines[i + 1] if i + 1 < len(lines) else None
+            if _js_declares_line(line, name, nxt):
+                return True
         return False
     if ext == "py":
         return any(f"def {name}(" in line for line in lines)
@@ -215,10 +249,10 @@ def _java_method_start(text: str, name: str) -> int | None:
         if pos > 0 and (text[pos - 1].isalnum() or text[pos - 1] == "_"):
             idx = pos + 1
             continue
-        pub = text.rfind("public ", 0, pos)
-        if pub < 0:
+        if not _java_declares_name(text, pos, name):
             idx = pos + 1
             continue
+        pub = text.rfind("public ", 0, pos)
         return _include_java_doc(text, pub)
 
 
@@ -268,6 +302,9 @@ def _brace_close(text: str, brace: int) -> int:
             continue
         if ch == "'":
             i = _skip_quoted(text, i, "'")
+            continue
+        if ch == "`":
+            i = _skip_quoted(text, i, "`")
             continue
         if ch == "{":
             depth += 1

@@ -171,6 +171,30 @@ def test_run_submit_flag_unlocks(monkeypatch, tmp_path: Path, capsys) -> None:
     assert load_session()["unlocked"] == 2
 
 
+def test_submit_unlocks_when_workspace_write_fails(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    src = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    work.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise OSError("workspace boom")
+
+    monkeypatch.setattr("honepad.cli.write_workspace", boom)
+    code = main(["run", "bank_system", "--submit"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert load_session()["unlocked"] == 2
+    assert "def top_spenders" in work.read_text(encoding="utf-8")
+    assert "Traceback" not in out
+    assert "UNLOCKED: level 2" in out
+    assert "OK" in out
+    assert "NOTE:" in out
+    assert "workspace boom" in out
+
+
 def test_stub_runs_do_not_unlock_next_level(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
@@ -398,6 +422,55 @@ def test_run_kind_work_problem_mismatch(monkeypatch, tmp_path: Path, capsys) -> 
     assert after is not None
     assert after["problem"] == "workers"
     assert after["unlocked"] == unlocked
+
+
+@pytest.mark.parametrize("argv", (["submit", "bank_system"], ["run", "bank_system", "--submit"]))
+def test_submit_without_session_does_not_run_solution(
+    monkeypatch, tmp_path: Path, capsys, argv: list[str]
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    code = main(argv)
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL:" in out
+    assert "no session" in out
+    assert "NEXT:" in out
+    assert "start" in out
+    assert "UNLOCKED" not in out
+    assert "\nOK\n" not in out
+    assert not out.strip().endswith("OK")
+    assert "through LEVEL" not in out
+    assert load_session() is None
+
+
+@pytest.mark.parametrize("argv", (["submit", "bank_system"], ["run", "bank_system", "--submit"]))
+def test_submit_wrong_problem_does_not_run_solution(
+    monkeypatch, tmp_path: Path, capsys, argv: list[str]
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "workers", "python3", "--reset", "--no-console"]) == 0
+    before = load_session()
+    assert before is not None
+    assert before["problem"] == "workers"
+    unlocked = before["unlocked"]
+    started = before["started_at"]
+    capsys.readouterr()
+    code = main(argv)
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL:" in out
+    assert "no session" in out or "mismatch" in out
+    assert "NEXT:" in out
+    assert "start" in out
+    assert "UNLOCKED" not in out
+    assert "\nOK\n" not in out
+    assert not out.strip().endswith("OK")
+    assert "through LEVEL" not in out
+    after = load_session()
+    assert after is not None
+    assert after["problem"] == "workers"
+    assert after["unlocked"] == unlocked
+    assert after["started_at"] == started
 
 
 def test_start_copies_work_file_away_from_pack(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -709,6 +782,34 @@ def test_work_timeout_python_prints_fail(monkeypatch, tmp_path: Path, capsys) ->
     assert "FAIL:" in out
     assert "timed out" in out
     assert "python3" in out
+    assert work.name in out
+    assert "Traceback" not in out
+    assert "UNLOCKED" not in out
+
+
+def test_work_timeout_javascript_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "javascript", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "javascript" / "work.js"
+    work.write_text(
+        """class Simulation {
+  constructor() { while (true) {} }
+  createAccount(timestamp, account_id) { return false; }
+  deposit(timestamp, account_id, amount) { return null; }
+  transfer(timestamp, source_account_id, target_account_id, amount) { return null; }
+}
+module.exports = { Simulation };
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("honepad.runner.RUN_TIMEOUT_S", 1)
+    assert main(["run", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "timed out" in out
+    assert "javascript" in out
     assert work.name in out
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
@@ -1380,6 +1481,134 @@ def test_start_minutes_zero_does_not_write_session(monkeypatch, tmp_path: Path, 
     assert not session_file.is_file()
 
 
+def test_start_minutes_on_resume_updates_running_clock(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    assert (
+        main(["start", "bank_system", "python3", "--minutes", "90", "--reset", "--no-console"]) == 0
+    )
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text(work.read_text(encoding="utf-8") + "# keep-me\n", encoding="utf-8")
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 2
+    save_session(session)
+    clock["now"] = 1_700_000_000 + 60
+    assert main(["start", "bank_system", "python3", "--minutes", "30", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    after = load_session()
+    assert after is not None
+    assert after["minutes"] == 30
+    assert after["started_at"] == 1_700_000_000
+    assert after["unlocked"] == 2
+    assert remaining_s(int(after["started_at"]), int(after["minutes"]), int(clock["now"])) == 1740
+    assert "NOTE:" in out
+    assert "clock is now 30" in out
+    assert "# keep-me" in work.read_text(encoding="utf-8")
+
+
+def test_start_minutes_shorter_than_elapsed_restarts_clock(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    assert (
+        main(["start", "bank_system", "python3", "--minutes", "90", "--reset", "--no-console"]) == 0
+    )
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text(work.read_text(encoding="utf-8") + "# keep-me\n", encoding="utf-8")
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 2
+    save_session(session)
+    clock["now"] = 1_700_000_000 + 40 * 60
+    assert main(["start", "bank_system", "python3", "--minutes", "30", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    after = load_session()
+    assert after is not None
+    assert after["minutes"] == 30
+    assert after["unlocked"] == 2
+    assert after["started_at"] == int(clock["now"])
+    assert remaining_s(int(after["started_at"]), int(after["minutes"]), int(clock["now"])) == 1800
+    assert "NOTE:" in out
+    assert "clock is now 30" in out
+    assert "# keep-me" in work.read_text(encoding="utf-8")
+
+
+def test_start_without_minutes_keeps_saved_duration(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert (
+        main(["start", "bank_system", "python3", "--minutes", "30", "--reset", "--no-console"]) == 0
+    )
+    first = load_session()
+    assert first is not None
+    assert first["minutes"] == 30
+    capsys.readouterr()
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    after = load_session()
+    assert after is not None
+    assert after["minutes"] == 30
+    assert after["started_at"] == first["started_at"]
+
+
+@pytest.mark.parametrize("argv", ([], ["console"]))
+def test_bare_honepad_keeps_saved_minutes(
+    monkeypatch, tmp_path: Path, capsys, argv: list[str]
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert (
+        main(["start", "bank_system", "python3", "--minutes", "30", "--reset", "--no-console"]) == 0
+    )
+    first = load_session()
+    assert first is not None
+    assert first["minutes"] == 30
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
+    assert main(argv) == 0
+    after = load_session()
+    assert after is not None
+    assert after["minutes"] == 30
+    assert after["started_at"] == first["started_at"]
+
+
+@pytest.mark.parametrize(
+    "argv",
+    (["console", "--minutes", "30"], ["vscode", "--minutes", "30", "--no-open"]),
+)
+def test_resume_current_session_honors_minutes(
+    monkeypatch, tmp_path: Path, capsys, argv: list[str]
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert (
+        main(["start", "bank_system", "python3", "--minutes", "90", "--reset", "--no-console"]) == 0
+    )
+    first = load_session()
+    assert first is not None
+    assert first["minutes"] == 90
+    capsys.readouterr()
+    if argv[0] == "console":
+        monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
+    assert main(argv) == 0
+    out = capsys.readouterr().out
+    after = load_session()
+    assert after is not None
+    assert after["minutes"] == 30
+    assert "NOTE:" in out
+    assert "clock is now 30" in out
+
+
 def test_save_session_drops_unknown_keys(monkeypatch, tmp_path: Path) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
@@ -1455,6 +1684,34 @@ def test_reset_breaks_work_hardlink_to_pack(monkeypatch, tmp_path: Path, capsys)
     finally:
         if solution.read_text(encoding="utf-8") != original:
             solution.write_text(original, encoding="utf-8")
+
+
+def test_write_work_spec_breaks_hardlink_to_pack(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    spec = tmp_path / "work" / "bank_system" / "python3" / "spec.md"
+    stub = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "stub.py"
+    original = stub.read_text(encoding="utf-8")
+    spec.unlink()
+    os.link(stub, spec)
+    try:
+        assert spec.stat().st_ino == stub.stat().st_ino
+        code = main(["start", "bank_system", "python3", "--no-console"])
+        captured = capsys.readouterr()
+        out = captured.out + captured.err
+        assert code == 0
+        assert "Traceback" not in out
+        assert stub.read_text(encoding="utf-8") == original
+        assert spec.is_file()
+        assert not spec.is_symlink()
+        assert spec.stat().st_ino != stub.stat().st_ino
+        text = spec.read_text(encoding="utf-8")
+        assert "create_account" in text
+        assert text != original
+    finally:
+        if stub.read_text(encoding="utf-8") != original:
+            stub.write_text(original, encoding="utf-8")
 
 
 def test_loop_console_bad_json_keeps_last_session(monkeypatch, tmp_path: Path) -> None:
@@ -2319,6 +2576,140 @@ def test_js_unlock_merge_ignores_brace_in_string() -> None:
     merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
     assert 'note = "{"' in merged
     assert "topSpenders" in merged
+
+
+def test_js_unlock_merge_inserts_method_when_call_exists() -> None:
+    work = """class Simulation {
+  constructor() {}
+  createAccount(t, id) { return true; }
+  deposit(t, id, amount) { this.topSpenders(t, 1); return 0; }
+  transfer(t, a, b, amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/javascript/problems/bank_system/stub.js").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
+    merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+    assert "this.topSpenders(t, 1)" in merged
+    decls = [
+        line.strip()
+        for line in merged.splitlines()
+        if line.strip().startswith("topSpenders(") and "{" in line
+    ]
+    assert decls
+    assert "not implemented" in decls[0]
+
+
+def test_js_unlock_merge_keeps_allman_methods() -> None:
+    work = """class Simulation {
+  constructor() {}
+  createAccount(timestamp, account_id)
+  {
+    return true;
+  }
+  deposit(timestamp, account_id, amount)
+  {
+    topSpenders(t, 1)
+    return 0;
+  }
+  transfer(timestamp, source_account_id, target_account_id, amount)
+  {
+    return 0;
+  }
+}
+"""
+    full = (repo_root() / "langs/javascript/problems/bank_system/stub.js").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
+    merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+
+    def _decl_count(name: str) -> int:
+        return sum(
+            1
+            for line in merged.splitlines()
+            if line.strip().startswith(f"{name}(") and not line.strip().endswith(";")
+        )
+
+    assert _decl_count("createAccount") == 1
+    assert _decl_count("deposit") == 1
+    assert _decl_count("transfer") == 1
+    assert "topSpenders(t, 1)" in merged
+    top = [
+        line.strip()
+        for line in merged.splitlines()
+        if line.strip().startswith("topSpenders(") and "{" in line
+    ]
+    assert len(top) == 1
+    assert "not implemented" in top[0]
+
+
+def test_js_unlock_merge_keeps_oneline_methods() -> None:
+    work = """class Simulation {
+  constructor() {}
+  createAccount(timestamp, account_id) { return true; };
+  deposit(timestamp, account_id, amount) { this.topSpenders(t, 1); return 0; };
+  transfer(timestamp, source_account_id, target_account_id, amount) { return 0; };
+}
+"""
+    full = (repo_root() / "langs/javascript/problems/bank_system/stub.js").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
+    merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+
+    def _decl_count(name: str) -> int:
+        return sum(1 for line in merged.splitlines() if line.strip().startswith(f"{name}("))
+
+    assert _decl_count("createAccount") == 1
+    assert _decl_count("deposit") == 1
+    assert _decl_count("transfer") == 1
+    assert "this.topSpenders(t, 1)" in merged
+    top = [
+        line.strip()
+        for line in merged.splitlines()
+        if line.strip().startswith("topSpenders(") and "{" in line
+    ]
+    assert len(top) == 1
+    assert "not implemented" in top[0]
+
+
+def test_java_unlock_merge_inserts_method_when_call_exists() -> None:
+    work = """public class Simulation {
+  public Simulation() {}
+  public Boolean createAccount(long t, String id) { return true; }
+  public Integer deposit(long t, String id, int amount) { this.topSpenders(t, 1); return 0; }
+  public Integer transfer(long t, String a, String b, int amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("java"))
+    merged = merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    assert "this.topSpenders(t, 1)" in merged
+    assert "public List<String> topSpenders" in merged
+
+
+def test_js_unlock_merge_ignores_brace_in_template() -> None:
+    work = """class Simulation {
+  constructor() {
+    this.note = `}`;
+  }
+  createAccount(t, id) { this.keep = `keep {`; return true; }
+  deposit(t, id, amount) { return 0; }
+  transfer(t, a, b, amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/javascript/problems/bank_system/stub.js").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
+    merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+    assert "this.note = `}`" in merged
+    assert "this.keep = `keep {`" in merged
+    assert "topSpenders" in merged
+    ctor = merged[merged.find("constructor") : merged.find("createAccount")]
+    assert "topSpenders" not in ctor
 
 
 def test_java_unlock_merge_ignores_brace_in_line_comment() -> None:

@@ -9,7 +9,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import Any, TextIO
 
-from honepad.catalog import language
+from honepad.catalog import language, problems
 from honepad.runner import _RUNNERS
 from honepad.session import (
     drop_level,
@@ -74,6 +74,8 @@ def cmd_console(args: argparse.Namespace) -> int:
         )
     except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
         _print_fail(exc)
+        if "both problem and lang" in str(exc):
+            print(f"NEXT: {invocation()} console bank_system java")
         return 1
     return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
 
@@ -101,6 +103,8 @@ def cmd_vscode(args: argparse.Namespace) -> int:
         return open_vscode(path)
     except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
         _print_fail(exc)
+        if "both problem and lang" in str(exc):
+            print(f"NEXT: {invocation()} vscode bank_system java")
         return 1
 
 
@@ -176,6 +180,9 @@ def loop_console(
                 except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
                     stdout.write(status_fail(f"FAIL: {exc}") + "\n")
                     last = 1
+                else:
+                    bannered = False
+                    shown_time_up[0] = False
                 stdout.write("\n")
                 continue
             if choice in {"2", "submit"}:
@@ -364,13 +371,17 @@ def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:
         session = load_session()
         if session is None:
             raise ValueError(f"no session. Start with: {invocation()} start bank_system java")
-        minutes = int(session["minutes"])
+        raw = getattr(args, "minutes", None)
+        minutes = int(session["minutes"]) if raw is None else int(raw)
         session = ensure_session(str(session["problem"]), str(session["lang"]), minutes=minutes)
     else:
+        if problem not in problems():
+            raise ValueError(f"invalid problem: {problem}")
         row = language(str(lang))
         if row["id"] not in _RUNNERS:
             raise ValueError(f"no runner for {row['id']}")
-        minutes = int(getattr(args, "minutes", 90) or 90)
+        raw = getattr(args, "minutes", None)
+        minutes = None if raw is None else int(raw)
         session = ensure_session(str(problem), row["id"], minutes=minutes, reset=False)
     note_clock_restarted(session)
     return session
@@ -508,6 +519,7 @@ def _read_choice(
                     continue
                 stdout.write("\r\033[K\n")
                 stdout.flush()
+                _drain_pending(stdin)
                 return ch
             _reload_session(session)
             left = _left()

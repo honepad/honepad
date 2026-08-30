@@ -259,6 +259,7 @@ def run_script(
     level: int,
     kind: str,
     argv: list[str],
+    src: Path | None = None,
 ) -> Report:
     cases = load_cases(problem, level)
     with tempfile.TemporaryDirectory() as tmp:
@@ -268,6 +269,7 @@ def run_script(
             [*argv, str(cases_path)],
             lang_id=lang_id,
             timeout=RUN_TIMEOUT_S,
+            src=src,
         )
     return report_from_proc(proc, problem, lang_id, level)
 
@@ -281,6 +283,7 @@ def run_javascript(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         ["node", str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -293,6 +296,7 @@ def run_ruby(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         ["ruby", str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -305,6 +309,7 @@ def run_perl(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         ["perl", str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -333,6 +338,7 @@ def run_tcl(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         [_tclsh(), str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -352,6 +358,7 @@ def run_r(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         [_rscript(), str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -400,6 +407,7 @@ def run_elixir(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         [_elixir(), str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -474,7 +482,6 @@ def _tool(name: str) -> str | None:
     for folder in _coursier_bins():
         cand = folder / name
         if cand.is_file() and os.access(cand, os.X_OK):
-            _prepend_path(folder)
             return str(cand)
     return None
 
@@ -606,6 +613,7 @@ def run_erlang(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         [_escript(), str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -618,6 +626,7 @@ def run_dart(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         [_dart(), "run", str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -637,6 +646,7 @@ def run_julia(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         [_julia(), str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -659,6 +669,7 @@ def run_coffeescript(problem: str, level: int, kind: str = "solution") -> Report
         level,
         kind,
         [*_coffee(), str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -671,6 +682,7 @@ def run_bash(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         ["bash", str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -683,6 +695,7 @@ def run_shell(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         ["bash", str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -709,6 +722,7 @@ def run_powershell(problem: str, level: int, kind: str = "solution") -> Report:
             str(src),
             class_name_for(problem),
         ],
+        src=src,
     )
 
 
@@ -751,6 +765,7 @@ def run_clojure(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         [*_clojure(), str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -778,6 +793,7 @@ def run_smalltalk(problem: str, level: int, kind: str = "solution") -> Report:
             str(src),
             class_name_for(problem),
         ],
+        src=src,
     )
 
 
@@ -790,6 +806,7 @@ def run_common_lisp(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         [_sbcl(), "--script", str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -802,6 +819,7 @@ def run_groovy(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         [_groovy(), str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -826,6 +844,7 @@ def run_octave(problem: str, level: int, kind: str = "solution") -> Report:
             str(src),
             class_name_for(problem),
         ],
+        src=src,
     )
 
 
@@ -838,6 +857,7 @@ def run_lua(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         [_lua(), str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -850,6 +870,7 @@ def run_php(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         ["php", str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
@@ -1056,6 +1077,7 @@ def run_typescript(problem: str, level: int, kind: str = "solution") -> Report:
         level,
         kind,
         ["node", str(adapter), str(src), class_name_for(problem)],
+        src=src,
     )
 
 
