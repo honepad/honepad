@@ -15,6 +15,7 @@ from honepad.workstub import (
     _java_method,
     class_name_for,
     declares_class,
+    merge_unlocked_methods,
     methods_through_level,
     naming_for,
 )
@@ -605,7 +606,9 @@ def test_work_compile_error_prints_fail(monkeypatch, tmp_path: Path, capsys) -> 
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
-    assert "Simulation.java" in out
+    assert str(work) in out
+    lowered = out.lower()
+    assert "error" in lowered or "expected" in lowered or "javac" in lowered
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
 
@@ -624,7 +627,7 @@ def test_work_compile_error_prints_c_work_path(monkeypatch, tmp_path: Path, caps
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
-    assert work.name in out
+    assert str(work) in out
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
 
@@ -685,6 +688,7 @@ public class Simulation {
     assert "FAIL:" in out
     assert "timed out" in out
     assert "java" in out
+    assert str(work) in out
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
 
@@ -1474,7 +1478,7 @@ def test_loop_console_bad_json_keeps_last_session(monkeypatch, tmp_path: Path) -
 
     stdout = io.StringIO()
     code = loop_console(
-        dict(session),
+        session,
         stdin=CorruptThenQuit("\nq\n"),
         stdout=stdout,
         live=False,
@@ -1482,6 +1486,11 @@ def test_loop_console_bad_json_keeps_last_session(monkeypatch, tmp_path: Path) -
     out = stdout.getvalue()
     assert code == 0
     assert "OK: quit" in out
+    assert "FAIL:" in out
+    assert session_file.name in out or "session" in out
+    assert session["problem"] == "bank_system"
+    assert session["lang"] == "python3"
+    assert session["unlocked"] == 1
     assert "Traceback" not in out
 
 
@@ -2276,6 +2285,56 @@ def test_java_unlock_merge_targets_simulation_not_last_brace(
     assert "topSpenders" in simulation
     assert "topSpenders" not in account
     assert "class Account" in body
+
+
+def test_java_unlock_merge_ignores_brace_in_string() -> None:
+    work = """public class Simulation {
+  private final String note = "{";
+  public Simulation() {}
+  public Boolean createAccount(long t, String id) { return true; }
+  public Integer deposit(long t, String id, int amount) { return 0; }
+  public Integer transfer(long t, String a, String b, int amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("java"))
+    merged = merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    assert 'note = "{"' in merged
+    assert "topSpenders" in merged
+
+
+def test_js_unlock_merge_ignores_brace_in_string() -> None:
+    work = """class Simulation {
+  const note = "{";
+  constructor() {}
+  createAccount(t, id) { return true; }
+  deposit(t, id, amount) { return 0; }
+  transfer(t, a, b, amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/javascript/problems/bank_system/stub.js").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
+    merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+    assert 'note = "{"' in merged
+    assert "topSpenders" in merged
+
+
+def test_java_unlock_merge_ignores_brace_in_line_comment() -> None:
+    work = """public class Simulation {
+  // keep {
+  public Simulation() {}
+  public Boolean createAccount(long t, String id) { return true; }
+  public Integer deposit(long t, String id, int amount) { return 0; }
+  public Integer transfer(long t, String a, String b, int amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("java"))
+    merged = merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    assert "// keep {" in merged
+    assert "topSpenders" in merged
 
 
 def test_python_unlock_merge_targets_simulation_not_last_class(
