@@ -13,6 +13,9 @@ hp_arr() { HONEPAD_RESULT=$(jq -nc --args '$ARGS.positional' -- "$@"); }
 file=$1
 cases_path=$3
 
+exec 3>&1
+exec 1>/dev/null
+
 # shellcheck source=/dev/null
 source "$file"
 
@@ -93,7 +96,7 @@ while ((ci < n_cases)); do
   ci=$((ci + 1))
 done
 
-jq -nc --argjson passed "$passed" --argjson failed "$failed" '{passed:$passed, failed:$failed}'
+jq -nc --argjson passed "$passed" --argjson failed "$failed" '{passed:$passed, failed:$failed}' >&3
 if [[ "$failed" != "[]" ]]; then
   exit 1
 fi
