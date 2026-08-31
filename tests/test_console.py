@@ -1321,6 +1321,78 @@ def test_workspace_python_skips_java_adapter(monkeypatch, tmp_path: Path) -> Non
     assert "public-tests" not in json.dumps(by_label["Run public tests"])
 
 
+def test_write_workspace_breaks_cases_hardlink_to_pack(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    dest = write_workspace("bank_system", "java", 1)
+    public = dest.parent / "public"
+    pack_adapter = repo_root() / "langs" / "java" / "Adapter.java"
+    original = pack_adapter.read_bytes()
+    cases = public / "cases.json"
+    cases.unlink()
+    os.link(pack_adapter, cases)
+    try:
+        assert cases.stat().st_ino == pack_adapter.stat().st_ino
+        write_workspace("bank_system", "java", 1)
+        assert pack_adapter.read_bytes() == original
+        assert cases.is_file()
+        assert not cases.is_symlink()
+        assert cases.stat().st_ino != pack_adapter.stat().st_ino
+    finally:
+        if pack_adapter.read_bytes() != original:
+            pack_adapter.write_bytes(original)
+
+
+def test_write_workspace_breaks_adapter_symlink_to_pack(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    dest = write_workspace("bank_system", "java", 1)
+    public = dest.parent / "public"
+    pack_adapter = repo_root() / "langs" / "java" / "Adapter.java"
+    original = pack_adapter.read_bytes()
+    planted = public / "Adapter.java"
+    planted.unlink()
+    planted.symlink_to(pack_adapter)
+    try:
+        write_workspace("bank_system", "java", 1)
+        assert pack_adapter.read_bytes() == original
+        assert planted.exists()
+        assert not planted.is_symlink() or planted.resolve() != pack_adapter.resolve()
+    finally:
+        if pack_adapter.read_bytes() != original:
+            pack_adapter.write_bytes(original)
+
+
+def test_write_workspace_refuses_public_dir_symlink(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    pack = repo_root() / "langs" / "java"
+    original_names = {path.name for path in pack.iterdir()}
+    escape = tmp_path.parent / f"{tmp_path.name}-outside"
+    escape.mkdir()
+    root = tmp_path / "workspace" / "bank_system-java"
+    root.mkdir(parents=True, exist_ok=True)
+    public = root / "public"
+    if public.exists() or public.is_symlink():
+        if public.is_dir() and not public.is_symlink():
+            shutil.rmtree(public)
+        else:
+            public.unlink()
+    public.symlink_to(escape)
+    polluters = ("cases.json", "pom.xml", "README.md", "run-public.sh", "spec.md")
+    try:
+        with pytest.raises((ValueError, RuntimeError)):
+            write_workspace("bank_system", "java", 1)
+        assert {path.name for path in pack.iterdir()} == original_names
+        for name in polluters:
+            assert not (escape / name).exists()
+            assert not (pack / name).exists()
+    finally:
+        if public.is_symlink():
+            public.unlink()
+        shutil.rmtree(escape, ignore_errors=True)
+
+
 def test_link_or_copy_falls_back_on_oserror(tmp_path: Path, monkeypatch) -> None:
     src = tmp_path / "work.java"
     dest = tmp_path / "Simulation.java"

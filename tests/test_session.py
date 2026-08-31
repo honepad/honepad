@@ -1661,6 +1661,30 @@ def test_reset_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None
             solution.write_text(original, encoding="utf-8")
 
 
+def test_run_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    original = solution.read_bytes()
+    work.unlink()
+    work.symlink_to(solution)
+    try:
+        code = main(["run", "bank_system", "--lang", "python3", "--kind", "work"])
+        captured = capsys.readouterr()
+        out = captured.out + captured.err
+        assert code == 1
+        assert "FAIL" in out
+        assert "symlink" in out
+        assert "Traceback" not in out
+        assert solution.read_bytes() == original
+        assert work.is_symlink()
+    finally:
+        if solution.read_bytes() != original:
+            solution.write_bytes(original)
+
+
 def test_reset_breaks_work_hardlink_to_pack(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
