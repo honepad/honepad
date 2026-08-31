@@ -24,6 +24,9 @@ proc honepad_fail {case_id index method expected actual} {
 proc main {} {
     global argv
     lassign $argv file className casesPath
+    set reportChan [open /dev/stdout w]
+    close stdout
+    open /dev/null w
     source $file
     if {[info commands $className] eq ""} {
         error "missing class $className"
@@ -83,7 +86,7 @@ proc main {} {
     foreach row $failed {
         lappend parts [json::encode $row]
     }
-    puts [format {{"passed":%d,"failed":[%s]}} $passed [join $parts ,]]
+    puts $reportChan [format {{"passed":%d,"failed":[%s]}} $passed [join $parts ,]]
     if {[llength $failed] > 0} {
         exit 1
     }

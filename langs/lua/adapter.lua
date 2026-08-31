@@ -20,6 +20,10 @@ local function main()
   local file = arg[1]
   local class_name = arg[2]
   local cases_path = arg[3]
+  local orig_write = io.write
+  print = function() end
+  io.write = function() end
+  io.stdout = { write = function() end }
   dofile(file)
   local cls = _G[class_name]
   if type(cls) ~= "table" or type(cls.new) ~= "function" then
@@ -86,7 +90,7 @@ local function main()
   for i = 1, #failed do
     parts[i] = json.encode(failed[i])
   end
-  io.write(string.format('{"passed":%d,"failed":[%s]}\n', passed, table.concat(parts, ",")))
+  orig_write(string.format('{"passed":%d,"failed":[%s]}\n', passed, table.concat(parts, ",")))
   if #failed > 0 then
     os.exit(1)
   end
