@@ -83,6 +83,8 @@ def pack_src(lang_id: str, problem: str, kind: str, solution_name: str, stub_nam
         from honepad.session import work_src
 
         path = work_src(problem, lang_id)
+        if path.is_symlink():
+            raise RuntimeError(f"work file is a symlink: {path}")
         if not path.is_file():
             raise FileNotFoundError(f"work file missing: {path}")
         return path
@@ -1201,6 +1203,18 @@ def _nim() -> str:
     raise RuntimeError("nim not found")
 
 
+def _nim_c_argv(tmpdir: Path, nim_bin: str | None = None) -> list[str]:
+    return [
+        nim_bin or _nim(),
+        "c",
+        "--hints:off",
+        "--warnings:off",
+        f"--nimcache:{tmpdir / 'nimcache'}",
+        "-o:run",
+        "adapter.nim",
+    ]
+
+
 def run_nim(problem: str, level: int, kind: str = "solution") -> Report:
     src = nim_entry(problem, kind)
     adapter = repo_root() / "langs" / "nim" / "adapter.nim"
@@ -1209,14 +1223,7 @@ def run_nim(problem: str, level: int, kind: str = "solution") -> Report:
         shutil.copy(adapter, tmpdir / "adapter.nim")
         shutil.copy(src, tmpdir / "solution.nim")
         compiled = run_prepare_cmd(
-            [
-                _nim(),
-                "c",
-                "--hints:off",
-                "--warnings:off",
-                "-o:run",
-                "adapter.nim",
-            ],
+            _nim_c_argv(tmpdir),
             tmpdir,
             "nim",
         )

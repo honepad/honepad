@@ -305,7 +305,7 @@ def _confirm_reset(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> st
     if line == "":
         return None
     confirm = line.strip().lower()
-    if confirm == "yes":
+    if confirm in {"y", "yes"}:
         return "work"
     if confirm == "back":
         return "back"
@@ -313,6 +313,8 @@ def _confirm_reset(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> st
         return "all"
     if confirm in {"q", "quit"}:
         return "quit"
+    stdout.write(status_fail("FAIL: type yes, back, or all") + "\n")
+    stdout.flush()
     return False
 
 
@@ -363,6 +365,8 @@ def _reset_all(session: dict[str, Any], stdout: TextIO) -> int:
 
 
 def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:
+    from honepad.cli import require_java_path
+
     problem = getattr(args, "problem", None)
     lang = getattr(args, "lang", None)
     if (problem is None) != (lang is None):
@@ -373,6 +377,7 @@ def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:
             raise ValueError(f"no session. Start with: {invocation()} start bank_system java")
         raw = getattr(args, "minutes", None)
         minutes = int(session["minutes"]) if raw is None else int(raw)
+        require_java_path(str(session["lang"]))
         session = ensure_session(str(session["problem"]), str(session["lang"]), minutes=minutes)
     else:
         if problem not in problems():
@@ -382,6 +387,7 @@ def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:
             raise ValueError(f"no runner for {row['id']}")
         raw = getattr(args, "minutes", None)
         minutes = None if raw is None else int(raw)
+        require_java_path(row["id"])
         session = ensure_session(str(problem), row["id"], minutes=minutes, reset=False)
     note_clock_restarted(session)
     return session

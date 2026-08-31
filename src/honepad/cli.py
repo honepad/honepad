@@ -164,6 +164,24 @@ def _is_lang_token(name: str) -> bool:
     return name in _RUNNERS or name in language_ids()
 
 
+def require_java_path(lang_id: str) -> None:
+    if lang_id != "java":
+        return
+    missing = next(
+        (name for name in ("javac", "java") if shutil.which(name) is None),
+        None,
+    )
+    if missing is not None:
+        raise RuntimeError(f"{missing} not on PATH")
+
+
+def _swap_start_lang_problem(args: argparse.Namespace) -> None:
+    if not args.problem or not args.lang:
+        return
+    if _is_lang_token(args.problem) and args.lang in problems() and not _is_lang_token(args.lang):
+        args.problem, args.lang = args.lang, args.problem
+
+
 def cmd_start(args: argparse.Namespace) -> int:
     if (
         args.problem
@@ -173,6 +191,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     ):
         args.lang = args.problem
         args.problem = None
+    _swap_start_lang_problem(args)
     if not args.problem or not args.lang:
         if not (_can_prompt() and _fill_start_args(args)):
             if args.lang and not args.problem:
@@ -184,7 +203,19 @@ def cmd_start(args: argparse.Namespace) -> int:
             print("problems: " + ", ".join(problems()))
             return 1
     try:
-        row = language(args.lang)
+        try:
+            row = language(args.lang)
+        except ValueError:
+            if (
+                args.problem
+                and _is_lang_token(args.problem)
+                and args.lang in problems()
+                and not _is_lang_token(args.lang)
+            ):
+                args.problem, args.lang = args.lang, args.problem
+                row = language(args.lang)
+            else:
+                raise
         if row["id"] not in _RUNNERS:
             print(status_fail(f"FAIL: no runner for {row['id']}"))
             print(start_next())
@@ -196,15 +227,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         _require_problem(args.problem)
         if args.level is not None:
             _check_level(args.problem, args.level)
-        if row["id"] == "java":
-            missing = next(
-                (name for name in ("javac", "java") if shutil.which(name) is None),
-                None,
-            )
-            if missing is not None:
-                print(status_fail(f"FAIL: {missing} not on PATH"))
-                print("NEXT: install a JDK so javac and java are on PATH")
-                return 1
+        require_java_path(row["id"])
         if getattr(args, "back", False):
             session = load_session()
             if session is None:

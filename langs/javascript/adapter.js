@@ -14,6 +14,21 @@ function loadClass(file, className) {
 }
 
 function main() {
+  const origWrite = process.stdout.write.bind(process.stdout);
+  const sink = [];
+  process.stdout.write = function (chunk, encoding, cb) {
+    if (typeof encoding === "function") {
+      cb = encoding;
+      encoding = undefined;
+    }
+    if (chunk != null) {
+      sink.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), encoding));
+    }
+    if (typeof cb === "function") {
+      process.nextTick(cb);
+    }
+    return true;
+  };
   const file = process.argv[2];
   const className = process.argv[3];
   const casesPath = process.argv[4];
@@ -63,7 +78,7 @@ function main() {
     }
     if (ok) passed += 1;
   }
-  process.stdout.write(JSON.stringify({ passed, failed }) + "\n");
+  origWrite(JSON.stringify({ passed, failed }) + "\n");
   process.exit(failed.length ? 1 : 0);
 }
 

@@ -7,7 +7,7 @@ import pytest
 
 from honepad.catalog import languages, problems
 from honepad.cli import build_parser, main
-from honepad.runner import _RUNNERS, run_prepare_cmd
+from honepad.runner import _RUNNERS, _nim_c_argv, run_prepare_cmd
 from honepad.session import load_session
 from honepad.term import invocation
 
@@ -285,6 +285,35 @@ def test_start_java_alone_is_language_not_problem(monkeypatch, tmp_path, capsys)
     assert load_session() is None
 
 
+def test_start_java_bank_system_swaps_lang_and_problem(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "java", "bank_system", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "java"
+    assert session["problem"] == "bank_system"
+
+
+def test_start_python3_bank_system_swaps_lang_and_problem(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "python3", "bank_system", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
+
+
+def test_start_java_python3_does_not_swap_two_langs(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["start", "java", "python3", "--no-console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK: LEVEL" not in out
+    assert load_session() is None
+
+
 def test_start_java_on_tty_picks_problem(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     _tty_stdin(monkeypatch, "bank_system\n")
@@ -510,9 +539,53 @@ def test_start_java_missing_javac_fails_before_session(monkeypatch, tmp_path, ca
     assert not session_file.is_file()
 
 
+def test_console_java_missing_javac_fails_before_session(monkeypatch, tmp_path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+
+    def _which(name: str, mode: int = 0, path: str | None = None) -> str | None:
+        if name == "javac":
+            return None
+        return f"/usr/bin/{name}"
+
+    monkeypatch.setattr("shutil.which", _which)
+    code = main(["console", "bank_system", "java"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL" in out
+    assert "javac" in out
+    assert "PATH" in out
+    assert not session_file.is_file()
+
+
+def test_vscode_java_missing_javac_fails_before_session(monkeypatch, tmp_path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+
+    def _which(name: str, mode: int = 0, path: str | None = None) -> str | None:
+        if name == "javac":
+            return None
+        return f"/usr/bin/{name}"
+
+    monkeypatch.setattr("shutil.which", _which)
+    code = main(["vscode", "bank_system", "java", "--no-open"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL" in out
+    assert "javac" in out
+    assert "PATH" in out
+    assert not session_file.is_file()
+
+
 def test_run_prepare_cmd_missing_binary_raises(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="not on PATH"):
         run_prepare_cmd(["no-such-honepad-compiler"], tmp_path, "java")
+
+
+def test_nim_compile_uses_private_nimcache(tmp_path: Path) -> None:
+    argv = _nim_c_argv(tmp_path, nim_bin="nim")
+    cache = tmp_path / "nimcache"
+    assert f"--nimcache:{cache}" in argv
 
 
 def test_corrupt_cases_prints_fail(monkeypatch, tmp_path, capsys) -> None:

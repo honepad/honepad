@@ -11,7 +11,7 @@ from pathlib import Path
 from honepad.catalog import language, repo_root
 from honepad.javatest import render_junit, render_pom
 from honepad.pythontest import render_pytest
-from honepad.session import session_path, work_src
+from honepad.session import _replace_text, session_path, work_src
 from honepad.term import file_link, file_uri
 from honepad.traces import load_cases, problem_dir
 from honepad.workstub import class_name_for
@@ -35,6 +35,19 @@ def public_test_file(problem: str, lang: str) -> Path | None:
     return None
 
 
+def _require_real_session_dir(path: Path, label: str) -> None:
+    bound = session_path().parent.resolve()
+    if path.is_symlink():
+        raise RuntimeError(f"{label} is a symlink: {path}")
+    if not path.is_dir():
+        raise RuntimeError(f"{label} is not a directory: {path}")
+    resolved = path.resolve()
+    if not resolved.is_dir():
+        raise RuntimeError(f"{label} is not a directory: {path}")
+    if not resolved.is_relative_to(bound):
+        raise RuntimeError(f"{label} escapes session: {path}")
+
+
 def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
     root = workspace_dir(problem, lang)
     work = work_src(problem, lang)
@@ -43,8 +56,11 @@ def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
         raise ValueError(f"work file missing: {work}")
     public = root / "public"
     public.mkdir(parents=True, exist_ok=True)
+    _require_real_session_dir(root, "workspace")
+    _require_real_session_dir(public, "public")
+    _require_real_session_dir(work.parent, "work")
     cases = load_cases(problem, unlocked)
-    (public / "cases.json").write_text(json.dumps(cases, indent=2) + "\n", encoding="utf-8")
+    _replace_text(public / "cases.json", json.dumps(cases, indent=2) + "\n")
     spec_folder = _write_specs(public, problem, unlocked)
     if row["id"] == "java":
         _write_java_public(public, work, problem, cases, unlocked)
@@ -64,7 +80,7 @@ def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
         "extensions": {"recommendations": _recommended_extensions(row["id"])},
     }
     dest = workspace_file(problem, lang)
-    dest.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    _replace_text(dest, json.dumps(payload, indent=2) + "\n")
     return dest
 
 
@@ -132,7 +148,8 @@ def _workspace_settings(lang: str) -> dict[str, object]:
 def _write_work_java_settings(work_dir: Path) -> None:
     vscode = work_dir / ".vscode"
     vscode.mkdir(parents=True, exist_ok=True)
-    (vscode / "settings.json").write_text(
+    _replace_text(
+        vscode / "settings.json",
         json.dumps(
             {
                 "java.import.maven.enabled": False,
@@ -141,16 +158,15 @@ def _write_work_java_settings(work_dir: Path) -> None:
             indent=2,
         )
         + "\n",
-        encoding="utf-8",
     )
 
 
 def _write_extensions(public: Path, ids: list[str]) -> None:
     vscode = public / ".vscode"
     vscode.mkdir(exist_ok=True)
-    (vscode / "extensions.json").write_text(
+    _replace_text(
+        vscode / "extensions.json",
         json.dumps({"recommendations": ids}, indent=2) + "\n",
-        encoding="utf-8",
     )
 
 
@@ -164,8 +180,8 @@ def _write_java_public(
     if not work.is_file():
         raise ValueError(f"work file missing: {work}")
     pack = repo_root() / "langs" / "java"
-    shutil.copy(pack / "Adapter.java", public / "Adapter.java")
-    shutil.copy(pack / "MiniJson.java", public / "MiniJson.java")
+    _replace_text(public / "Adapter.java", (pack / "Adapter.java").read_text(encoding="utf-8"))
+    _replace_text(public / "MiniJson.java", (pack / "MiniJson.java").read_text(encoding="utf-8"))
     main_java = public / "src" / "main" / "java"
     test_java = public / "src" / "test" / "java"
     main_java.mkdir(parents=True, exist_ok=True)
@@ -174,12 +190,13 @@ def _write_java_public(
     _link_or_copy(work, main_java / f"{class_name}.java")
     spec = problem_dir(problem) / "spec" / f"level{unlocked}.md"
     if spec.is_file():
-        (main_java / "spec.md").write_text(spec.read_text(encoding="utf-8"), encoding="utf-8")
-    (test_java / "PublicTracesTest.java").write_text(render_junit(problem, cases), encoding="utf-8")
-    (public / "pom.xml").write_text(render_pom(problem, "java"), encoding="utf-8")
+        _replace_text(main_java / "spec.md", spec.read_text(encoding="utf-8"))
+    _replace_text(test_java / "PublicTracesTest.java", render_junit(problem, cases))
+    _replace_text(public / "pom.xml", render_pom(problem, "java"))
     _write_extensions(public, ["vscjava.vscode-java-pack"])
     script = public / "run-public.sh"
-    script.write_text(
+    _replace_text(
+        script,
         "\n".join(
             [
                 "#!/bin/sh",
@@ -195,7 +212,6 @@ def _write_java_public(
                 "",
             ]
         ),
-        encoding="utf-8",
     )
     script.chmod(0o755)
 
@@ -206,7 +222,7 @@ def _write_python_public(
     if not work.is_file():
         raise ValueError(f"work file missing: {work}")
     _link_or_copy(work, public / "work.py")
-    (public / "test_public.py").write_text(render_pytest(problem, cases), encoding="utf-8")
+    _replace_text(public / "test_public.py", render_pytest(problem, cases))
     _write_extensions(public, ["ms-python.python"])
 
 
@@ -217,14 +233,14 @@ def _write_specs(public: Path, problem: str, unlocked: int) -> Path:
     latest = spec_dir / f"level{unlocked}.md"
     if latest.is_file():
         text = latest.read_text(encoding="utf-8")
-        (public / "spec.md").write_text(text, encoding="utf-8")
-        (spec_folder / "current.md").write_text(text, encoding="utf-8")
+        _replace_text(public / "spec.md", text)
+        _replace_text(spec_folder / "current.md", text)
     for level in range(1, unlocked + 1):
         src = spec_dir / f"level{level}.md"
         if src.is_file():
             text = src.read_text(encoding="utf-8")
-            (public / f"level{level}.md").write_text(text, encoding="utf-8")
-            (spec_folder / f"level{level}.md").write_text(text, encoding="utf-8")
+            _replace_text(public / f"level{level}.md", text)
+            _replace_text(spec_folder / f"level{level}.md", text)
     for extra in list(public.glob("level*.md")) + list(spec_folder.glob("level*.md")):
         try:
             n = int(extra.stem.removeprefix("level"))
@@ -273,7 +289,7 @@ def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Pa
                 "",
             ]
         )
-    (public / "README.md").write_text("\n".join(lines), encoding="utf-8")
+    _replace_text(public / "README.md", "\n".join(lines))
 
 
 def _write_tasks(public: Path, problem: str, lang: str) -> None:
@@ -359,4 +375,4 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
         ],
         "tasks": tasks,
     }
-    (vscode / "tasks.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    _replace_text(vscode / "tasks.json", json.dumps(payload, indent=2) + "\n")

@@ -1661,6 +1661,30 @@ def test_reset_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None
             solution.write_text(original, encoding="utf-8")
 
 
+def test_run_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    original = solution.read_bytes()
+    work.unlink()
+    work.symlink_to(solution)
+    try:
+        code = main(["run", "bank_system", "--lang", "python3", "--kind", "work"])
+        captured = capsys.readouterr()
+        out = captured.out + captured.err
+        assert code == 1
+        assert "FAIL" in out
+        assert "symlink" in out
+        assert "Traceback" not in out
+        assert solution.read_bytes() == original
+        assert work.is_symlink()
+    finally:
+        if solution.read_bytes() != original:
+            solution.write_bytes(original)
+
+
 def test_reset_breaks_work_hardlink_to_pack(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
@@ -2277,6 +2301,37 @@ def test_submit_rejects_exact_count_fake_json_os_exit(monkeypatch, tmp_path: Pat
     assert load_session()["unlocked"] == 1
 
 
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not found")
+def test_submit_rejects_javascript_exact_count_fake_json_process_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "javascript", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "javascript" / "work.js"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "class Simulation {\n"
+        "  constructor() {\n"
+        f"    console.log({payload!r});\n"
+        "    process.exit(0);\n"
+        "  }\n"
+        "  createAccount() { return true; }\n"
+        "}\n"
+        "module.exports = { Simulation };\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "javascript"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
 def test_run_systemexit_at_import_prints_path_and_next(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
@@ -2808,3 +2863,101 @@ def test_declares_class_skips_unclosed_block_comment() -> None:
     assert not declares_class("/*\nclass Simulation {\n}\n", "js", name)
     assert not declares_class('"""\nclass Simulation:\n    pass\n', "py", name)
     assert declares_class("class Simulation:\n    pass\n", "py", name)
+
+
+def test_declares_class_accepts_java_public_final_and_abstract() -> None:
+    name = "Simulation"
+    assert declares_class("public final class Simulation { }\n", "java", name)
+    assert declares_class("public abstract class Simulation { }\n", "java", name)
+    assert declares_class("public static class Simulation { }\n", "java", name)
+    assert declares_class("public strictfp class Simulation { }\n", "java", name)
+
+
+def test_java_unlock_merge_keeps_public_final_class() -> None:
+    work = """public final class Simulation {
+  public Simulation() {}
+  public Boolean createAccount(long t, String id) { return true; }
+  public Integer deposit(long t, String id, int amount) { return 0; }
+  public Integer transfer(long t, String a, String b, int amount) { return 0; }
+}
+"""
+    assert declares_class(work, "java", "Simulation")
+    full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("java"))
+    merged = merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    assert "public final class Simulation" in merged
+    assert "public List<String> topSpenders" in merged
+    head, _sep, _tail = merged.partition("public final class Simulation")
+    assert "public List<String> topSpenders" not in head
+
+
+def test_java_public_final_class_require_merge(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    dest_dir = tmp_path / "work" / "bank_system" / "java"
+    dest_dir.mkdir(parents=True)
+    work = dest_dir / "Simulation.java"
+    work.write_text(
+        "public final class Simulation {\n"
+        "    public Simulation() {}\n"
+        "    public boolean createAccount(int timestamp, String accountId) {\n"
+        "        return true;\n"
+        "    }\n"
+        "    public Integer deposit(int timestamp, String accountId, int amount) {\n"
+        "        return 0;\n"
+        "    }\n"
+        "    public Integer transfer(\n"
+        "            int timestamp, String sourceAccountId, String targetAccountId, int amount) {\n"
+        "        return 0;\n"
+        "    }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    copied = ensure_work_copy("bank_system", "java", reset=False, level=2, require_merge=True)
+    text = copied.read_text(encoding="utf-8")
+    assert "public final class Simulation" in text
+    assert "topSpenders" in text
+    assert declares_class(text, "java", "Simulation")
+
+
+def test_java_helper_top_spenders_does_not_skip_merge() -> None:
+    work = """class Helper {
+  public List<String> topSpenders(int timestamp, int n) { return null; }
+}
+public class Simulation {
+  public Simulation() {}
+  public Boolean createAccount(long t, String id) { return true; }
+  public Integer deposit(long t, String id, int amount) { return 0; }
+  public Integer transfer(long t, String a, String b, int amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("java"))
+    merged = merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    helper, _sep, simulation = merged.partition("public class Simulation")
+    assert "public List<String> topSpenders" in helper
+    assert "public List<String> topSpenders" in simulation
+
+
+def test_python_helper_top_spenders_does_not_skip_merge() -> None:
+    work = """class Helper:
+    def build(self):
+        def top_spenders(timestamp, n):
+            return []
+        return top_spenders
+
+class Simulation:
+    def create_account(self, timestamp, account_id):
+        return True
+
+    def deposit(self, timestamp, account_id, amount):
+        return 0
+
+    def transfer(self, timestamp, source_account_id, target_account_id, amount):
+        return 0
+"""
+    full = (repo_root() / "langs/python3/problems/bank_system/stub.py").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("python3"))
+    merged = merge_unlocked_methods(work, full, "py", allowed, "Simulation")
+    helper, _sep, simulation = merged.partition("class Simulation")
+    assert "def top_spenders(" in helper
+    assert "def top_spenders(" in simulation
