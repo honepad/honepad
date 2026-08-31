@@ -310,6 +310,8 @@ def test_start_java_python3_does_not_swap_two_langs(monkeypatch, tmp_path, capsy
     out = captured.out + captured.err
     assert code == 1
     assert "FAIL" in out
+    assert "invalid problem: java" in out
+    assert "invalid problem: python3" not in out
     assert "OK: LEVEL" not in out
     assert load_session() is None
 

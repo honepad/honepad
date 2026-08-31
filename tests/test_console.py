@@ -1368,8 +1368,9 @@ def test_write_workspace_refuses_public_dir_symlink(monkeypatch, tmp_path: Path)
     assert main(["start", "bank_system", "java", "--reset"]) == 0
     pack = repo_root() / "langs" / "java"
     original_names = {path.name for path in pack.iterdir()}
-    escape = tmp_path.parent / f"{tmp_path.name}-outside"
-    escape.mkdir()
+    work_dir = tmp_path / "work" / "bank_system" / "java"
+    assert work_dir.is_dir()
+    work_before = {path.name for path in work_dir.iterdir()}
     root = tmp_path / "workspace" / "bank_system-java"
     root.mkdir(parents=True, exist_ok=True)
     public = root / "public"
@@ -1378,19 +1379,21 @@ def test_write_workspace_refuses_public_dir_symlink(monkeypatch, tmp_path: Path)
             shutil.rmtree(public)
         else:
             public.unlink()
-    public.symlink_to(escape)
+    public.symlink_to(work_dir)
     polluters = ("cases.json", "pom.xml", "README.md", "run-public.sh", "spec.md")
     try:
-        with pytest.raises((ValueError, RuntimeError)):
+        with pytest.raises((ValueError, RuntimeError), match="symlink"):
             write_workspace("bank_system", "java", 1)
+        assert public.is_symlink()
         assert {path.name for path in pack.iterdir()} == original_names
+        assert {path.name for path in work_dir.iterdir()} == work_before
         for name in polluters:
-            assert not (escape / name).exists()
+            if name not in work_before:
+                assert not (work_dir / name).exists()
             assert not (pack / name).exists()
     finally:
         if public.is_symlink():
             public.unlink()
-        shutil.rmtree(escape, ignore_errors=True)
 
 
 def test_link_or_copy_falls_back_on_oserror(tmp_path: Path, monkeypatch) -> None:
