@@ -2421,6 +2421,30 @@ def test_submit_rejects_php_exact_count_fake_json_exit(monkeypatch, tmp_path: Pa
     assert load_session()["unlocked"] == 1
 
 
+@pytest.mark.skipif(shutil.which("perl") is None, reason="perl not found")
+def test_submit_rejects_perl_exact_count_fake_json_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "perl", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "perl" / "work.pl"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        f'package Simulation;\nsub new {{ print {payload!r}, "\\n"; exit 0; }}\n1;\n',
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "perl"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
 def test_run_systemexit_at_import_prints_path_and_next(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
