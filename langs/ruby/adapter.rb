@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require 'json'
+require 'stringio'
 
 def load_class(file, class_name)
   path = File.expand_path(file)
@@ -12,6 +13,8 @@ def load_class(file, class_name)
 end
 
 def main
+  orig_stdout = $stdout
+  $stdout = StringIO.new
   file = ARGV[0]
   class_name = ARGV[1]
   cases_path = ARGV[2]
@@ -53,7 +56,7 @@ def main
     end
     passed += 1 if ok
   end
-  $stdout.write(JSON.generate({ 'passed' => passed, 'failed' => failed }) + "\n")
+  orig_stdout.write(JSON.generate({ 'passed' => passed, 'failed' => failed }) + "\n")
   exit(failed.empty? ? 0 : 1)
 end
 

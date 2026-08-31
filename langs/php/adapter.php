@@ -5,6 +5,11 @@ $solutionPath = $argv[1];
 $className = $argv[2];
 $casesPath = $argv[3];
 
+$origStdout = fopen('php://stdout', 'w');
+ob_start(static function ($buffer) {
+    return '';
+});
+
 require $solutionPath;
 
 $cases = json_decode(file_get_contents($casesPath), true);
@@ -57,5 +62,5 @@ foreach ($cases as $c) {
     }
 }
 
-echo json_encode(['passed' => $passed, 'failed' => $failed]) . "\n";
+fwrite($origStdout, json_encode(['passed' => $passed, 'failed' => $failed]) . "\n");
 exit($failed === [] ? 0 : 1);
