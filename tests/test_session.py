@@ -2496,6 +2496,33 @@ def test_submit_rejects_bash_exact_count_fake_json_exit(
     assert load_session()["unlocked"] == 1
 
 
+@pytest.mark.skipif(shutil.which("tclsh") is None, reason="tclsh not found")
+def test_submit_rejects_tcl_exact_count_fake_json_exit(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "tcl", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "tcl" / "work.tcl"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "oo::class create Simulation {\n"
+        "    constructor {} {\n"
+        f"        puts {{{payload}}}\n"
+        "        exit 0\n"
+        "    }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "tcl"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
 def test_run_systemexit_at_import_prints_path_and_next(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
