@@ -7,7 +7,7 @@ import pytest
 
 from honepad.catalog import languages, problems
 from honepad.cli import build_parser, main
-from honepad.runner import _RUNNERS, run_prepare_cmd
+from honepad.runner import _RUNNERS, _nim_c_argv, run_prepare_cmd
 from honepad.session import load_session
 from honepad.term import invocation
 
@@ -580,6 +580,12 @@ def test_vscode_java_missing_javac_fails_before_session(monkeypatch, tmp_path, c
 def test_run_prepare_cmd_missing_binary_raises(tmp_path: Path) -> None:
     with pytest.raises(RuntimeError, match="not on PATH"):
         run_prepare_cmd(["no-such-honepad-compiler"], tmp_path, "java")
+
+
+def test_nim_compile_uses_private_nimcache(tmp_path: Path) -> None:
+    argv = _nim_c_argv(tmp_path, nim_bin="nim")
+    cache = tmp_path / "nimcache"
+    assert f"--nimcache:{cache}" in argv
 
 
 def test_corrupt_cases_prints_fail(monkeypatch, tmp_path, capsys) -> None:
