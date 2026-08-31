@@ -2301,6 +2301,37 @@ def test_submit_rejects_exact_count_fake_json_os_exit(monkeypatch, tmp_path: Pat
     assert load_session()["unlocked"] == 1
 
 
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not found")
+def test_submit_rejects_javascript_exact_count_fake_json_process_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "javascript", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "javascript" / "work.js"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "class Simulation {\n"
+        "  constructor() {\n"
+        f"    console.log({payload!r});\n"
+        "    process.exit(0);\n"
+        "  }\n"
+        "  createAccount() { return true; }\n"
+        "}\n"
+        "module.exports = { Simulation };\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "javascript"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
 def test_run_systemexit_at_import_prints_path_and_next(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
