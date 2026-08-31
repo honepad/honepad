@@ -13,6 +13,16 @@ function loadClass(file, className) {
   return cls;
 }
 
+function byteLength(chunk, encoding) {
+  if (chunk == null) {
+    return 0;
+  }
+  if (Buffer.isBuffer(chunk)) {
+    return chunk.length;
+  }
+  return Buffer.byteLength(String(chunk), typeof encoding === "string" ? encoding : undefined);
+}
+
 function main() {
   const origWrite = process.stdout.write.bind(process.stdout);
   const sink = [];
@@ -28,6 +38,31 @@ function main() {
       process.nextTick(cb);
     }
     return true;
+  };
+  const origFsWriteSync = fs.writeSync;
+  const origFsWrite = fs.write;
+  fs.writeSync = function (fd, chunk, offset, length, position) {
+    if (fd === 1) {
+      if (Buffer.isBuffer(chunk) && typeof length === "number") {
+        return length;
+      }
+      return byteLength(chunk, offset);
+    }
+    return origFsWriteSync.apply(fs, arguments);
+  };
+  fs.write = function (fd, chunk) {
+    if (fd === 1) {
+      const args = Array.prototype.slice.call(arguments, 1);
+      const cb = typeof args[args.length - 1] === "function" ? args.pop() : undefined;
+      const written = byteLength(chunk, typeof args[0] === "string" ? undefined : args[1]);
+      if (typeof cb === "function") {
+        process.nextTick(function () {
+          cb(null, written, chunk);
+        });
+      }
+      return;
+    }
+    return origFsWrite.apply(fs, arguments);
   };
   const file = process.argv[2];
   const className = process.argv[3];

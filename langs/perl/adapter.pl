@@ -1,6 +1,7 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
+use File::Spec;
 use JSON::PP qw(encode_json decode_json);
 
 sub json_safe {
@@ -27,6 +28,8 @@ sub load_solution {
 
 sub main {
     my ( $file, $class_name, $cases_path ) = @ARGV;
+    open my $report_out, '>&', STDOUT or die "failed to dup stdout: $!";
+    open STDOUT, '>', File::Spec->devnull() or die "failed to sink stdout: $!";
     load_solution($file);
     open my $fh, '<', $cases_path or die "failed to read $cases_path: $!";
     my $raw = do { local $/; <$fh> };
@@ -77,7 +80,7 @@ sub main {
         }
         $passed += 1 if $ok;
     }
-    print encode_json( { passed => $passed, failed => \@failed } ) . "\n";
+    print {$report_out} encode_json( { passed => $passed, failed => \@failed } ) . "\n";
     exit( @failed ? 1 : 0 );
 }
 

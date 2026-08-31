@@ -2332,6 +2332,119 @@ def test_submit_rejects_javascript_exact_count_fake_json_process_exit(
     assert load_session()["unlocked"] == 1
 
 
+@pytest.mark.skipif(shutil.which("ruby") is None, reason="ruby not found")
+def test_submit_rejects_ruby_exact_count_fake_json_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "ruby", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "ruby" / "work.rb"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "class Simulation\n"
+        "  def initialize\n"
+        f'    $stdout.write({payload!r} + "\\n")\n'
+        "    exit 0\n"
+        "  end\n"
+        "end\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "ruby"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not found")
+def test_submit_rejects_javascript_exact_count_fake_json_write_sync(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "javascript", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "javascript" / "work.js"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "class Simulation {\n"
+        "  constructor() {\n"
+        "    const fs = require('fs');\n"
+        f"    fs.writeSync(1, {payload + chr(10)!r});\n"
+        "    process.exit(0);\n"
+        "  }\n"
+        "  createAccount() { return true; }\n"
+        "}\n"
+        "module.exports = { Simulation };\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "javascript"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(shutil.which("php") is None, reason="php not found")
+def test_submit_rejects_php_exact_count_fake_json_exit(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "php", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "php" / "work.php"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "<?php\n"
+        "class Simulation {\n"
+        "  public function __construct() {\n"
+        f"    echo {json.dumps(payload + chr(10))};\n"
+        "    exit(0);\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "php"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(shutil.which("perl") is None, reason="perl not found")
+def test_submit_rejects_perl_exact_count_fake_json_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "perl", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "perl" / "work.pl"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        f'package Simulation;\nsub new {{ print {payload!r}, "\\n"; exit 0; }}\n1;\n',
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "perl"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
 def test_run_systemexit_at_import_prints_path_and_next(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
