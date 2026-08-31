@@ -2808,3 +2808,101 @@ def test_declares_class_skips_unclosed_block_comment() -> None:
     assert not declares_class("/*\nclass Simulation {\n}\n", "js", name)
     assert not declares_class('"""\nclass Simulation:\n    pass\n', "py", name)
     assert declares_class("class Simulation:\n    pass\n", "py", name)
+
+
+def test_declares_class_accepts_java_public_final_and_abstract() -> None:
+    name = "Simulation"
+    assert declares_class("public final class Simulation { }\n", "java", name)
+    assert declares_class("public abstract class Simulation { }\n", "java", name)
+    assert declares_class("public static class Simulation { }\n", "java", name)
+    assert declares_class("public strictfp class Simulation { }\n", "java", name)
+
+
+def test_java_unlock_merge_keeps_public_final_class() -> None:
+    work = """public final class Simulation {
+  public Simulation() {}
+  public Boolean createAccount(long t, String id) { return true; }
+  public Integer deposit(long t, String id, int amount) { return 0; }
+  public Integer transfer(long t, String a, String b, int amount) { return 0; }
+}
+"""
+    assert declares_class(work, "java", "Simulation")
+    full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("java"))
+    merged = merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    assert "public final class Simulation" in merged
+    assert "public List<String> topSpenders" in merged
+    head, _sep, _tail = merged.partition("public final class Simulation")
+    assert "public List<String> topSpenders" not in head
+
+
+def test_java_public_final_class_require_merge(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    dest_dir = tmp_path / "work" / "bank_system" / "java"
+    dest_dir.mkdir(parents=True)
+    work = dest_dir / "Simulation.java"
+    work.write_text(
+        "public final class Simulation {\n"
+        "    public Simulation() {}\n"
+        "    public boolean createAccount(int timestamp, String accountId) {\n"
+        "        return true;\n"
+        "    }\n"
+        "    public Integer deposit(int timestamp, String accountId, int amount) {\n"
+        "        return 0;\n"
+        "    }\n"
+        "    public Integer transfer(\n"
+        "            int timestamp, String sourceAccountId, String targetAccountId, int amount) {\n"
+        "        return 0;\n"
+        "    }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    copied = ensure_work_copy("bank_system", "java", reset=False, level=2, require_merge=True)
+    text = copied.read_text(encoding="utf-8")
+    assert "public final class Simulation" in text
+    assert "topSpenders" in text
+    assert declares_class(text, "java", "Simulation")
+
+
+def test_java_helper_top_spenders_does_not_skip_merge() -> None:
+    work = """class Helper {
+  public List<String> topSpenders(int timestamp, int n) { return null; }
+}
+public class Simulation {
+  public Simulation() {}
+  public Boolean createAccount(long t, String id) { return true; }
+  public Integer deposit(long t, String id, int amount) { return 0; }
+  public Integer transfer(long t, String a, String b, int amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("java"))
+    merged = merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    helper, _sep, simulation = merged.partition("public class Simulation")
+    assert "public List<String> topSpenders" in helper
+    assert "public List<String> topSpenders" in simulation
+
+
+def test_python_helper_top_spenders_does_not_skip_merge() -> None:
+    work = """class Helper:
+    def build(self):
+        def top_spenders(timestamp, n):
+            return []
+        return top_spenders
+
+class Simulation:
+    def create_account(self, timestamp, account_id):
+        return True
+
+    def deposit(self, timestamp, account_id, amount):
+        return 0
+
+    def transfer(self, timestamp, source_account_id, target_account_id, amount):
+        return 0
+"""
+    full = (repo_root() / "langs/python3/problems/bank_system/stub.py").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("python3"))
+    merged = merge_unlocked_methods(work, full, "py", allowed, "Simulation")
+    helper, _sep, simulation = merged.partition("class Simulation")
+    assert "def top_spenders(" in helper
+    assert "def top_spenders(" in simulation

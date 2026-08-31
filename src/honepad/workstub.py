@@ -9,6 +9,7 @@ from honepad.traces import load_cases, method_name
 
 _API_IDENT = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\(")
 _RUBY_DEF = re.compile(r"^(\s*)def ([A-Za-z_][A-Za-z0-9_?!]*)\b")
+_CLASS_TYPE_MODS = r"final|abstract|static|strictfp"
 
 _CLASS = {
     "bank_system": "Simulation",
@@ -41,12 +42,15 @@ def slice_stub(text: str, ext: str, allowed: set[str], class_name: str) -> str:
 def merge_unlocked_methods(
     work: str, full: str, ext: str, allowed: set[str], class_name: str
 ) -> str:
-    missing = [name for name in sorted(allowed) if not _declares(work, ext, name)]
+    missing = [name for name in sorted(allowed) if not _declares(work, ext, name, class_name)]
     if ext == "java":
         extras = "".join(_java_method(full, name) or "" for name in missing)
         if extras:
             work = _ensure_java_imports(
-                _insert_before_java_class_close(work, extras, class_name), full, extras
+                _insert_before_java_class_close(work, extras, class_name),
+                full,
+                extras,
+                class_name,
             )
         return _inject_java_docs(work, full, allowed)
     if ext == "py":
@@ -101,7 +105,9 @@ def declares_class(text: str, ext: str, class_name: str) -> bool:
     """True when work declares the class, not just mentions its name."""
     token = re.escape(class_name)
     lines = _code_lines(text, ext)
-    decl = re.compile(rf"^(?:(?:export(?:\s+default)?|public)\s+)?class\s+{token}\b")
+    decl = re.compile(
+        rf"^(?:(?:export(?:\s+default)?|public)(?:\s+(?:{_CLASS_TYPE_MODS}))*\s+)?class\s+{token}\b"
+    )
     if ext == "py":
         return any(decl.match(line) for line in lines)
     if ext == "java":
@@ -148,7 +154,23 @@ def _java_declares_name(text: str, pos: int, name: str) -> bool:
     return bool(tokens) and tokens[-1] == name
 
 
-def _declares(text: str, ext: str, name: str) -> bool:
+def _declares(text: str, ext: str, name: str, class_name: str | None = None) -> bool:
+    if class_name and ext == "java":
+        try:
+            close = _js_class_close(text, class_name)
+        except ValueError:
+            return False
+        start = _java_class_decl_index(text, class_name)
+        if start < 0:
+            return False
+        text = text[start : close + 1]
+    elif class_name and ext == "py":
+        match = re.search(rf"^class {re.escape(class_name)}\b", text, re.MULTILINE)
+        if match is None:
+            return False
+        nxt = re.search(r"^class ", text[match.end() :], re.MULTILINE)
+        end = match.end() + nxt.start() if nxt else len(text)
+        text = text[match.start() : end]
     lines = _code_lines(text, ext)
     if ext == "java":
         needle = f"{name}("
@@ -193,11 +215,19 @@ def _slice_java(text: str, allowed: set[str], class_name: str) -> str:
     return _java_header(text, class_name, body) + body + "}\n"
 
 
+def _java_class_decl_index(text: str, class_name: str) -> int:
+    token = re.escape(class_name)
+    match = re.search(
+        rf"(?:public(?:\s+(?:{_CLASS_TYPE_MODS}))*\s+)?class\s+{token}\b",
+        text,
+    )
+    return match.start() if match else -1
+
+
 def _java_header(text: str, class_name: str, body: str) -> str:
-    marker = f"public class {class_name}"
-    idx = text.find(marker)
+    idx = _java_class_decl_index(text, class_name)
     if idx < 0:
-        raise ValueError(f"missing {marker}")
+        raise ValueError(f"missing class {class_name}")
     brace = text.find("{", idx)
     preamble_lines = []
     for line in text[:idx].splitlines():
@@ -325,7 +355,7 @@ def _brace_block(text: str, start: int) -> str:
     return text[start:end]
 
 
-def _ensure_java_imports(work: str, full: str, extras: str) -> str:
+def _ensure_java_imports(work: str, full: str, extras: str, class_name: str) -> str:
     needed = []
     for line in full.splitlines():
         if not line.startswith("import "):
@@ -335,8 +365,7 @@ def _ensure_java_imports(work: str, full: str, extras: str) -> str:
             needed.append(line)
     if not needed:
         return work
-    marker = "public class "
-    idx = work.find(marker)
+    idx = _java_class_decl_index(work, class_name)
     if idx < 0:
         return "\n".join(needed) + "\n\n" + work
     return work[:idx] + "\n".join(needed) + "\n\n" + work[idx:]
@@ -604,17 +633,12 @@ def _insert_before_js_class_close(text: str, extra: str, class_name: str) -> str
 
 
 def _js_class_close(text: str, class_name: str) -> int:
-    markers = (
-        f"public class {class_name}",
-        f"class {class_name}",
-        f"{class_name} = class",
-        f"{class_name}: class",
-    )
-    idx = -1
-    for marker in markers:
-        idx = text.find(marker)
-        if idx >= 0:
-            break
+    idx = _java_class_decl_index(text, class_name)
+    if idx < 0:
+        for marker in (f"{class_name} = class", f"{class_name}: class"):
+            idx = text.find(marker)
+            if idx >= 0:
+                break
     if idx < 0:
         raise ValueError(f"missing class {class_name}")
     brace = text.find("{", idx)
