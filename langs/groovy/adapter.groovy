@@ -3,6 +3,8 @@
 
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import java.io.OutputStream
+import java.io.PrintStream
 
 static String toCamel(String snake) {
     if (!snake.contains('_')) {
@@ -78,6 +80,8 @@ if (args.length < 3) {
 String src = args[0]
 String className = args[1]
 String casesPath = args[2]
+PrintStream reportOut = System.out
+System.setOut(new PrintStream(OutputStream.nullOutputStream()))
 GroovyClassLoader loader = new GroovyClassLoader(this.class.classLoader)
 loader.parseClass(new File(src))
 Class cls = loader.loadClass(className)
@@ -115,5 +119,5 @@ for (Object rowObj : cases) {
     }
 }
 Map report = [passed: passed, failed: failed]
-println jsonEncode(report)
+reportOut.println jsonEncode(report)
 System.exit(failed.isEmpty() ? 0 : 1)

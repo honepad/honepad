@@ -42,6 +42,8 @@ main <- function() {
   src <- args[[1]]
   class_name <- args[[2]]
   cases_path <- args[[3]]
+  report_con <- stdout()
+  sink(nullfile())
   source(src, local = FALSE)
   cases <- fromJSON(cases_path, simplifyVector = FALSE)
   failed <- list()
@@ -109,13 +111,14 @@ main <- function() {
       passed <- passed + 1
     }
   }
+  sink()
   cat(toJSON(
     list(passed = passed, failed = failed),
     auto_unbox = TRUE,
     null = "null",
     na = "null",
     digits = NA
-  ), "\n", sep = "")
+  ), "\n", sep = "", file = report_con)
   if (length(failed) > 0) {
     quit(status = 1)
   }
