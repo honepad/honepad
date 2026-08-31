@@ -47,12 +47,13 @@ Map<String, dynamic> failRow(
 }
 
 void main(List<String> args) {
-  if (args.length < 2) {
-    stderr.writeln('usage: dart run.dart <cases.json> <class>');
+  if (args.length < 3) {
+    stderr.writeln('usage: dart run.dart <cases.json> <class> <report.json>');
     exit(2);
   }
   final casesPath = args[0];
   final className = args[1];
+  final reportPath = args[2];
   final lib = currentMirrorSystem().isolate.rootLibrary;
   final decl = lib.declarations[MirrorSystem.getSymbol(className)];
   if (decl is! ClassMirror) {
@@ -101,7 +102,9 @@ void main(List<String> args) {
       passed += 1;
     }
   }
-  stdout.writeln(jsonEncode({'passed': passed, 'failed': failed}));
+  File(reportPath).writeAsStringSync(
+    '${jsonEncode({'passed': passed, 'failed': failed})}\n',
+  );
   exit(failed.isEmpty ? 0 : 1);
 }
 ''';
@@ -124,12 +127,16 @@ void main(List<String> args) {
       '${File(src).readAsStringSync()}\n\n'
       '$_harness',
     );
+    final reportPath = '${tmp.path}/report.json';
     final result = Process.runSync(
       Platform.resolvedExecutable,
-      [runPath, casesPath, className],
+      [runPath, casesPath, className, reportPath],
     );
-    stdout.write(result.stdout);
     stderr.write(result.stderr);
+    final reportFile = File(reportPath);
+    if (reportFile.existsSync()) {
+      stdout.write(reportFile.readAsStringSync());
+    }
     exit(result.exitCode);
   } finally {
     tmp.deleteSync(recursive: true);

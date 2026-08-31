@@ -189,18 +189,28 @@ defmodule HonepadAdapter do
   end
 
   defp run(src, class_name, cases_path) do
-    Code.compile_file(src)
-    mod = Module.concat([class_name])
+    original = Process.group_leader()
+    {:ok, sink} = File.open("/dev/null", [:write])
+    Process.group_leader(self(), sink)
 
-    unless Code.ensure_loaded?(mod) do
-      IO.puts(:stderr, "missing module #{class_name}")
-      System.halt(2)
+    try do
+      Code.compile_file(src)
+      mod = Module.concat([class_name])
+
+      unless Code.ensure_loaded?(mod) do
+        IO.puts(:stderr, "missing module #{class_name}")
+        System.halt(2)
+      end
+
+      cases = decode_json(File.read!(cases_path))
+      {passed, failed} = replay(mod, cases)
+      Process.group_leader(self(), original)
+      IO.puts(original, encode_json(%{"passed" => passed, "failed" => failed}))
+      System.halt(if failed == [], do: 0, else: 1)
+    after
+      Process.group_leader(self(), original)
+      File.close(sink)
     end
-
-    cases = decode_json(File.read!(cases_path))
-    {passed, failed} = replay(mod, cases)
-    IO.puts(encode_json(%{"passed" => passed, "failed" => failed}))
-    System.halt(if failed == [], do: 0, else: 1)
   end
 
   defp replay(mod, cases) do

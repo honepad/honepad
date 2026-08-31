@@ -49,6 +49,10 @@ src = args{1};
 class_name = args{2};
 cases_path = args{3};
 
+report_fid = fopen("/dev/stdout", "w");
+null_fid = fopen("/dev/null", "w");
+dup2(null_fid, stdout);
+
 tmpdir = tempname();
 mkdir(tmpdir);
 copyfile(src, fullfile(tmpdir, [class_name ".m"]));
@@ -106,7 +110,8 @@ endfor
 
 payload.passed = passed;
 payload.failed = failed;
-printf("%s\n", jsonencode(payload));
+fputs(report_fid, [jsonencode(payload) "\n"]);
+fflush(report_fid);
 rmpath(tmpdir);
 confirm_recursive_rmdir(0);
 rmdir(tmpdir, "s");

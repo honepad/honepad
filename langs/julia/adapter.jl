@@ -300,6 +300,8 @@ function main()
         exit(2)
     end
     src, class_name, cases_path = ARGS[1], ARGS[2], ARGS[3]
+    report_out = stdout
+    redirect_stdout(devnull)
     include(abspath(src))
     if !isdefined(Main, Symbol(class_name))
         println(stderr, "missing type $class_name")
@@ -340,7 +342,7 @@ function main()
             passed += 1
         end
     end
-    println(MiniJson.encode(Dict{String,Any}("failed" => failed, "passed" => passed)))
+    println(report_out, MiniJson.encode(Dict{String,Any}("failed" => failed, "passed" => passed)))
     exit(isempty(failed) ? 0 : 1)
 end
 

@@ -323,13 +323,15 @@ Object subclass: HonepadAdapter [
         (File name: path) fileIn
     ]
 
-    HonepadAdapter class >> emit: payload code: code [
-        stdout nextPutAll: (HonepadJson encode: payload); nl; flush.
+    HonepadAdapter class >> emit: payload on: stream code: code [
+        stream nextPutAll: (HonepadJson encode: payload); nl; flush.
         ObjectMemory quit: code
     ]
 
     HonepadAdapter class >> run [
-        | argv src className casesPath cls cases failed passed |
+        | argv src className casesPath cls cases failed passed reportOut |
+        reportOut := stdout.
+        stdout := (File name: '/dev/null') writeStream.
         argv := Smalltalk arguments.
         argv size = 3 ifFalse: [
             stderr nextPutAll: 'usage: gst adapter.st -a <src> <class> <cases.json>'; nl.
@@ -348,7 +350,7 @@ Object subclass: HonepadAdapter [
             payload := Dictionary new.
             payload at: 'passed' put: 0.
             payload at: 'failed' put: failed0.
-            self emit: payload code: 2
+            self emit: payload on: reportOut code: 2
         ].
         cls := Smalltalk at: className asSymbol ifAbsent: [nil].
         cls isNil ifTrue: [
@@ -359,7 +361,7 @@ Object subclass: HonepadAdapter [
             payload := Dictionary new.
             payload at: 'passed' put: 0.
             payload at: 'failed' put: failed0.
-            self emit: payload code: 2
+            self emit: payload on: reportOut code: 2
         ].
         cases := HonepadJson decode: (self readFile: casesPath).
         failed := OrderedCollection new.
@@ -403,7 +405,7 @@ Object subclass: HonepadAdapter [
             payload := Dictionary new.
             payload at: 'passed' put: passed.
             payload at: 'failed' put: failed.
-            self emit: payload code: (failed isEmpty ifTrue: [0] ifFalse: [1])
+            self emit: payload on: reportOut code: (failed isEmpty ifTrue: [0] ifFalse: [1])
         ] value
     ]
 ]
@@ -419,6 +421,6 @@ Eval [
         payload := Dictionary new.
         payload at: 'passed' put: 0.
         payload at: 'failed' put: failed.
-        HonepadAdapter emit: payload code: 2
+        HonepadAdapter emit: payload on: stdout code: 2
     ]
 ]
