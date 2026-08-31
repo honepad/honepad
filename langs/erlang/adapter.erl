@@ -12,19 +12,24 @@ main(_) ->
     halt(2).
 
 run(Src, ClassName, CasesPath) ->
+    {ok, Sink} = file:open("/dev/null", [write]),
+    Old = group_leader(),
+    group_leader(Sink, self()),
     Mod = compile_src(Src),
     Class = list_to_atom(ClassName),
     case Mod of
         Class ->
             ok;
         _ ->
+            group_leader(Old, self()),
             io:format(standard_error, "missing module ~s~n", [ClassName]),
             halt(2)
     end,
     {ok, Bin} = file:read_file(CasesPath),
     Cases = decode_json(Bin),
     {Passed, Failed} = replay(Mod, Cases),
-    io:format("~s~n", [encode_json(#{<<"passed">> => Passed, <<"failed">> => Failed})]),
+    group_leader(Old, self()),
+    io:format(Old, "~s~n", [encode_json(#{<<"passed">> => Passed, <<"failed">> => Failed})]),
     halt(case Failed of [] -> 0; _ -> 1 end).
 
 compile_src(Src) ->

@@ -2574,6 +2574,292 @@ def test_submit_rejects_groovy_exact_count_fake_json_exit(
     assert load_session()["unlocked"] == 1
 
 
+@pytest.mark.skipif(shutil.which("dart") is None, reason="dart not found")
+def test_submit_rejects_dart_exact_count_fake_json_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "dart", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "dart" / "work.dart"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "class Simulation {\n"
+        "  Simulation() {\n"
+        f"    print({payload!r});\n"
+        "    exit(0);\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "dart"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(shutil.which("elixir") is None, reason="elixir not found")
+def test_submit_rejects_elixir_exact_count_fake_json_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "elixir", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "elixir" / "work.ex"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "defmodule Simulation do\n"
+        "  def new do\n"
+        f"    IO.puts({json.dumps(payload)})\n"
+        "    System.halt(0)\n"
+        "  end\n"
+        "end\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "elixir"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(shutil.which("escript") is None, reason="escript not found")
+def test_submit_rejects_erlang_exact_count_fake_json_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "erlang", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "erlang" / "work.erl"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "-module('Simulation').\n"
+        "-export([new/0]).\n"
+        "new() ->\n"
+        f'    io:format("~s~n", [{json.dumps(payload)}]),\n'
+        "    halt(0).\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "erlang"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(shutil.which("julia") is None, reason="julia not found")
+def test_submit_rejects_julia_exact_count_fake_json_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "julia", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "julia" / "work.jl"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "mutable struct Simulation\n"
+        "    function Simulation()\n"
+        f"        println({json.dumps(payload)})\n"
+        "        exit(0)\n"
+        "    end\n"
+        "end\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "julia"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(shutil.which("coffee") is None, reason="coffee not found")
+def test_submit_rejects_coffeescript_exact_count_fake_json_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "coffeescript", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "coffeescript" / "work.coffee"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "class Simulation\n"
+        "  constructor: ->\n"
+        f"    console.log {json.dumps(payload)}\n"
+        "    process.exit 0\n"
+        "\n"
+        "module.exports = { Simulation }\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "coffeescript"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(shutil.which("sbcl") is None, reason="sbcl not found")
+def test_submit_rejects_common_lisp_exact_count_fake_json_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "common-lisp", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "common-lisp" / "work.lisp"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "(in-package :honepad-user)\n"
+        "\n"
+        "(defclass Simulation () ())\n"
+        "\n"
+        "(defmethod initialize-instance :after ((obj Simulation) &key)\n"
+        f"  (write-line {json.dumps(payload)})\n"
+        "  (sb-ext:exit :code 0))\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "common-lisp"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(shutil.which("gst") is None, reason="gst not found")
+def test_submit_rejects_smalltalk_exact_count_fake_json_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "smalltalk", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "smalltalk" / "work.st"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "Object subclass: Simulation [\n"
+        "    Simulation class >> new [\n"
+        f"        stdout nextPutAll: '{payload}'; nl; flush.\n"
+        "        ObjectMemory quit: 0\n"
+        "    ]\n"
+        "]\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "smalltalk"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(shutil.which("clojure") is None, reason="clojure not found")
+def test_submit_rejects_clojure_exact_count_fake_json_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "clojure", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "clojure" / "work.clj"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        f"(defn Simulation []\n  (println {json.dumps(payload)})\n  (System/exit 0))\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "clojure"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(shutil.which("pwsh") is None, reason="pwsh not found")
+def test_submit_rejects_powershell_exact_count_fake_json_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "powershell", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "powershell" / "work.ps1"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "class Simulation {\n"
+        "  Simulation() {\n"
+        f"    [Console]::Out.WriteLine({json.dumps(payload)})\n"
+        "    [Environment]::Exit(0)\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "powershell"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(
+    shutil.which("octave") is None and shutil.which("octave-cli") is None,
+    reason="octave not found",
+)
+def test_submit_rejects_octave_exact_count_fake_json_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "octave", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "octave" / "work.m"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "function obj = Simulation()\n"
+        f"  printf('%s\\n', {json.dumps(payload)});\n"
+        "  exit(0);\n"
+        "endfunction\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "octave"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
 def test_run_systemexit_at_import_prints_path_and_next(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0

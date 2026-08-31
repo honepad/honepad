@@ -279,27 +279,31 @@
     (binding [*out* *err*]
       (println "usage: clojure -M adapter.clj <src> <class> <cases.json>"))
     (System/exit 2))
-  (let [[src class-name cases-path] args]
-    (try
-      (let [user-ns (load-solution src)]
-        (when-not (ns-resolve user-ns (symbol class-name))
+  (let [[src class-name cases-path] args
+        orig System/out
+        null-out (java.io.PrintStream. (java.io.OutputStream/nullOutputStream))]
+    (System/setOut null-out)
+    (binding [*out* (java.io.PrintWriter. null-out true)]
+      (try
+        (let [user-ns (load-solution src)]
+          (when-not (ns-resolve user-ns (symbol class-name))
+            (binding [*out* *err*]
+              (println "missing class" class-name))
+            (System/exit 2))
+          (let [cases (json-decode (slurp cases-path))]
+            (when-not (sequential? cases)
+              (throw (ex-info "cases must be a json array" {})))
+            (let [[passed failed] (replay user-ns class-name cases)
+                  payload {"passed" passed "failed" failed}]
+              (.println orig (json-encode payload))
+              (System/exit (if (empty? failed) 0 1)))))
+        (catch Throwable err
           (binding [*out* *err*]
-            (println "missing class" class-name))
-          (System/exit 2))
-        (let [cases (json-decode (slurp cases-path))]
-          (when-not (sequential? cases)
-            (throw (ex-info "cases must be a json array" {})))
-          (let [[passed failed] (replay user-ns class-name cases)
-                payload {"passed" passed "failed" failed}]
-            (println (json-encode payload))
-            (System/exit (if (empty? failed) 0 1)))))
-      (catch Throwable err
-        (binding [*out* *err*]
-          (println (.getMessage err)))
-        (println (json-encode
-                  {"passed" 0
-                   "failed" [(fail-row "load" 0 "load" nil
-                                       (str "exc:" (exc-name err)))]}))
-        (System/exit 2)))))
+            (println (.getMessage err)))
+          (.println orig (json-encode
+                          {"passed" 0
+                           "failed" [(fail-row "load" 0 "load" nil
+                                               (str "exc:" (exc-name err)))]}))
+          (System/exit 2))))))
 
 (apply -main *command-line-args*)

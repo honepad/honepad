@@ -12,6 +12,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$reportOut = [Console]::Out
+[Console]::SetOut([IO.TextWriter]::Null)
 
 function ConvertTo-Camel([string] $Snake) {
     if (-not $Snake.Contains('_')) {
@@ -117,7 +119,8 @@ $report = [ordered]@{
     passed = $passed
     failed = @($failed)
 }
-Write-Output (ConvertTo-Json -InputObject $report -Compress -Depth 20)
+[Console]::SetOut($reportOut)
+$reportOut.WriteLine((ConvertTo-Json -InputObject $report -Compress -Depth 20))
 if ($failed.Count -gt 0) {
     exit 1
 }

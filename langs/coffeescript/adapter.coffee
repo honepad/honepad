@@ -8,7 +8,37 @@ loadClass = (file, className) ->
     throw new Error "missing class " + className
   cls
 
+byteLength = (chunk, encoding) ->
+  return 0 unless chunk?
+  return chunk.length if Buffer.isBuffer chunk
+  Buffer.byteLength String(chunk), if typeof encoding is "string" then encoding else undefined
+
 main = ->
+  origWrite = process.stdout.write.bind process.stdout
+  process.stdout.write = (chunk, encoding, cb) ->
+    if typeof encoding is "function"
+      cb = encoding
+      encoding = undefined
+    if typeof cb is "function"
+      process.nextTick cb
+    true
+  origFsWriteSync = fs.writeSync
+  fs.writeSync = (fd, chunk, offset, length, position) ->
+    if fd is 1
+      if Buffer.isBuffer(chunk) and typeof length is "number"
+        return length
+      return byteLength chunk, offset
+    origFsWriteSync.apply fs, arguments
+  origFsWrite = fs.write
+  fs.write = (fd, chunk) ->
+    if fd is 1
+      args = Array.prototype.slice.call arguments, 1
+      cb = if typeof args[args.length - 1] is "function" then args.pop() else undefined
+      written = byteLength chunk, if typeof args[0] is "string" then undefined else args[1]
+      if typeof cb is "function"
+        process.nextTick -> cb null, written, chunk
+      return
+    origFsWrite.apply fs, arguments
   file = process.argv[2]
   className = process.argv[3]
   casesPath = process.argv[4]
@@ -53,7 +83,7 @@ main = ->
         break
       i += 1
     passed += 1 if ok
-  process.stdout.write JSON.stringify({passed, failed}) + "\n"
+  origWrite JSON.stringify({passed, failed}) + "\n"
   process.exit if failed.length then 1 else 0
 
 main()
