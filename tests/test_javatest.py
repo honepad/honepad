@@ -1,3 +1,7 @@
+import subprocess
+import sys
+from pathlib import Path
+
 import pytest
 
 from honepad.javatest import java_expr, java_ident, java_string, render_junit
@@ -128,3 +132,47 @@ def test_render_pytest_rejects_hostile_method() -> None:
     }
     with pytest.raises(ValueError, match="invalid method name"):
         render_pytest("bank_system", [case])
+
+
+def test_render_pytest_l1_uses_identity_for_bools() -> None:
+    from honepad.pythontest import render_pytest
+
+    cases = load_cases("bank_system", 1)
+    text = render_pytest("bank_system", cases)
+    assert "is True" in text
+    assert "is False" in text
+    assert "is None" in text
+    assert "== True" not in text
+    assert "== False" not in text
+    assert "== None" not in text
+    assert "assert sim.create_account(1, 'acc1') is True" in text
+    assert "assert sim.create_account(2, 'acc1') is False" in text
+    assert "assert sim.deposit(4, 'non_existent', 100) is None" in text
+
+
+def test_generated_pytest_fails_when_create_account_returns_one(tmp_path: Path) -> None:
+    from honepad.pythontest import render_pytest
+
+    case = {
+        "id": "l1-create",
+        "level": 1,
+        "calls": [{"m": "create_account", "a": [1, "acc1"], "e": True}],
+    }
+    text = render_pytest("bank_system", [case])
+    assert "assert sim.create_account(1, 'acc1') is True" in text
+    (tmp_path / "work.py").write_text(
+        "class Simulation:\n"
+        "    def create_account(self, timestamp: object, account_id: object) -> int:\n"
+        "        return 1\n",
+        encoding="utf-8",
+    )
+    test_path = tmp_path / "test_public.py"
+    test_path.write_text(text, encoding="utf-8")
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "--tb=short", str(test_path)],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode != 0, result.stdout + result.stderr
