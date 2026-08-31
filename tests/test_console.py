@@ -746,6 +746,37 @@ def test_console_reset(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "edited-by-candidate" not in work.read_text(encoding="utf-8")
 
 
+def test_console_reset_y_wipes_work(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text("edited-by-candidate\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "stdin", io.StringIO("3\ny\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "OK: reset" in out
+    assert "def create_account(" in work.read_text(encoding="utf-8")
+    assert "edited-by-candidate" not in work.read_text(encoding="utf-8")
+
+
+def test_console_reset_n_keeps_work_and_hints(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text("edited-by-candidate\n", encoding="utf-8")
+    monkeypatch.setattr(sys, "stdin", io.StringIO("3\nn\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "OK: reset" not in out
+    assert "FAIL" in out
+    assert "yes" in out.lower()
+    assert "back" in out.lower()
+    assert "all" in out.lower()
+    assert work.read_text(encoding="utf-8") == "edited-by-candidate\n"
+
+
 def test_console_reset_back_drops_one_level(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0

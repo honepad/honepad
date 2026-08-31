@@ -186,6 +186,9 @@ def start_next() -> str:
 def print_fail(exc: BaseException) -> None:
     print(status_fail(f"FAIL: {exc}"))
     text = str(exc)
+    if text in {"javac not on PATH", "java not on PATH"}:
+        print("NEXT: install a JDK so javac and java are on PATH")
+        return
     if text.startswith("no runner for "):
         print(start_next())
         return
