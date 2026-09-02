@@ -2064,6 +2064,69 @@ def test_reset_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None
             solution.write_text(original, encoding="utf-8")
 
 
+def test_reset_refuses_work_dir_symlink(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work_dir = tmp_path / "work" / "bank_system" / "python3"
+    pack = repo_root() / "langs" / "python3" / "problems" / "bank_system"
+    solution = pack / "solution.py"
+    original = solution.read_text(encoding="utf-8")
+    pack_names = {path.name for path in pack.iterdir()}
+    shutil.rmtree(work_dir)
+    work_dir.symlink_to(pack)
+    planted = pack / "work.py"
+    planted_spec = pack / "spec.md"
+    try:
+        code = main(["start", "bank_system", "python3", "--reset", "--no-console"])
+        captured = capsys.readouterr()
+        out = captured.out + captured.err
+        assert code == 1
+        assert "FAIL" in out
+        assert "symlink" in out
+        assert "Traceback" not in out
+        assert solution.read_text(encoding="utf-8") == original
+        assert work_dir.is_symlink()
+        assert work_dir.resolve() == pack.resolve()
+        assert {path.name for path in pack.iterdir()} == pack_names
+        assert not planted.exists()
+        assert not planted_spec.exists()
+    finally:
+        if solution.read_text(encoding="utf-8") != original:
+            solution.write_text(original, encoding="utf-8")
+        if planted.exists() and not planted.is_symlink():
+            planted.unlink()
+        if planted_spec.exists() and not planted_spec.is_symlink():
+            planted_spec.unlink()
+        for name in ("work.py", "spec.md"):
+            extra = pack / name
+            if extra.exists() and extra.name not in pack_names:
+                extra.unlink()
+
+
+def test_reset_refuses_work_dir_symlink_outside(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    work_root = tmp_path / "work" / "bank_system"
+    work_root.mkdir(parents=True)
+    work_dir = work_root / "python3"
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    marker = outside / "work.py"
+    marker.write_text("keep-outside\n", encoding="utf-8")
+    work_dir.symlink_to(outside)
+    code = main(["start", "bank_system", "python3", "--reset", "--no-console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "symlink" in out
+    assert "Traceback" not in out
+    assert marker.read_text(encoding="utf-8") == "keep-outside\n"
+    assert work_dir.is_symlink()
+    assert work_dir.resolve() == outside.resolve()
+    assert not (outside / "spec.md").exists()
+
+
 def test_run_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0

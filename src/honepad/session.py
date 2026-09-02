@@ -28,6 +28,45 @@ def session_path() -> Path:
     return Path.home() / ".honepad" / "session.json"
 
 
+def _require_real_session_dir(path: Path, label: str) -> None:
+    bound = session_path().parent.resolve()
+    if path.is_symlink():
+        raise RuntimeError(f"{label} is a symlink: {path}")
+    if not path.is_dir():
+        raise RuntimeError(f"{label} is not a directory: {path}")
+    resolved = path.resolve()
+    if not resolved.is_dir():
+        raise RuntimeError(f"{label} is not a directory: {path}")
+    if not resolved.is_relative_to(bound):
+        raise RuntimeError(f"{label} escapes session: {path}")
+
+
+def _ensure_real_session_dir(path: Path, label: str) -> None:
+    bound = session_path().parent
+    cursor = path
+    missing: list[Path] = []
+    while True:
+        try:
+            cursor.relative_to(bound)
+        except ValueError as exc:
+            raise RuntimeError(f"{label} escapes session: {path}") from exc
+        if cursor.exists() or cursor.is_symlink():
+            _require_real_session_dir(cursor, label)
+            break
+        if cursor == bound:
+            cursor.mkdir(parents=True, exist_ok=True)
+            _require_real_session_dir(cursor, label)
+            break
+        missing.append(cursor)
+        parent = cursor.parent
+        if parent == cursor:
+            raise RuntimeError(f"{label} escapes session: {path}")
+        cursor = parent
+    for created in reversed(missing):
+        created.mkdir(parents=False, exist_ok=True)
+        _require_real_session_dir(created, label)
+
+
 def extra_work_sources(problem: str, lang_id: str) -> list[Path]:
     work = work_src(problem, lang_id)
     ext = str(language(lang_id)["ext"])
@@ -98,8 +137,8 @@ def _replace_text(dest: Path, text: str) -> None:
 def ensure_work_copy(
     problem: str, lang_id: str, *, reset: bool, level: int, require_merge: bool = False
 ) -> Path:
+    _ensure_real_session_dir(session_path().parent / "work" / problem / lang_id, "work")
     dest = work_src(problem, lang_id)
-    dest.parent.mkdir(parents=True, exist_ok=True)
     if dest.is_symlink():
         raise RuntimeError(f"work file is a symlink: {dest}")
     row = language(lang_id)

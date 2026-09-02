@@ -11,7 +11,13 @@ from pathlib import Path
 from honepad.catalog import language, repo_root
 from honepad.javatest import render_junit, render_pom
 from honepad.pythontest import render_pytest
-from honepad.session import _replace_text, max_level, session_path, work_src
+from honepad.session import (
+    _replace_text,
+    _require_real_session_dir,
+    max_level,
+    session_path,
+    work_src,
+)
 from honepad.term import file_link, file_uri
 from honepad.traces import load_cases, problem_dir
 from honepad.workstub import class_name_for
@@ -33,19 +39,6 @@ def public_test_file(problem: str, lang: str) -> Path | None:
     if ident == "python3":
         return public / "test_public.py"
     return None
-
-
-def _require_real_session_dir(path: Path, label: str) -> None:
-    bound = session_path().parent.resolve()
-    if path.is_symlink():
-        raise RuntimeError(f"{label} is a symlink: {path}")
-    if not path.is_dir():
-        raise RuntimeError(f"{label} is not a directory: {path}")
-    resolved = path.resolve()
-    if not resolved.is_dir():
-        raise RuntimeError(f"{label} is not a directory: {path}")
-    if not resolved.is_relative_to(bound):
-        raise RuntimeError(f"{label} escapes session: {path}")
 
 
 def write_workspace(problem: str, lang: str, unlocked: int, cleared: bool = False) -> Path:
