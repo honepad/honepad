@@ -107,18 +107,35 @@ def langs_in(func_name: str) -> list[str]:
     return [token for token in found if token not in _IGNORE]
 
 
-def assign_shard(nodeid: str) -> str:
-    if not node_path(nodeid).endswith("test_traces.py"):
-        return "unit"
-    func = function_name(nodeid)
-    if func in _OVERRIDES:
-        return _OVERRIDES[func]
+def _session_skipif_toolchain(path: str, func: str) -> bool:
+    """Session skipif tests that need a binary only some shards install.
+
+    Maven JUnit tests stay on unit; installing mvn is a larger image change.
+    """
+    if not path.endswith("test_session.py"):
+        return False
+    if func == "test_work_compile_error_prints_c_work_path":
+        return True
+    return func.startswith("test_submit_rejects_") and "exact_count_fake_json" in func
+
+
+def _shard_from_tokens(nodeid: str, func: str) -> str:
     shards = {_LANG_TO_SHARD[token] for token in langs_in(func)}
     if not shards:
         return "unit"
     if len(shards) > 1:
         raise ValueError(f"{nodeid}: mixed shards {sorted(shards)}")
     return next(iter(shards))
+
+
+def assign_shard(nodeid: str) -> str:
+    path = node_path(nodeid)
+    func = function_name(nodeid)
+    if func in _OVERRIDES:
+        return _OVERRIDES[func]
+    if path.endswith("test_traces.py") or _session_skipif_toolchain(path, func):
+        return _shard_from_tokens(nodeid, func)
+    return "unit"
 
 
 def collect_nodeids() -> list[str]:
