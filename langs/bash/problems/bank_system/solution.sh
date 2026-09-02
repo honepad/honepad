@@ -183,7 +183,7 @@ merge_accounts() {
       fi
     done
   fi
-  HISTORY[$keep_id]=$(printf '%s%s' "${HISTORY[$keep_id]}" "${HISTORY[$drop_id]}" | sort -n)
+  HISTORY[$keep_id]="$(printf '%s%s' "${HISTORY[$keep_id]}" "${HISTORY[$drop_id]}" | sort -n)"$'\n'
   if ((CREATED_AT[$drop_id] < CREATED_AT[$keep_id])); then
     CREATED_AT[$keep_id]=${CREATED_AT[$drop_id]}
   fi

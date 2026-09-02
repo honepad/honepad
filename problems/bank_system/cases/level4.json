@@ -195,6 +195,16 @@
         "e": [
           "acc1(1300)"
         ]
+      },
+      {
+        "m": "top_spenders",
+        "a": [
+          9,
+          2
+        ],
+        "e": [
+          "acc1(1300)"
+        ]
       }
     ]
   },
@@ -254,6 +264,142 @@
           86400003
         ],
         "e": 706
+      }
+    ]
+  },
+  {
+    "id": "l4-merge-same",
+    "level": 4,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "merge_accounts",
+        "a": [
+          2,
+          "acc1",
+          "acc1"
+        ],
+        "e": false
+      }
+    ]
+  },
+  {
+    "id": "l4-merge-history",
+    "level": 4,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "acc1",
+          1000
+        ],
+        "e": 1000
+      },
+      {
+        "m": "pay",
+        "a": [
+          3,
+          "acc1",
+          500
+        ],
+        "e": "payment1"
+      },
+      {
+        "m": "create_account",
+        "a": [
+          4,
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "merge_accounts",
+        "a": [
+          5,
+          "acc2",
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          6,
+          "acc1",
+          5
+        ],
+        "e": null
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          6,
+          "acc1",
+          "payment1"
+        ],
+        "e": null
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          6,
+          "acc2",
+          1
+        ],
+        "e": 0
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          6,
+          "acc2",
+          2
+        ],
+        "e": 1000
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          6,
+          "acc2",
+          3
+        ],
+        "e": 500
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          6,
+          "acc2",
+          5
+        ],
+        "e": 500
+      },
+      {
+        "m": "top_spenders",
+        "a": [
+          6,
+          2
+        ],
+        "e": [
+          "acc2(500)"
+        ]
       }
     ]
   }

@@ -57,4 +57,20 @@ Pay at 3 leaves 700. Cashback 6 is due at 86400003. A query whose
 merge_accounts(2, "acc1", "acc2") -> false
 ```
 
-That call is false when acc1 is missing.
+That call is false when acc1 is missing. Same id is also false.
+
+```
+create_account(1, "acc1") -> true
+deposit(2, "acc1", 1000) -> 1000
+pay(3, "acc1", 500) -> "payment1"
+create_account(4, "acc2") -> true
+merge_accounts(5, "acc2", "acc1") -> true
+get_balance(6, "acc1", 5) -> null
+get_payment_status(6, "acc1", "payment1") -> null
+get_balance(6, "acc2", 1) -> 0
+get_balance(6, "acc2", 3) -> 500
+get_balance(6, "acc2", 5) -> 500
+merge_accounts(7, "acc2", "acc2") -> false
+```
+
+acc1 is gone. Time 3 is still acc1's 500, because acc2 did not exist yet. Time 5 is the merged snapshot, 500. `top_spenders` with room for two ids lists only acc2.
