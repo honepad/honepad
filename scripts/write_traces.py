@@ -64,6 +64,26 @@ def bank() -> list[dict]:
             ],
         ),
         c(
+            "l1-transfer-source",
+            1,
+            [
+                call("create_account", 1, "acc2", e=True),
+                call("deposit", 2, "acc2", 100, e=100),
+                call("transfer", 3, "non_existent", "acc2", 10, e=None),
+            ],
+        ),
+        c(
+            "l1-transfer-exact",
+            1,
+            [
+                call("create_account", 1, "acc1", e=True),
+                call("create_account", 2, "acc2", e=True),
+                call("deposit", 3, "acc1", 100, e=100),
+                call("transfer", 4, "acc1", "acc2", 100, e=0),
+                call("transfer", 5, "acc2", "acc1", 100, e=0),
+            ],
+        ),
+        c(
             "l1-spec",
             1,
             [
@@ -123,6 +143,18 @@ def bank() -> list[dict]:
             ],
         ),
         c(
+            "l2-n-bounds",
+            2,
+            [
+                call("create_account", 1, "acc1", e=True),
+                call("create_account", 2, "acc2", e=True),
+                call("deposit", 3, "acc1", 1000, e=1000),
+                call("transfer", 4, "acc1", "acc2", 500, e=500),
+                call("top_spenders", 5, 0, e=[]),
+                call("top_spenders", 6, 5, e=["acc1(500)", "acc2(0)"]),
+            ],
+        ),
+        c(
             "l3-pay-missing",
             3,
             [
@@ -137,6 +169,7 @@ def bank() -> list[dict]:
                 call("create_account", 1, "acc1", e=True),
                 call("deposit", 2, "acc1", 100, e=100),
                 call("pay", 3, "acc1", 200, e=None),
+                call("pay", 4, "acc1", 100, e="payment1"),
             ],
         ),
         c(
@@ -188,6 +221,44 @@ def bank() -> list[dict]:
                     e="CASHBACK_RECEIVED",
                 ),
                 call("deposit", 28 * 60 * 60 * 1000, "acc1", 0, e=510),
+            ],
+        ),
+        c(
+            "l3-cashback-floor",
+            3,
+            [
+                call("create_account", 1, "acc1", e=True),
+                call("deposit", 2, "acc1", 200, e=200),
+                call("pay", 3, "acc1", 49, e="payment1"),
+                call(
+                    "get_payment_status",
+                    24 * 60 * 60 * 1000 + 3,
+                    "acc1",
+                    "payment1",
+                    e="CASHBACK_RECEIVED",
+                ),
+                call("deposit", 24 * 60 * 60 * 1000 + 4, "acc1", 0, e=151),
+                call("pay", 24 * 60 * 60 * 1000 + 5, "acc1", 50, e="payment2"),
+                call(
+                    "get_payment_status",
+                    2 * 24 * 60 * 60 * 1000 + 5,
+                    "acc1",
+                    "payment2",
+                    e="CASHBACK_RECEIVED",
+                ),
+                call("deposit", 2 * 24 * 60 * 60 * 1000 + 6, "acc1", 0, e=102),
+            ],
+        ),
+        c(
+            "l3-create-applies",
+            3,
+            [
+                call("create_account", 1, "acc1", e=True),
+                call("deposit", 2, "acc1", 1000, e=1000),
+                call("pay", 3, "acc1", 500, e="payment1"),
+                call("create_account", 24 * 60 * 60 * 1000 + 3, "acc2", e=True),
+                call("get_payment_status", 4, "acc1", "payment1", e="CASHBACK_RECEIVED"),
+                call("deposit", 5, "acc1", 0, e=510),
             ],
         ),
         c(
@@ -275,8 +346,35 @@ def bank() -> list[dict]:
                 call("get_balance", 6, "acc2", 1, e=0),
                 call("get_balance", 6, "acc2", 2, e=1000),
                 call("get_balance", 6, "acc2", 3, e=500),
+                call("get_balance", 6, "acc2", 4, e=0),
                 call("get_balance", 6, "acc2", 5, e=500),
                 call("top_spenders", 6, 2, e=["acc2(500)"]),
+            ],
+        ),
+        c(
+            "l4-merge-keep-later",
+            4,
+            [
+                call("create_account", 1, "acc1", e=True),
+                call("deposit", 2, "acc1", 1000, e=1000),
+                call("create_account", 3, "acc2", e=True),
+                call("deposit", 4, "acc2", 200, e=200),
+                call("deposit", 5, "acc1", 50, e=1050),
+                call("merge_accounts", 6, "acc1", "acc2", e=True),
+                call("get_balance", 7, "acc2", 6, e=None),
+                call("get_balance", 7, "acc1", 3, e=0),
+                call("get_balance", 7, "acc1", 4, e=200),
+                call("get_balance", 7, "acc1", 5, e=1050),
+                call("get_balance", 7, "acc1", 6, e=1250),
+            ],
+        ),
+        c(
+            "l4-balance-missing",
+            4,
+            [
+                call("get_balance", 1, "missing", 1, e=None),
+                call("create_account", 2, "acc1", e=True),
+                call("get_balance", 3, "acc1", 1, e=None),
             ],
         ),
     ]
