@@ -1092,6 +1092,17 @@ def test_corrupt_session_timer_prints_fail(monkeypatch, tmp_path: Path, capsys) 
     assert "Traceback" not in out
 
 
+def test_corrupt_session_submit_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text("{", encoding="utf-8")
+    assert main(["submit", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "Traceback" not in out
+
+
 def test_incomplete_session_timer_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
@@ -1162,6 +1173,9 @@ def test_submit_last_level_prints_done(monkeypatch, tmp_path: Path, capsys) -> N
     assert load_session()["unlocked"] == 4
     assert load_session()["cleared"] is True
     assert "cleared" in json.loads(session_file.read_text(encoding="utf-8"))
+    banner = render_banner(load_session())
+    assert "2 replay" in banner
+    assert "2 submit (local)" not in banner
     assert main(["submit", "bank_system", "--kind", "solution", "--confirm", "y"]) == 0
     again = capsys.readouterr().out
     assert "OK: bank_system java still complete" in again
@@ -1251,6 +1265,9 @@ def test_run_last_level_marks_cleared(monkeypatch, tmp_path: Path, capsys) -> No
     assert "DONE: bank_system python3" in out
     assert "still complete" not in out
     assert load_session()["cleared"] is True
+    banner = render_banner(load_session())
+    assert "2 replay" in banner
+    assert "2 submit (local)" not in banner
     assert main(["run", "bank_system", "--kind", "solution"]) == 0
     again = capsys.readouterr().out
     assert "OK: bank_system python3 still complete" in again
@@ -1346,15 +1363,7 @@ def test_extra_java_work_file_is_not_run(monkeypatch, tmp_path: Path, capsys) ->
     solution = repo_root() / "langs" / "java" / "problems" / "bank_system" / "solution.java"
     work.write_text(solution.read_text(encoding="utf-8"), encoding="utf-8")
     leftover = work.parent / "Account.java"
-    leftover.write_text(
-        "class Simulation {\n"
-        "    public boolean createAccount(int timestamp, String accountId) {\n"
-        "        return false;\n"
-        "    }\n"
-        "}\n"
-        "public class Account {}\n",
-        encoding="utf-8",
-    )
+    leftover.write_text("not java {\n", encoding="utf-8")
     assert leftover in extra_work_sources("bank_system", "java")
     note = extra_work_note("bank_system", "java")
     assert note is not None
@@ -1366,20 +1375,14 @@ def test_extra_java_work_file_is_not_run(monkeypatch, tmp_path: Path, capsys) ->
     assert "Account.java is ignored" in out
     assert "Put the Simulation class in Simulation.java" in out
     assert "javac failed" not in out
-    leftover.write_text(
-        "class Simulation {\n"
-        "    public boolean createAccount(int timestamp, String accountId) {\n"
-        "        return false;\n"
-        "    }\n"
-        "}\n"
-        "public class Account {}\n",
-        encoding="utf-8",
-    )
+    assert not (work.parent / "Account.class").exists()
+    leftover.write_text("not java {\n", encoding="utf-8")
     assert main(["run", "bank_system"]) == 0
     again = capsys.readouterr().out
     assert "still complete" in again
     assert "FAIL " not in again
     assert "javac failed" not in again
+    assert not (work.parent / "Account.class").exists()
 
 
 def test_start_back_and_reset_after_last_level_cleared(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -1406,10 +1409,10 @@ def test_start_back_and_reset_after_last_level_cleared(monkeypatch, tmp_path: Pa
     assert main(["run", "bank_system"]) == 0
     assert load_session()["cleared"] is True
     assert load_session()["unlocked"] == 4
-    write_workspace("bank_system", "python3", 4, cleared=True)
     replay = json.loads(tasks_path.read_text(encoding="utf-8"))
     replay_labels = {task["label"] for task in replay["tasks"]}
     assert "Replay last level" in replay_labels
+    assert "Submit last level" not in replay_labels
     capsys.readouterr()
     assert main(["start", "bank_system", "python3", "--back", "--no-console"]) == 0
     back_out = capsys.readouterr().out
@@ -2598,6 +2601,8 @@ def test_merge_fail_prints_next_reset(monkeypatch, tmp_path: Path, capsys) -> No
     capsys.readouterr()
     work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
     work.write_text("notes\n", encoding="utf-8")
+    leftover = work.parent / "Account.py"
+    leftover.write_text("raise SystemExit('leftover must not load')\n", encoding="utf-8")
     code = main(["submit", "bank_system", "--kind", "solution"])
     out = capsys.readouterr().out
     assert code == 1
@@ -2608,6 +2613,8 @@ def test_merge_fail_prints_next_reset(monkeypatch, tmp_path: Path, capsys) -> No
     next_lines = [line for line in out.splitlines() if "NEXT:" in line]
     assert next_lines
     assert any("start --reset" in line or "work" in line for line in next_lines)
+    assert "WORK:" in out
+    assert "Account.py is ignored" in out
     assert load_session()["unlocked"] == 1
 
 
