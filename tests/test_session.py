@@ -9,6 +9,7 @@ import pytest
 
 from honepad.catalog import language, problems, repo_root
 from honepad.cli import main
+from honepad.console import render_banner
 from honepad.runner import _RUNNERS
 from honepad.session import (
     ensure_work_copy,
@@ -21,6 +22,7 @@ from honepad.session import (
     save_session,
     work_src,
 )
+from honepad.workspace import write_workspace
 from honepad.workstub import (
     _java_method,
     class_name_for,
@@ -188,6 +190,8 @@ def test_submit_unlocks_when_workspace_write_fails(monkeypatch, tmp_path: Path, 
     work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
     src = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
     work.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+    leftover = work.parent / "Account.py"
+    leftover.write_text("raise SystemExit('leftover must not load')\n", encoding="utf-8")
 
     def boom(*_args: object, **_kwargs: object) -> None:
         raise OSError("workspace boom")
@@ -203,6 +207,8 @@ def test_submit_unlocks_when_workspace_write_fails(monkeypatch, tmp_path: Path, 
     assert "OK" in out
     assert "NOTE:" in out
     assert "workspace boom" in out
+    assert "Account.py is ignored" in out
+    assert "Put the Simulation class in work.py" in out
 
 
 def test_stub_runs_do_not_unlock_next_level(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -292,6 +298,35 @@ def test_start_same_problem_keeps_unlock(monkeypatch, tmp_path: Path, capsys) ->
     assert main(["start", "bank_system", "javascript", "--level", "2"]) == 0
     level_out = capsys.readouterr().out
     assert "LOCKED" not in level_out
+
+
+def test_start_same_problem_other_lang_drops_cleared(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 4
+    save_session(session)
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    capsys.readouterr()
+    assert load_session()["cleared"] is True
+    assert load_session()["unlocked"] == 4
+    assert main(["start", "bank_system", "java", "--no-console"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    assert session["unlocked"] == 4
+    assert session["lang"] == "java"
+    written = json.loads(session_file.read_text(encoding="utf-8"))
+    assert "cleared" not in written
+    assert session["cleared"] is False
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "DONE: bank_system java" in out
+    assert "still complete" not in out
+    assert load_session()["cleared"] is True
 
 
 def test_timer_reads_session(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -1135,6 +1170,40 @@ def test_submit_last_level_prints_done(monkeypatch, tmp_path: Path, capsys) -> N
     assert load_session()["cleared"] is True
 
 
+def test_submit_last_level_skips_unlock_confirm_on_tty(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 4,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    fake_in = io.StringIO("")
+    monkeypatch.setattr(fake_in, "isatty", lambda: True)
+    monkeypatch.setattr(sys, "stdin", fake_in)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr("honepad.console._use_live", lambda *_a, **_k: False)
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "Unlock?" not in out
+    assert "cancelled" not in out.lower()
+    assert "DONE: bank_system python3" in out
+    assert load_session()["cleared"] is True
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    again = capsys.readouterr().out
+    assert "Unlock?" not in again
+    assert "cancelled" not in again.lower()
+    assert "still complete" in again
+
+
 def test_submit_last_workers_level_prints_done(monkeypatch, tmp_path: Path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
@@ -1230,13 +1299,13 @@ def test_extra_work_file_is_not_run(monkeypatch, tmp_path: Path, capsys) -> None
     assert leftover in extra_work_sources("bank_system", "python3")
     note = extra_work_note("bank_system", "python3")
     assert note is not None
-    assert "Account.py is not compiled" in note
-    assert "work.py" in note
+    assert "Account.py is ignored" in note
+    assert "Put the Simulation class in work.py" in note
     assert main(["run", "bank_system"]) == 0
     out = capsys.readouterr().out
     assert "DONE: bank_system python3" in out
-    assert "Account.py is not compiled" in out
-    assert "Tests run work.py" in out
+    assert "Account.py is ignored" in out
+    assert "Put the Simulation class in work.py" in out
     leftover.write_text(
         "class Simulation:\n"
         "    def create_account(self, timestamp, account_id):\n"
@@ -1247,6 +1316,144 @@ def test_extra_work_file_is_not_run(monkeypatch, tmp_path: Path, capsys) -> None
     again = capsys.readouterr().out
     assert "still complete" in again
     assert "FAIL " not in again
+
+
+def test_extra_work_note_on_work_compile_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    leftover = work.parent / "Account.py"
+    leftover.write_text("raise SystemExit('leftover must not load')\n", encoding="utf-8")
+    work.write_text("class Simulation  # syntax error\n", encoding="utf-8")
+    assert main(["run", "bank_system"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "Account.py is ignored" in out
+    assert "Put the Simulation class in work.py" in out
+
+
+@pytest.mark.skipif(shutil.which("javac") is None, reason="javac not on PATH")
+def test_extra_java_work_file_is_not_run(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 4
+    save_session(session)
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    solution = repo_root() / "langs" / "java" / "problems" / "bank_system" / "solution.java"
+    work.write_text(solution.read_text(encoding="utf-8"), encoding="utf-8")
+    leftover = work.parent / "Account.java"
+    leftover.write_text(
+        "class Simulation {\n"
+        "    public boolean createAccount(int timestamp, String accountId) {\n"
+        "        return false;\n"
+        "    }\n"
+        "}\n"
+        "public class Account {}\n",
+        encoding="utf-8",
+    )
+    assert leftover in extra_work_sources("bank_system", "java")
+    note = extra_work_note("bank_system", "java")
+    assert note is not None
+    assert "Account.java is ignored" in note
+    assert "Put the Simulation class in Simulation.java" in note
+    assert main(["run", "bank_system"]) == 0
+    out = capsys.readouterr().out
+    assert "DONE: bank_system java" in out
+    assert "Account.java is ignored" in out
+    assert "Put the Simulation class in Simulation.java" in out
+    assert "javac failed" not in out
+    leftover.write_text(
+        "class Simulation {\n"
+        "    public boolean createAccount(int timestamp, String accountId) {\n"
+        "        return false;\n"
+        "    }\n"
+        "}\n"
+        "public class Account {}\n",
+        encoding="utf-8",
+    )
+    assert main(["run", "bank_system"]) == 0
+    again = capsys.readouterr().out
+    assert "still complete" in again
+    assert "FAIL " not in again
+    assert "javac failed" not in again
+
+
+def test_start_back_and_reset_after_last_level_cleared(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    session_file = tmp_path / "session.json"
+    tasks_path = (
+        tmp_path / "workspace" / "bank_system-python3" / "public" / ".vscode" / "tasks.json"
+    )
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    work.write_text(solution.read_text(encoding="utf-8"), encoding="utf-8")
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 4
+    save_session(session)
+    write_workspace("bank_system", "python3", 4)
+    before = json.loads(tasks_path.read_text(encoding="utf-8"))
+    before_labels = {task["label"] for task in before["tasks"]}
+    assert "Submit last level" in before_labels
+    assert "Replay last level" not in before_labels
+    assert "inputs" not in before
+    capsys.readouterr()
+    assert main(["run", "bank_system"]) == 0
+    assert load_session()["cleared"] is True
+    assert load_session()["unlocked"] == 4
+    write_workspace("bank_system", "python3", 4, cleared=True)
+    replay = json.loads(tasks_path.read_text(encoding="utf-8"))
+    replay_labels = {task["label"] for task in replay["tasks"]}
+    assert "Replay last level" in replay_labels
+    capsys.readouterr()
+    assert main(["start", "bank_system", "python3", "--back", "--no-console"]) == 0
+    back_out = capsys.readouterr().out
+    written = json.loads(session_file.read_text(encoding="utf-8"))
+    assert "cleared" not in written
+    assert load_session()["cleared"] is False
+    assert load_session()["unlocked"] == 3
+    assert "DONE" not in back_out
+    assert "2 replay" not in back_out
+    after_back = json.loads(tasks_path.read_text(encoding="utf-8"))
+    back_labels = {task["label"]: task for task in after_back["tasks"]}
+    assert "Submit (unlock next level)" in back_labels
+    assert "Replay last level" not in back_labels
+    inputs = {item["id"]: item for item in after_back.get("inputs", [])}
+    assert "unlockConfirm" in inputs
+    work.write_text(solution.read_text(encoding="utf-8"), encoding="utf-8")
+    assert main(["submit", "bank_system", "--lang", "python3", "--confirm", "y"]) == 0
+    assert load_session()["unlocked"] == 4
+    assert load_session()["cleared"] is False
+    after_unlock = json.loads(tasks_path.read_text(encoding="utf-8"))
+    unlock_labels = {task["label"] for task in after_unlock["tasks"]}
+    assert "Submit last level" in unlock_labels
+    assert "Replay last level" not in unlock_labels
+    assert "Submit (unlock next level)" not in unlock_labels
+    assert "inputs" not in after_unlock
+    capsys.readouterr()
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    reset_out = capsys.readouterr().out
+    written = json.loads(session_file.read_text(encoding="utf-8"))
+    assert "cleared" not in written
+    assert load_session()["cleared"] is False
+    assert load_session()["unlocked"] == 1
+    assert "DONE" not in reset_out
+    assert "2 replay" not in reset_out
+    banner = render_banner(load_session())
+    assert "DONE" not in banner
+    assert "2 replay" not in banner
+    assert "2 submit (local)" in banner
+    after_reset = json.loads(tasks_path.read_text(encoding="utf-8"))
+    reset_labels = {task["label"]: task for task in after_reset["tasks"]}
+    assert "Submit (unlock next level)" in reset_labels
+    assert "Replay last level" not in reset_labels
+    reset_inputs = {item["id"]: item for item in after_reset.get("inputs", [])}
+    assert "unlockConfirm" in reset_inputs
 
 
 def test_mark_cleared_persists_only_when_true(monkeypatch, tmp_path: Path) -> None:
@@ -1855,6 +2062,69 @@ def test_reset_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None
     finally:
         if solution.read_text(encoding="utf-8") != original:
             solution.write_text(original, encoding="utf-8")
+
+
+def test_reset_refuses_work_dir_symlink(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work_dir = tmp_path / "work" / "bank_system" / "python3"
+    pack = repo_root() / "langs" / "python3" / "problems" / "bank_system"
+    solution = pack / "solution.py"
+    original = solution.read_text(encoding="utf-8")
+    pack_names = {path.name for path in pack.iterdir()}
+    shutil.rmtree(work_dir)
+    work_dir.symlink_to(pack)
+    planted = pack / "work.py"
+    planted_spec = pack / "spec.md"
+    try:
+        code = main(["start", "bank_system", "python3", "--reset", "--no-console"])
+        captured = capsys.readouterr()
+        out = captured.out + captured.err
+        assert code == 1
+        assert "FAIL" in out
+        assert "symlink" in out
+        assert "Traceback" not in out
+        assert solution.read_text(encoding="utf-8") == original
+        assert work_dir.is_symlink()
+        assert work_dir.resolve() == pack.resolve()
+        assert {path.name for path in pack.iterdir()} == pack_names
+        assert not planted.exists()
+        assert not planted_spec.exists()
+    finally:
+        if solution.read_text(encoding="utf-8") != original:
+            solution.write_text(original, encoding="utf-8")
+        if planted.exists() and not planted.is_symlink():
+            planted.unlink()
+        if planted_spec.exists() and not planted_spec.is_symlink():
+            planted_spec.unlink()
+        for name in ("work.py", "spec.md"):
+            extra = pack / name
+            if extra.exists() and extra.name not in pack_names:
+                extra.unlink()
+
+
+def test_reset_refuses_work_dir_symlink_outside(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    work_root = tmp_path / "work" / "bank_system"
+    work_root.mkdir(parents=True)
+    work_dir = work_root / "python3"
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    marker = outside / "work.py"
+    marker.write_text("keep-outside\n", encoding="utf-8")
+    work_dir.symlink_to(outside)
+    code = main(["start", "bank_system", "python3", "--reset", "--no-console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "symlink" in out
+    assert "Traceback" not in out
+    assert marker.read_text(encoding="utf-8") == "keep-outside\n"
+    assert work_dir.is_symlink()
+    assert work_dir.resolve() == outside.resolve()
+    assert not (outside / "spec.md").exists()
 
 
 def test_run_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None:

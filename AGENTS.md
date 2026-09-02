@@ -9,7 +9,7 @@ bash factory/scripts/ensure-scala.sh
 python3 -m pytest
 bash factory/scripts/assert-stealth.sh honepad/honepad
 bash factory/scripts/write-ledger.sh --self-test
-# next-job.sh: exit 2 is success when factory/STATE.json has human_gate
+python3 -c 'import json, subprocess, sys; state = json.load(open("factory/STATE.json")); result = subprocess.run(["bash", "factory/scripts/next-job.sh"], check=False); sys.exit(0 if result.returncode == 2 else 1) if state.get("human_gate") else sys.exit(0 if result.returncode == 0 else 1)'
 ```
 
 Every commit needs `git commit -s`.

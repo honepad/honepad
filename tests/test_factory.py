@@ -59,6 +59,14 @@ def test_ci_does_not_rebuild_on_push_to_main() -> None:
     assert "needs: [stealth, lint, test]" in text
 
 
+def test_dev_ruff_pin_matches_ci() -> None:
+    ci = (ROOT / ".github/workflows/ci.yml").read_text()
+    pyproject = (ROOT / "pyproject.toml").read_text()
+    assert "ruff==0.16.5" in ci
+    assert "ruff==0.16.5" in pyproject
+    assert "ruff>=" not in pyproject
+
+
 def test_ci_test_job_splits_apt_install() -> None:
     text = (ROOT / ".github/workflows/ci.yml").read_text()
     assert text.count("sudo apt-get update") == 1
@@ -130,14 +138,33 @@ def test_ci_pytest_shard_tokens_do_not_collide() -> None:
     assert _SHARD.langs_in("test_r_all_problems") == ["r"]
     assert _SHARD.langs_in("test_report_from_proc_rejects_non_object_json") == []
     traces = "tests/test_traces.py"
+    session = "tests/test_session.py"
     assert _SHARD.assign_shard(f"{traces}::test_java_all_problems") == "jvm"
     assert _SHARD.assign_shard(f"{traces}::test_javascript_bank_and_db") == "script"
     assert _SHARD.assign_shard(f"{traces}::test_c_all_problems") == "compiled"
     assert _SHARD.assign_shard(f"{traces}::test_csharp_all_problems") == "compiled"
     assert _SHARD.assign_shard(f"{traces}::test_clojure_all_problems") == "script"
-    assert _SHARD.assign_shard(
-        "tests/test_session.py::test_java_method_includes_leading_javadoc"
-    ) == ("unit")
+    assert _SHARD.assign_shard(f"{session}::test_java_method_includes_leading_javadoc") == "unit"
+    assert (
+        _SHARD.assign_shard(f"{session}::test_submit_rejects_lua_exact_count_fake_json_exit")
+        == "script"
+    )
+    assert (
+        _SHARD.assign_shard(f"{session}::test_submit_rejects_tcl_exact_count_fake_json_exit")
+        == "script"
+    )
+    assert (
+        _SHARD.assign_shard(f"{session}::test_submit_rejects_r_exact_count_fake_json_exit")
+        == "stats"
+    )
+    assert (
+        _SHARD.assign_shard(f"{session}::test_submit_rejects_octave_exact_count_fake_json_exit")
+        == "stats"
+    )
+    assert (
+        _SHARD.assign_shard(f"{session}::test_work_compile_error_prints_c_work_path") == "compiled"
+    )
+    assert _SHARD.assign_shard("tests/test_console.py::test_java_junit_project_compiles") == "unit"
 
 
 def test_ci_pytest_shard_covers_collected_tests() -> None:

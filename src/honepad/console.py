@@ -103,6 +103,7 @@ def cmd_vscode(args: argparse.Namespace) -> int:
             str(session["problem"]),
             str(session["lang"]),
             int(session["unlocked"]),
+            cleared=bool(session.get("cleared")),
         )
         print(f"WORKSPACE: {file_link(path)}")
         _print_spec_link(str(session["problem"]), str(session["lang"]))
@@ -144,22 +145,26 @@ def loop_console(
     use_live = _use_live(stdin, stdout) if live is None else live
     bannered = False
     shown_level = int(session["unlocked"])
+    shown_cleared = bool(session.get("cleared"))
     shown_time_up = [False]
     try:
         while True:
             session = _reload_session(session, stdout)
             level_now = int(session["unlocked"])
+            cleared_now = bool(session.get("cleared"))
             if not bannered:
                 stdout.write(render_banner(session) + "\n")
                 bannered = True
                 shown_level = level_now
+                shown_cleared = cleared_now
             else:
                 left = remaining_s(int(session["started_at"]), int(session["minutes"]))
                 if left > 0:
                     shown_time_up[0] = False
-                if level_now != shown_level:
+                if level_now != shown_level or cleared_now != shown_cleared:
                     stdout.write(render_banner(session) + "\n")
                     shown_level = level_now
+                    shown_cleared = cleared_now
                 elif left == 0 and not shown_time_up[0]:
                     stdout.write(render_banner(session) + "\n")
                     shown_time_up[0] = True
@@ -221,7 +226,10 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
         if choice in {"1", "run", "test"}:
             return _run_work(problem, lang, unlock=False)
         if choice in {"2", "submit"}:
-            stdout.write(status_note("NOTE: local submit. Nothing is sent.") + "\n")
+            if session.get("cleared"):
+                stdout.write(status_note("NOTE: replay. Same work-file test.") + "\n")
+            else:
+                stdout.write(status_note("NOTE: local submit. Nothing is sent.") + "\n")
             stdout.flush()
             return _run_work(problem, lang, unlock=True)
         if choice in {"3", "reset"}:
@@ -230,7 +238,7 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
             return _print_spec(problem, unlocked, stdout)
         if choice in {"5", "vscode", "code"}:
             ensure_work_copy(problem, lang, reset=False, level=unlocked)
-            path = write_workspace(problem, lang, unlocked)
+            path = write_workspace(problem, lang, unlocked, cleared=bool(session.get("cleared")))
             stdout.write(f"WORKSPACE: {file_link(path)}\n")
             spec = _spec_output(problem, lang)
             if spec is not None:
@@ -369,7 +377,12 @@ def _reset_all(session: dict[str, Any], stdout: TextIO) -> int:
     session.clear()
     session.update(nxt)
     work = ensure_work_copy(str(session["problem"]), str(session["lang"]), reset=True, level=1)
-    write_workspace(str(session["problem"]), str(session["lang"]), 1)
+    write_workspace(
+        str(session["problem"]),
+        str(session["lang"]),
+        1,
+        cleared=bool(session.get("cleared")),
+    )
     stdout.write(f"OK: LEVEL {session['unlocked']}\n{work_line(work)}\n")
     stdout.flush()
     return _print_spec(str(session["problem"]), 1, stdout)

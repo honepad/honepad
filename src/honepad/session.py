@@ -28,6 +28,45 @@ def session_path() -> Path:
     return Path.home() / ".honepad" / "session.json"
 
 
+def _require_real_session_dir(path: Path, label: str) -> None:
+    bound = session_path().parent.resolve()
+    if path.is_symlink():
+        raise RuntimeError(f"{label} is a symlink: {path}")
+    if not path.is_dir():
+        raise RuntimeError(f"{label} is not a directory: {path}")
+    resolved = path.resolve()
+    if not resolved.is_dir():
+        raise RuntimeError(f"{label} is not a directory: {path}")
+    if not resolved.is_relative_to(bound):
+        raise RuntimeError(f"{label} escapes session: {path}")
+
+
+def _ensure_real_session_dir(path: Path, label: str) -> None:
+    bound = session_path().parent
+    cursor = path
+    missing: list[Path] = []
+    while True:
+        try:
+            cursor.relative_to(bound)
+        except ValueError as exc:
+            raise RuntimeError(f"{label} escapes session: {path}") from exc
+        if cursor.exists() or cursor.is_symlink():
+            _require_real_session_dir(cursor, label)
+            break
+        if cursor == bound:
+            cursor.mkdir(parents=True, exist_ok=True)
+            _require_real_session_dir(cursor, label)
+            break
+        missing.append(cursor)
+        parent = cursor.parent
+        if parent == cursor:
+            raise RuntimeError(f"{label} escapes session: {path}")
+        cursor = parent
+    for created in reversed(missing):
+        created.mkdir(parents=False, exist_ok=True)
+        _require_real_session_dir(created, label)
+
+
 def extra_work_sources(problem: str, lang_id: str) -> list[Path]:
     work = work_src(problem, lang_id)
     ext = str(language(lang_id)["ext"])
@@ -45,7 +84,9 @@ def extra_work_note(problem: str, lang_id: str) -> str | None:
     if not extras:
         return None
     names = ", ".join(path.name for path in extras)
-    return f"NOTE: {names} is not compiled. Tests run {work_src(problem, lang_id).name}."
+    cls = class_name_for(problem)
+    work = work_src(problem, lang_id)
+    return f"NOTE: {names} is ignored. Put the {cls} class in {work.name}."
 
 
 def mark_cleared(session: dict[str, Any]) -> dict[str, Any]:
@@ -96,8 +137,8 @@ def _replace_text(dest: Path, text: str) -> None:
 def ensure_work_copy(
     problem: str, lang_id: str, *, reset: bool, level: int, require_merge: bool = False
 ) -> Path:
+    _ensure_real_session_dir(session_path().parent / "work" / problem / lang_id, "work")
     dest = work_src(problem, lang_id)
-    dest.parent.mkdir(parents=True, exist_ok=True)
     if dest.is_symlink():
         raise RuntimeError(f"work file is a symlink: {dest}")
     row = language(lang_id)
@@ -256,6 +297,8 @@ def ensure_session(
         return session
     current.pop("clock_restarted", None)
     current.pop("clock_now_minutes", None)
+    if current["lang"] != lang:
+        current["cleared"] = False
     current["lang"] = lang
     left = remaining_s(int(current["started_at"]), int(current["minutes"]))
     restarted = False
@@ -331,5 +374,5 @@ def drop_level(session: dict[str, Any], minutes: int | None = None) -> tuple[dic
     )
     unlocked = int(session["unlocked"])
     work = slice_work_to_level(problem, lang_id, unlocked)
-    write_workspace(problem, lang_id, unlocked)
+    write_workspace(problem, lang_id, unlocked, cleared=bool(session.get("cleared")))
     return session, work

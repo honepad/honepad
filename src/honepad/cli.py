@@ -256,7 +256,12 @@ def cmd_start(args: argparse.Namespace) -> int:
             unlocked = int(session["unlocked"])
             work = ensure_work_copy(args.problem, row["id"], reset=args.reset, level=unlocked)
             if args.reset and workspace_dir(args.problem, row["id"]).exists():
-                write_workspace(args.problem, row["id"], unlocked)
+                write_workspace(
+                    args.problem,
+                    row["id"],
+                    unlocked,
+                    cleared=bool(session.get("cleared")),
+                )
         level = unlocked if args.level is None else args.level
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
@@ -297,6 +302,8 @@ def cmd_start(args: argparse.Namespace) -> int:
 
 
 def cmd_run(args: argparse.Namespace) -> int:
+    kind: str | None = None
+    lang: str | None = None
     try:
         _require_problem(args.problem)
         session = load_session()
@@ -346,6 +353,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         _print_fail(exc)
         if _is_work_file_problem(exc):
             print(work_reset_next())
+        if lang is not None and (kind == "work" or _is_work_file_problem(exc)):
+            _print_work_notes(args.problem, lang)
         return 1
     print(f"{report.problem} {report.lang} through LEVEL {report.level} passed={report.passed}")
     if report.failed:
@@ -385,6 +394,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         if left == 0:
             print(status_fail("TIME UP: remaining_s=0. Next level stays locked."))
             print(status_note("NOTE: q then honepad start starts a new clock and keeps your work."))
+            if kind == "work":
+                _print_work_notes(args.problem, lang)
             return 0
         if may_unlock:
             try:
@@ -395,7 +406,12 @@ def cmd_run(args: argparse.Namespace) -> int:
                 return 1
             workspace_exc: BaseException | None = None
             try:
-                write_workspace(args.problem, lang, nxt)
+                write_workspace(
+                    args.problem,
+                    lang,
+                    nxt,
+                    cleared=bool(session.get("cleared")),
+                )
             except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
                 workspace_exc = exc
             print(status_ok("OK"))
@@ -407,6 +423,8 @@ def cmd_run(args: argparse.Namespace) -> int:
                     print(paint_spec(spec.read_text(encoding="utf-8")).rstrip() + "\n")
             if workspace_exc is not None:
                 print(status_note(f"NOTE: workspace {workspace_exc}"))
+            if kind == "work":
+                _print_work_notes(args.problem, lang)
             return 0
         print(status_ok("OK"))
         print(
@@ -441,7 +459,7 @@ def cmd_submit(args: argparse.Namespace) -> int:
         if str(confirm).strip().lower() not in {"y", "yes"}:
             print("OK: submit cancelled")
             return 0
-    elif sys.stdin.isatty() and sys.stdout.isatty():
+    elif not _unlocked_at_last_level(args.problem) and sys.stdin.isatty() and sys.stdout.isatty():
         from honepad.console import _confirm_unlock, _use_live
 
         ok = _confirm_unlock(sys.stdin, sys.stdout, live=_use_live(sys.stdin, sys.stdout))
@@ -452,6 +470,13 @@ def cmd_submit(args: argparse.Namespace) -> int:
             return 0
     args.unlock = True
     return cmd_run(args)
+
+
+def _unlocked_at_last_level(problem: str) -> bool:
+    session = load_session()
+    if session is None or session.get("problem") != problem:
+        return False
+    return int(session["unlocked"]) >= max_level(problem)
 
 
 def cmd_timer(args: argparse.Namespace) -> int:

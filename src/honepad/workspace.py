@@ -11,7 +11,14 @@ from pathlib import Path
 from honepad.catalog import language, repo_root
 from honepad.javatest import render_junit, render_pom
 from honepad.pythontest import render_pytest
-from honepad.session import _replace_text, max_level, session_path, work_src
+from honepad.session import (
+    _ensure_real_session_dir,
+    _replace_text,
+    _require_real_session_dir,
+    max_level,
+    session_path,
+    work_src,
+)
 from honepad.term import file_link, file_uri
 from honepad.traces import load_cases, problem_dir
 from honepad.workstub import class_name_for
@@ -35,29 +42,15 @@ def public_test_file(problem: str, lang: str) -> Path | None:
     return None
 
 
-def _require_real_session_dir(path: Path, label: str) -> None:
-    bound = session_path().parent.resolve()
-    if path.is_symlink():
-        raise RuntimeError(f"{label} is a symlink: {path}")
-    if not path.is_dir():
-        raise RuntimeError(f"{label} is not a directory: {path}")
-    resolved = path.resolve()
-    if not resolved.is_dir():
-        raise RuntimeError(f"{label} is not a directory: {path}")
-    if not resolved.is_relative_to(bound):
-        raise RuntimeError(f"{label} escapes session: {path}")
-
-
-def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
+def write_workspace(problem: str, lang: str, unlocked: int, cleared: bool = False) -> Path:
     root = workspace_dir(problem, lang)
     work = work_src(problem, lang)
     row = language(lang)
     if row["id"] in {"java", "python3"} and not work.is_file():
         raise ValueError(f"work file missing: {work}")
     public = root / "public"
-    public.mkdir(parents=True, exist_ok=True)
-    _require_real_session_dir(root, "workspace")
-    _require_real_session_dir(public, "public")
+    _ensure_real_session_dir(root, "workspace")
+    _ensure_real_session_dir(public, "public")
     _require_real_session_dir(work.parent, "work")
     cases = load_cases(problem, unlocked)
     _replace_text(public / "cases.json", json.dumps(cases, indent=2) + "\n")
@@ -67,8 +60,8 @@ def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
         _write_work_java_settings(work.parent)
     elif row["id"] == "python3":
         _write_python_public(public, work, problem, cases)
-    _write_readme(public, problem, lang, unlocked, work)
-    _write_tasks(public, problem, lang, unlocked)
+    _write_readme(public, problem, lang, unlocked, work, cleared=cleared)
+    _write_tasks(public, problem, lang, unlocked, cleared=cleared)
     folders = [
         {"name": "spec", "path": str(spec_folder.resolve())},
         {"name": "public-tests", "path": str(public.resolve())},
@@ -147,7 +140,7 @@ def _workspace_settings(lang: str) -> dict[str, object]:
 
 def _write_work_java_settings(work_dir: Path) -> None:
     vscode = work_dir / ".vscode"
-    vscode.mkdir(parents=True, exist_ok=True)
+    _ensure_real_session_dir(vscode, "vscode")
     _replace_text(
         vscode / "settings.json",
         json.dumps(
@@ -163,7 +156,7 @@ def _write_work_java_settings(work_dir: Path) -> None:
 
 def _write_extensions(public: Path, ids: list[str]) -> None:
     vscode = public / ".vscode"
-    vscode.mkdir(exist_ok=True)
+    _ensure_real_session_dir(vscode, "vscode")
     _replace_text(
         vscode / "extensions.json",
         json.dumps({"recommendations": ids}, indent=2) + "\n",
@@ -184,8 +177,8 @@ def _write_java_public(
     _replace_text(public / "MiniJson.java", (pack / "MiniJson.java").read_text(encoding="utf-8"))
     main_java = public / "src" / "main" / "java"
     test_java = public / "src" / "test" / "java"
-    main_java.mkdir(parents=True, exist_ok=True)
-    test_java.mkdir(parents=True, exist_ok=True)
+    _ensure_real_session_dir(main_java, "src")
+    _ensure_real_session_dir(test_java, "src")
     class_name = class_name_for(problem)
     _link_or_copy(work, main_java / f"{class_name}.java")
     spec = problem_dir(problem) / "spec" / f"level{unlocked}.md"
@@ -229,7 +222,7 @@ def _write_python_public(
 def _write_specs(public: Path, problem: str, unlocked: int) -> Path:
     spec_dir = problem_dir(problem) / "spec"
     spec_folder = public / "spec"
-    spec_folder.mkdir(parents=True, exist_ok=True)
+    _ensure_real_session_dir(spec_folder, "spec")
     latest = spec_dir / f"level{unlocked}.md"
     if latest.is_file():
         text = latest.read_text(encoding="utf-8")
@@ -251,7 +244,36 @@ def _write_specs(public: Path, problem: str, unlocked: int) -> Path:
     return spec_folder
 
 
-def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Path) -> None:
+def _write_readme(
+    public: Path,
+    problem: str,
+    lang: str,
+    unlocked: int,
+    work: Path,
+    cleared: bool = False,
+) -> None:
+    at_end = unlocked >= max_level(problem)
+    if at_end and cleared:
+        vscode_task = "Replay last level"
+        submit_line = (
+            f"`{sys.executable} -m honepad submit {problem} --lang {lang} "
+            f"--kind work` replays the last level."
+        )
+        confirm_line = "Replay last level. No y / n unlock."
+    elif at_end:
+        vscode_task = "Submit last level"
+        submit_line = (
+            f"`{sys.executable} -m honepad submit {problem} --lang {lang} "
+            f"--kind work` submits the last level. Nothing unlocks."
+        )
+        confirm_line = "Submit last level. No y / n (nothing unlocks)."
+    else:
+        vscode_task = "Submit / Replay"
+        submit_line = (
+            f"`{sys.executable} -m honepad submit {problem} --lang {lang} "
+            f"--kind work` unlocks the next level, or replays the last level."
+        )
+        confirm_line = "Submit asks y / n before unlock when a later level is still locked."
     lines = [
         f"# {problem} public tests (unlocked through L{unlocked})",
         "",
@@ -263,13 +285,10 @@ def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Pa
         f"Work file: {work}",
         f"URI: {file_uri(work)}",
         "",
-        "VS Code: Terminal > Run Task > Run public tests, or Submit / Replay.",
+        f"VS Code: Terminal > Run Task > Run public tests, or {vscode_task}.",
         f"`{sys.executable} -m honepad run {problem} --lang {lang} --kind work` does not unlock.",
-        (
-            f"`{sys.executable} -m honepad submit {problem} --lang {lang} "
-            f"--kind work` unlocks the next level, or replays the last level."
-        ),
-        "Submit asks y / n before unlock when a later level is still locked.",
+        submit_line,
+        confirm_line,
         "",
     ]
     if lang == "java":
@@ -292,13 +311,21 @@ def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Pa
     _replace_text(public / "README.md", "\n".join(lines))
 
 
-def _write_tasks(public: Path, problem: str, lang: str, unlocked: int) -> None:
+def _write_tasks(
+    public: Path, problem: str, lang: str, unlocked: int, cleared: bool = False
+) -> None:
     vscode = public / ".vscode"
-    vscode.mkdir(exist_ok=True)
+    _ensure_real_session_dir(vscode, "vscode")
     at_end = unlocked >= max_level(problem)
     submit_args = ["-m", "honepad", "submit", problem, "--lang", lang, "--kind", "work"]
     if not at_end:
         submit_args.extend(["--confirm", "${input:unlockConfirm}"])
+    if at_end and cleared:
+        submit_label = "Replay last level"
+    elif at_end:
+        submit_label = "Submit last level"
+    else:
+        submit_label = "Submit (unlock next level)"
     tasks: list[dict[str, object]] = [
         {
             "label": "Run public tests",
@@ -310,7 +337,7 @@ def _write_tasks(public: Path, problem: str, lang: str, unlocked: int) -> None:
             "problemMatcher": [],
         },
         {
-            "label": "Replay last level" if at_end else "Submit (unlock next level)",
+            "label": submit_label,
             "type": "shell",
             "command": sys.executable,
             "args": submit_args,

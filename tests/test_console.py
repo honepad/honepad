@@ -872,6 +872,19 @@ def test_console_last_level_submit_skips_unlock_prompt(monkeypatch, tmp_path: Pa
     assert "DONE: bank_system python3" in out
     assert "passed=" in out
     assert load_session()["cleared"] is True
+    done_idx = out.find("DONE: bank_system python3")
+    assert done_idx != -1
+    after = out[done_idx:]
+    assert "2 replay" in after
+    assert "pass all traces to finish" not in after.lower()
+    assert "NOTE: local submit" in out
+    assert "NOTE: replay" not in out
+    monkeypatch.setattr(sys, "stdin", io.StringIO("2\nq\n"))
+    assert main(["console"]) == 0
+    replay_out = capsys.readouterr().out
+    assert "NOTE: replay. Same work-file test." in replay_out
+    assert "NOTE: local submit" not in replay_out
+    assert "Unlock?" not in replay_out
 
 
 def test_banner_notes_extra_java_sources(monkeypatch, tmp_path: Path) -> None:
@@ -893,8 +906,8 @@ def test_banner_notes_extra_java_sources(monkeypatch, tmp_path: Path) -> None:
             "cleared": True,
         }
     )
-    assert "Account.java is not compiled" in text
-    assert "Tests run Simulation.java" in text
+    assert "Account.java is ignored" in text
+    assert "Put the Simulation class in Simulation.java" in text
     assert "DONE: bank_system java" in text
 
 
@@ -1563,6 +1576,75 @@ def test_write_workspace_refuses_public_dir_symlink(monkeypatch, tmp_path: Path)
             public.unlink()
 
 
+def test_write_workspace_refuses_workspace_dir_symlink_outside(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    root = tmp_path / "workspace" / "bank_system-java"
+    outside = tmp_path / "outside-workspace"
+    outside.mkdir()
+    marker = outside / "keep.txt"
+    marker.write_text("keep-outside\n", encoding="utf-8")
+    root.parent.mkdir(parents=True, exist_ok=True)
+    if root.exists() or root.is_symlink():
+        if root.is_dir() and not root.is_symlink():
+            shutil.rmtree(root)
+        else:
+            root.unlink()
+    root.symlink_to(outside)
+    polluters = (
+        "public",
+        "honepad.code-workspace",
+        "cases.json",
+        "pom.xml",
+        "README.md",
+        "spec.md",
+        "spec",
+    )
+    try:
+        with pytest.raises((ValueError, RuntimeError), match="symlink"):
+            write_workspace("bank_system", "java", 1)
+        assert root.is_symlink()
+        assert root.resolve() == outside.resolve()
+        assert marker.read_text(encoding="utf-8") == "keep-outside\n"
+        assert {path.name for path in outside.iterdir()} == {"keep.txt"}
+        for name in polluters:
+            assert not (outside / name).exists()
+    finally:
+        if root.is_symlink():
+            root.unlink()
+
+
+def test_write_workspace_refuses_spec_dir_symlink_outside(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    dest = write_workspace("bank_system", "java", 1)
+    public = dest.parent / "public"
+    assert public.is_dir()
+    spec = public / "spec"
+    outside = tmp_path / "outside-spec"
+    outside.mkdir()
+    marker = outside / "keep.txt"
+    marker.write_text("keep-outside\n", encoding="utf-8")
+    if spec.exists() or spec.is_symlink():
+        if spec.is_dir() and not spec.is_symlink():
+            shutil.rmtree(spec)
+        else:
+            spec.unlink()
+    spec.symlink_to(outside)
+    try:
+        with pytest.raises((ValueError, RuntimeError), match="symlink"):
+            write_workspace("bank_system", "java", 1)
+        assert spec.is_symlink()
+        assert spec.resolve() == outside.resolve()
+        assert marker.read_text(encoding="utf-8") == "keep-outside\n"
+        assert {path.name for path in outside.iterdir()} == {"keep.txt"}
+        for name in ("current.md", "level1.md"):
+            assert not (outside / name).exists()
+    finally:
+        if spec.is_symlink():
+            spec.unlink()
+
+
 def test_link_or_copy_falls_back_on_oserror(tmp_path: Path, monkeypatch) -> None:
     src = tmp_path / "work.java"
     dest = tmp_path / "Simulation.java"
@@ -1683,10 +1765,11 @@ def test_workspace_last_level_replay_task_omits_unlock_confirm(monkeypatch, tmp_
     public = dest.parent / "public"
     tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
     by_label = {task["label"]: task for task in tasks["tasks"]}
-    assert "Replay last level" in by_label
+    assert "Submit last level" in by_label
+    assert "Replay last level" not in by_label
     assert "Submit (unlock next level)" not in by_label
-    replay = by_label["Replay last level"]
-    blob = json.dumps(replay)
+    submit = by_label["Submit last level"]
+    blob = json.dumps(submit)
     assert "submit" in blob
     assert "--confirm" not in blob
     assert "${input:unlockConfirm}" not in blob
@@ -1694,8 +1777,28 @@ def test_workspace_last_level_replay_task_omits_unlock_confirm(monkeypatch, tmp_
     default = by_label["Run public tests"]
     assert default["group"]["isDefault"] is True
     readme = (public / "README.md").read_text(encoding="utf-8")
-    assert "Submit / Replay" in readme
-    assert "later level is still locked" in readme
+    assert "Submit last level" in readme
+    assert "Replay last level" not in readme
+    assert "Submit / Replay" not in readme
+    assert "later level is still locked" not in readme
+    assert "No y / n (nothing unlocks)" in readme
+    dest = write_workspace("bank_system", "python3", 4, cleared=True)
+    public = dest.parent / "public"
+    tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
+    by_label = {task["label"]: task for task in tasks["tasks"]}
+    assert "Replay last level" in by_label
+    assert "Submit last level" not in by_label
+    replay = by_label["Replay last level"]
+    blob = json.dumps(replay)
+    assert "submit" in blob
+    assert "--confirm" not in blob
+    assert "inputs" not in tasks
+    readme = (public / "README.md").read_text(encoding="utf-8")
+    assert "Replay last level" in readme
+    assert "Submit last level" not in readme
+    assert "Submit / Replay" not in readme
+    assert "later level is still locked" not in readme
+    assert "No y / n unlock" in readme
 
 
 def test_workspace_run_task_kind_work_mismatch_does_not_replay_solution(
