@@ -9,6 +9,7 @@ import pytest
 
 from honepad.catalog import language, problems, repo_root
 from honepad.cli import main
+from honepad.console import render_banner
 from honepad.runner import _RUNNERS
 from honepad.session import (
     ensure_work_copy,
@@ -21,6 +22,7 @@ from honepad.session import (
     save_session,
     work_src,
 )
+from honepad.workspace import write_workspace
 from honepad.workstub import (
     _java_method,
     class_name_for,
@@ -1247,6 +1249,122 @@ def test_extra_work_file_is_not_run(monkeypatch, tmp_path: Path, capsys) -> None
     again = capsys.readouterr().out
     assert "still complete" in again
     assert "FAIL " not in again
+
+
+@pytest.mark.skipif(shutil.which("javac") is None, reason="javac not on PATH")
+def test_extra_java_work_file_is_not_run(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 4
+    save_session(session)
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    solution = repo_root() / "langs" / "java" / "problems" / "bank_system" / "solution.java"
+    work.write_text(solution.read_text(encoding="utf-8"), encoding="utf-8")
+    leftover = work.parent / "Account.java"
+    leftover.write_text(
+        "class Simulation {\n"
+        "    public boolean createAccount(int timestamp, String accountId) {\n"
+        "        return false;\n"
+        "    }\n"
+        "}\n"
+        "public class Account {}\n",
+        encoding="utf-8",
+    )
+    assert leftover in extra_work_sources("bank_system", "java")
+    note = extra_work_note("bank_system", "java")
+    assert note is not None
+    assert "Account.java is not compiled" in note
+    assert "Simulation.java" in note
+    assert main(["run", "bank_system"]) == 0
+    out = capsys.readouterr().out
+    assert "DONE: bank_system java" in out
+    assert "Account.java is not compiled" in out
+    assert "Tests run Simulation.java" in out
+    assert "javac failed" not in out
+    leftover.write_text(
+        "class Simulation {\n"
+        "    public boolean createAccount(int timestamp, String accountId) {\n"
+        "        return false;\n"
+        "    }\n"
+        "}\n"
+        "public class Account {}\n",
+        encoding="utf-8",
+    )
+    assert main(["run", "bank_system"]) == 0
+    again = capsys.readouterr().out
+    assert "still complete" in again
+    assert "FAIL " not in again
+    assert "javac failed" not in again
+
+
+def test_start_back_and_reset_after_last_level_cleared(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    session_file = tmp_path / "session.json"
+    tasks_path = (
+        tmp_path / "workspace" / "bank_system-python3" / "public" / ".vscode" / "tasks.json"
+    )
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    work.write_text(solution.read_text(encoding="utf-8"), encoding="utf-8")
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 4
+    save_session(session)
+    write_workspace("bank_system", "python3", 4)
+    capsys.readouterr()
+    assert main(["run", "bank_system"]) == 0
+    assert load_session()["cleared"] is True
+    assert load_session()["unlocked"] == 4
+    replay = json.loads(tasks_path.read_text(encoding="utf-8"))
+    replay_labels = {task["label"] for task in replay["tasks"]}
+    assert "Replay last level" in replay_labels
+    capsys.readouterr()
+    assert main(["start", "bank_system", "python3", "--back", "--no-console"]) == 0
+    back_out = capsys.readouterr().out
+    written = json.loads(session_file.read_text(encoding="utf-8"))
+    assert "cleared" not in written
+    assert load_session()["cleared"] is False
+    assert load_session()["unlocked"] == 3
+    assert "DONE" not in back_out
+    assert "2 replay" not in back_out
+    after_back = json.loads(tasks_path.read_text(encoding="utf-8"))
+    back_labels = {task["label"]: task for task in after_back["tasks"]}
+    assert "Submit (unlock next level)" in back_labels
+    assert "Replay last level" not in back_labels
+    inputs = {item["id"]: item for item in after_back.get("inputs", [])}
+    assert "unlockConfirm" in inputs
+    work.write_text(solution.read_text(encoding="utf-8"), encoding="utf-8")
+    assert main(["submit", "bank_system", "--lang", "python3", "--confirm", "y"]) == 0
+    assert load_session()["unlocked"] == 4
+    assert load_session()["cleared"] is False
+    after_unlock = json.loads(tasks_path.read_text(encoding="utf-8"))
+    unlock_labels = {task["label"] for task in after_unlock["tasks"]}
+    assert "Replay last level" in unlock_labels
+    assert "Submit (unlock next level)" not in unlock_labels
+    assert "inputs" not in after_unlock
+    capsys.readouterr()
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    reset_out = capsys.readouterr().out
+    written = json.loads(session_file.read_text(encoding="utf-8"))
+    assert "cleared" not in written
+    assert load_session()["cleared"] is False
+    assert load_session()["unlocked"] == 1
+    assert "DONE" not in reset_out
+    assert "2 replay" not in reset_out
+    banner = render_banner(load_session())
+    assert "DONE" not in banner
+    assert "2 replay" not in banner
+    assert "2 submit (local)" in banner
+    after_reset = json.loads(tasks_path.read_text(encoding="utf-8"))
+    reset_labels = {task["label"]: task for task in after_reset["tasks"]}
+    assert "Submit (unlock next level)" in reset_labels
+    assert "Replay last level" not in reset_labels
+    reset_inputs = {item["id"]: item for item in after_reset.get("inputs", [])}
+    assert "unlockConfirm" in reset_inputs
 
 
 def test_mark_cleared_persists_only_when_true(monkeypatch, tmp_path: Path) -> None:

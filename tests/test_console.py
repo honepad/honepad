@@ -872,6 +872,11 @@ def test_console_last_level_submit_skips_unlock_prompt(monkeypatch, tmp_path: Pa
     assert "DONE: bank_system python3" in out
     assert "passed=" in out
     assert load_session()["cleared"] is True
+    done_idx = out.find("DONE: bank_system python3")
+    assert done_idx != -1
+    after = out[done_idx:]
+    assert "2 replay" in after
+    assert "pass all traces to finish" not in after.lower()
 
 
 def test_banner_notes_extra_java_sources(monkeypatch, tmp_path: Path) -> None:

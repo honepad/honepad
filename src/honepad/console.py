@@ -144,22 +144,26 @@ def loop_console(
     use_live = _use_live(stdin, stdout) if live is None else live
     bannered = False
     shown_level = int(session["unlocked"])
+    shown_cleared = bool(session.get("cleared"))
     shown_time_up = [False]
     try:
         while True:
             session = _reload_session(session, stdout)
             level_now = int(session["unlocked"])
+            cleared_now = bool(session.get("cleared"))
             if not bannered:
                 stdout.write(render_banner(session) + "\n")
                 bannered = True
                 shown_level = level_now
+                shown_cleared = cleared_now
             else:
                 left = remaining_s(int(session["started_at"]), int(session["minutes"]))
                 if left > 0:
                     shown_time_up[0] = False
-                if level_now != shown_level:
+                if level_now != shown_level or cleared_now != shown_cleared:
                     stdout.write(render_banner(session) + "\n")
                     shown_level = level_now
+                    shown_cleared = cleared_now
                 elif left == 0 and not shown_time_up[0]:
                     stdout.write(render_banner(session) + "\n")
                     shown_time_up[0] = True
