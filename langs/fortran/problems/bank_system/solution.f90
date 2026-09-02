@@ -446,7 +446,12 @@ contains
     integer :: idx, i
     call process_cashbacks(timestamp)
     idx = find_account(account_id)
-    if (idx == 0 .or. time_at < sim%accounts(idx)%created_at) then
+    if (idx == 0) then
+      ok = .false.
+      out = 0
+      return
+    end if
+    if (time_at < sim%accounts(idx)%created_at) then
       ok = .false.
       out = 0
       return

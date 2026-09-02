@@ -142,6 +142,90 @@
     ]
   },
   {
+    "id": "l1-transfer-source",
+    "level": 1,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "acc2",
+          100
+        ],
+        "e": 100
+      },
+      {
+        "m": "transfer",
+        "a": [
+          3,
+          "non_existent",
+          "acc2",
+          10
+        ],
+        "e": null
+      }
+    ]
+  },
+  {
+    "id": "l1-transfer-exact",
+    "level": 1,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "create_account",
+        "a": [
+          2,
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          3,
+          "acc1",
+          100
+        ],
+        "e": 100
+      },
+      {
+        "m": "transfer",
+        "a": [
+          4,
+          "acc1",
+          "acc2",
+          100
+        ],
+        "e": 0
+      },
+      {
+        "m": "transfer",
+        "a": [
+          5,
+          "acc2",
+          "acc1",
+          100
+        ],
+        "e": 0
+      }
+    ]
+  },
+  {
     "id": "l1-spec",
     "level": 1,
     "calls": [

@@ -47,4 +47,34 @@ The later deposit of 0 applies that 10, so the new balance is 510.
 pay(1, "non_existent", 100) -> null
 ```
 
-A pay larger than the balance also returns null.
+A pay larger than the balance also returns null. A failed pay does not
+use a payment id.
+
+```
+deposit(2, "acc1", 100) -> 100
+pay(3, "acc1", 200) -> null
+pay(4, "acc1", 100) -> "payment1"
+```
+
+The successful pay is still `payment1`.
+
+```
+deposit(2, "acc1", 200) -> 200
+pay(3, "acc1", 49) -> "payment1"
+deposit(86400004, "acc1", 0) -> 151
+pay(86400005, "acc1", 50) -> "payment2"
+deposit(172800006, "acc1", 0) -> 102
+```
+
+`49 * 2 / 100` is 0. `50 * 2 / 100` is 1.
+
+```
+pay(3, "acc1", 500) -> "payment1"
+create_account(86400003, "acc2") -> true
+get_payment_status(4, "acc1", "payment1") -> "CASHBACK_RECEIVED"
+deposit(5, "acc1", 0) -> 510
+```
+
+`create_account` is a later call, so due cashbacks apply first. The
+status and balance stay applied even if a later query uses an earlier
+timestamp.

@@ -54,6 +54,14 @@ def test_ensure_scala_script_pins_ci_version() -> None:
 _GST = shutil.which("gst")
 
 
+def test_bank_level1_spec_shows_worked_example() -> None:
+    text = (repo_root() / "problems" / "bank_system" / "spec" / "level1.md").read_text(
+        encoding="utf-8"
+    )
+    assert 'transfer(3, "non_existent", "acc2", 10) -> null' in text
+    assert 'transfer(4, "acc1", "acc2", 100) -> 0' in text
+
+
 def test_bank_level2_spec_shows_worked_example() -> None:
     text = (repo_root() / "problems" / "bank_system" / "spec" / "level2.md").read_text(
         encoding="utf-8"
@@ -61,6 +69,8 @@ def test_bank_level2_spec_shows_worked_example() -> None:
     assert "top_spenders(5, 2)" in text
     assert '["acc1(500)", "acc2(0)"]' in text
     assert '["acc1(500)", "acc2(500)", "acc3(300)"]' in text
+    assert "top_spenders(5, 0) -> []" in text
+    assert 'top_spenders(6, 5) -> ["acc1(500)", "acc2(0)"]' in text
 
 
 def test_bank_level4_cases_include_merge_history_example() -> None:
@@ -75,12 +85,15 @@ def test_bank_level4_cases_include_merge_history_example() -> None:
         {"m": "get_balance", "a": [6, "acc2", 1], "e": 0},
         {"m": "get_balance", "a": [6, "acc2", 2], "e": 1000},
         {"m": "get_balance", "a": [6, "acc2", 3], "e": 500},
+        {"m": "get_balance", "a": [6, "acc2", 4], "e": 0},
         {"m": "get_balance", "a": [6, "acc2", 5], "e": 500},
         {"m": "top_spenders", "a": [6, 2], "e": ["acc2(500)"]},
     ]
     cases = load_cases("bank_system", 4)
     assert any(case["id"] == "l4-merge-history" and case["calls"] == wanted for case in cases)
     assert any(case["id"] == "l4-merge-same" for case in cases)
+    assert any(case["id"] == "l4-merge-keep-later" for case in cases)
+    assert any(case["id"] == "l4-balance-missing" for case in cases)
 
 
 def test_bank_level2_cases_include_zero_outgoing_example() -> None:
@@ -128,6 +141,9 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
                 'get_payment_status(86400003, "acc1", "payment1") -> "CASHBACK_RECEIVED"',
                 'deposit(100800000, "acc1", 0) -> 510',
                 '["acc1(800)", "acc2(200)"]',
+                'pay(4, "acc1", 100) -> "payment1"',
+                'deposit(86400004, "acc1", 0) -> 151',
+                'create_account(86400003, "acc2") -> true',
             ),
         ),
         (
@@ -143,6 +159,8 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
                 'get_balance(6, "acc1", 5) -> null',
                 'get_balance(6, "acc2", 3) -> 500',
                 'merge_accounts(7, "acc2", "acc2") -> false',
+                'get_balance(7, "acc1", 4) -> 200',
+                'get_balance(3, "acc1", 1) -> null',
             ),
         ),
         (

@@ -52,6 +52,15 @@
           200
         ],
         "e": null
+      },
+      {
+        "m": "pay",
+        "a": [
+          4,
+          "acc1",
+          100
+        ],
+        "e": "payment1"
       }
     ]
   },
@@ -258,6 +267,141 @@
         "m": "deposit",
         "a": [
           100800000,
+          "acc1",
+          0
+        ],
+        "e": 510
+      }
+    ]
+  },
+  {
+    "id": "l3-cashback-floor",
+    "level": 3,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "acc1",
+          200
+        ],
+        "e": 200
+      },
+      {
+        "m": "pay",
+        "a": [
+          3,
+          "acc1",
+          49
+        ],
+        "e": "payment1"
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          86400003,
+          "acc1",
+          "payment1"
+        ],
+        "e": "CASHBACK_RECEIVED"
+      },
+      {
+        "m": "deposit",
+        "a": [
+          86400004,
+          "acc1",
+          0
+        ],
+        "e": 151
+      },
+      {
+        "m": "pay",
+        "a": [
+          86400005,
+          "acc1",
+          50
+        ],
+        "e": "payment2"
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          172800005,
+          "acc1",
+          "payment2"
+        ],
+        "e": "CASHBACK_RECEIVED"
+      },
+      {
+        "m": "deposit",
+        "a": [
+          172800006,
+          "acc1",
+          0
+        ],
+        "e": 102
+      }
+    ]
+  },
+  {
+    "id": "l3-create-applies",
+    "level": 3,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "acc1",
+          1000
+        ],
+        "e": 1000
+      },
+      {
+        "m": "pay",
+        "a": [
+          3,
+          "acc1",
+          500
+        ],
+        "e": "payment1"
+      },
+      {
+        "m": "create_account",
+        "a": [
+          86400003,
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          4,
+          "acc1",
+          "payment1"
+        ],
+        "e": "CASHBACK_RECEIVED"
+      },
+      {
+        "m": "deposit",
+        "a": [
+          5,
           "acc1",
           0
         ],

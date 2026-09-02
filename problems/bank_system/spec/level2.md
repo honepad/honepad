@@ -28,3 +28,11 @@ If acc1 and acc2 both spent 500 and acc3 spent 300:
 ```
 top_spenders(10, 3) -> ["acc1(500)", "acc2(500)", "acc3(300)"]
 ```
+
+```
+top_spenders(5, 0) -> []
+top_spenders(6, 5) -> ["acc1(500)", "acc2(0)"]
+```
+
+`n` 0 is empty even when accounts exist. `n` larger than the account
+count returns every account.

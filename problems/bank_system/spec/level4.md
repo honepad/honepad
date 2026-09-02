@@ -73,4 +73,32 @@ get_balance(6, "acc2", 5) -> 500
 merge_accounts(7, "acc2", "acc2") -> false
 ```
 
-acc1 is gone. Time 3 is still acc1's 500, because acc2 did not exist yet. Time 5 is the merged snapshot, 500. `top_spenders` with room for two ids lists only acc2.
+acc1 is gone. Time 3 is still acc1's 500, because acc2 did not exist yet.
+Time 4 is acc2's create row, 0 (moved history is concatenated, last row
+at that time wins). Time 5 is the merged snapshot, 500. `top_spenders`
+with room for two ids lists only acc2.
+
+```
+get_balance(1, "missing", 1) -> null
+create_account(2, "acc1") -> true
+get_balance(3, "acc1", 1) -> null
+```
+
+A missing account is null. A `time_at` before the account exists is
+also null.
+
+```
+create_account(1, "acc1") -> true
+deposit(2, "acc1", 1000) -> 1000
+create_account(3, "acc2") -> true
+deposit(4, "acc2", 200) -> 200
+deposit(5, "acc1", 50) -> 1050
+merge_accounts(6, "acc1", "acc2") -> true
+get_balance(7, "acc1", 3) -> 0
+get_balance(7, "acc1", 4) -> 200
+get_balance(7, "acc1", 5) -> 1050
+get_balance(7, "acc1", 6) -> 1250
+```
+
+Keep still had a deposit after drop's last row. History is both lists
+plus the merge snapshot. Time 3 and 4 are drop's create and deposit.

@@ -387,6 +387,15 @@
         "a": [
           6,
           "acc2",
+          4
+        ],
+        "e": 0
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          6,
+          "acc2",
           5
         ],
         "e": 500
@@ -400,6 +409,141 @@
         "e": [
           "acc2(500)"
         ]
+      }
+    ]
+  },
+  {
+    "id": "l4-merge-keep-later",
+    "level": 4,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "acc1",
+          1000
+        ],
+        "e": 1000
+      },
+      {
+        "m": "create_account",
+        "a": [
+          3,
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          4,
+          "acc2",
+          200
+        ],
+        "e": 200
+      },
+      {
+        "m": "deposit",
+        "a": [
+          5,
+          "acc1",
+          50
+        ],
+        "e": 1050
+      },
+      {
+        "m": "merge_accounts",
+        "a": [
+          6,
+          "acc1",
+          "acc2"
+        ],
+        "e": true
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          7,
+          "acc2",
+          6
+        ],
+        "e": null
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          7,
+          "acc1",
+          3
+        ],
+        "e": 0
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          7,
+          "acc1",
+          4
+        ],
+        "e": 200
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          7,
+          "acc1",
+          5
+        ],
+        "e": 1050
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          7,
+          "acc1",
+          6
+        ],
+        "e": 1250
+      }
+    ]
+  },
+  {
+    "id": "l4-balance-missing",
+    "level": 4,
+    "calls": [
+      {
+        "m": "get_balance",
+        "a": [
+          1,
+          "missing",
+          1
+        ],
+        "e": null
+      },
+      {
+        "m": "create_account",
+        "a": [
+          2,
+          "acc1"
+        ],
+        "e": true
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          3,
+          "acc1",
+          1
+        ],
+        "e": null
       }
     ]
   }
