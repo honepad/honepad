@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import math
 import os
 import re
 import sys
+import time
 from pathlib import Path
 
 from honepad.catalog import next_problem
@@ -185,7 +187,79 @@ def start_next() -> str:
     return f"NEXT: {invocation()} start bank_system java"
 
 
+_FIREWORK_W = 25
+_FIREWORK_H = 11
+_FIREWORK_FRAMES = 14
+_FIREWORK_DELAY_S = 0.04
+_FIREWORK_LAUNCH = 4
+_FIREWORK_COLORS = (196, 214, 220, 81, 213, 203)
+
+
+def firework_frame(step: int, *, color: bool = False) -> list[str]:
+    grid = [[" "] * _FIREWORK_W for _ in range(_FIREWORK_H)]
+    cx = _FIREWORK_W // 2
+    cy = 3
+    if step < _FIREWORK_LAUNCH:
+        y = max(cy, _FIREWORK_H - 2 - step * 2)
+        _plot(grid, cx, y, _spark("*", 220, color))
+    else:
+        age = step - _FIREWORK_LAUNCH + 1
+        mark = "*" if age < 5 else ("+" if age < 8 else ".")
+        if age <= 2:
+            _plot(grid, cx, cy, _spark("*", 220, color))
+        rays = 12
+        for i in range(rays):
+            ang = i * math.tau / rays
+            radius = age * 1.15
+            x = cx + int(round(math.cos(ang) * radius * 2.1))
+            y = cy + int(round(math.sin(ang) * radius * 0.65))
+            _plot(grid, x, y, _spark(mark, _FIREWORK_COLORS[i % len(_FIREWORK_COLORS)], color))
+            if age > 2:
+                fall = age - 2
+                _plot(
+                    grid,
+                    cx + int(round(math.cos(ang) * radius * 1.2)),
+                    y + fall,
+                    _spark(".", _FIREWORK_COLORS[(i + 2) % len(_FIREWORK_COLORS)], color),
+                )
+    return ["".join(row) for row in grid]
+
+
+def _plot(grid: list[list[str]], x: int, y: int, cell: str) -> None:
+    if 0 <= y < len(grid) and 0 <= x < len(grid[0]):
+        grid[y][x] = cell
+
+
+def _spark(ch: str, color: int, on: bool) -> str:
+    if not on:
+        return ch
+    return paint(ch, _BOLD, fg256(color), enabled=True)
+
+
+def play_firework(*, frames: int = _FIREWORK_FRAMES, delay_s: float = _FIREWORK_DELAY_S) -> None:
+    if not color_enabled():
+        return
+    stream = sys.stdout
+    stream.write("\033[?25l")
+    height = 0
+    try:
+        for step in range(frames):
+            lines = firework_frame(step, color=True)
+            if height:
+                stream.write(f"\033[{height}A")
+            for line in lines:
+                stream.write(line + "\n")
+            stream.flush()
+            height = len(lines)
+            if delay_s > 0:
+                time.sleep(delay_s)
+    finally:
+        stream.write("\033[?25h")
+        stream.flush()
+
+
 def print_complete(problem: str, lang: str, *, levels: int, passed: int) -> None:
+    play_firework()
     print(status_unlock(f"DONE: {problem} {lang}"))
     print(status_note(f"NOTE: all {levels} levels, {passed} traces"))
     nxt = next_problem(problem)

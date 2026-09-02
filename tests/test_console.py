@@ -19,8 +19,11 @@ from honepad.term import (
     color_enabled,
     file_link,
     file_uri,
+    firework_frame,
     format_clock,
     paint_spec,
+    play_firework,
+    print_complete,
     render_menu,
     render_prompt,
     spec_line,
@@ -198,6 +201,77 @@ def test_color_disabled_without_tty(monkeypatch) -> None:
     monkeypatch.delenv("NO_COLOR", raising=False)
     monkeypatch.setattr(sys.stdout, "isatty", lambda: False)
     assert color_enabled() is False
+
+
+def test_firework_launch_starts_low() -> None:
+    rows = firework_frame(0)
+    assert len(rows) == 11
+    hits = [i for i, row in enumerate(rows) if "*" in row]
+    assert hits
+    assert hits[0] > len(rows) // 2
+
+
+def test_firework_burst_spreads() -> None:
+    rows = firework_frame(6)
+    spark_rows = [row for row in rows if "*" in row or "+" in row]
+    assert len(spark_rows) >= 4
+    cols: list[int] = []
+    for row in spark_rows:
+        for i, ch in enumerate(row):
+            if ch in "*+":
+                cols.append(i)
+    assert max(cols) - min(cols) >= 6
+
+
+def test_play_firework_skips_without_color(monkeypatch, capsys) -> None:
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+    monkeypatch.setenv("NO_COLOR", "1")
+    slept: list[float] = []
+    monkeypatch.setattr("honepad.term.time.sleep", slept.append)
+    play_firework()
+    out = capsys.readouterr().out
+    assert out == ""
+    assert slept == []
+
+
+def test_play_firework_redraws_when_color_forced(monkeypatch, capsys) -> None:
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    slept: list[float] = []
+    monkeypatch.setattr("honepad.term.time.sleep", slept.append)
+    play_firework(frames=3, delay_s=0.04)
+    out = capsys.readouterr().out
+    assert "*" in out
+    assert "\x1b[" in out
+    assert "\x1b[11A" in out
+    assert slept == [0.04, 0.04, 0.04]
+
+
+def test_print_complete_plays_firework_when_color_forced(monkeypatch, capsys) -> None:
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    monkeypatch.setattr("honepad.term.time.sleep", lambda _s: None)
+    print_complete("bank_system", "java", levels=4, passed=19)
+    out = capsys.readouterr().out
+    assert "*" in out
+    assert "\x1b[11A" in out
+    done = out.find("DONE: bank_system java")
+    assert done != -1
+    assert out.find("*") < done
+    assert "all 4 levels, 19 traces" in out
+    assert "in_memory_database java" in out
+
+
+def test_print_complete_stays_plain_without_color(monkeypatch, capsys) -> None:
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
+    monkeypatch.setenv("NO_COLOR", "1")
+    slept: list[float] = []
+    monkeypatch.setattr("honepad.term.time.sleep", slept.append)
+    print_complete("bank_system", "java", levels=4, passed=19)
+    out = capsys.readouterr().out
+    assert out.startswith("DONE: bank_system java")
+    assert "\x1b[11A" not in out
+    assert slept == []
 
 
 def test_no_color_wins_over_force(monkeypatch) -> None:
