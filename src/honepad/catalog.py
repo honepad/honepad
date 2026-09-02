@@ -79,3 +79,14 @@ def required_ids() -> list[str]:
 
 def problems() -> list[str]:
     return list(load_catalog()["problems"])
+
+
+def next_problem(current: str) -> str | None:
+    ids = problems()
+    try:
+        index = ids.index(current)
+    except ValueError:
+        return None
+    if index + 1 >= len(ids):
+        return None
+    return ids[index + 1]

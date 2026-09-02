@@ -1,7 +1,23 @@
 import json
 
-from honepad.catalog import language, languages, load_catalog, repo_root, required_ids
+from honepad.catalog import (
+    language,
+    languages,
+    load_catalog,
+    next_problem,
+    problems,
+    repo_root,
+    required_ids,
+)
 from honepad.runner import _RUNNERS
+
+
+def test_next_problem_follows_catalog_order() -> None:
+    ids = problems()
+    assert ids[0] == "bank_system"
+    assert next_problem("bank_system") == "in_memory_database"
+    assert next_problem(ids[-1]) is None
+    assert next_problem("not-a-problem") is None
 
 
 def test_required_ids_match_rows() -> None:
