@@ -256,6 +256,8 @@ def ensure_session(
         return session
     current.pop("clock_restarted", None)
     current.pop("clock_now_minutes", None)
+    if current["lang"] != lang:
+        current["cleared"] = False
     current["lang"] = lang
     left = remaining_s(int(current["started_at"]), int(current["minutes"]))
     restarted = False
@@ -331,5 +333,5 @@ def drop_level(session: dict[str, Any], minutes: int | None = None) -> tuple[dic
     )
     unlocked = int(session["unlocked"])
     work = slice_work_to_level(problem, lang_id, unlocked)
-    write_workspace(problem, lang_id, unlocked)
+    write_workspace(problem, lang_id, unlocked, cleared=bool(session.get("cleared")))
     return session, work

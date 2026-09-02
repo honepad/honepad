@@ -190,6 +190,8 @@ def test_submit_unlocks_when_workspace_write_fails(monkeypatch, tmp_path: Path, 
     work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
     src = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
     work.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+    leftover = work.parent / "Account.py"
+    leftover.write_text("raise SystemExit('leftover must not load')\n", encoding="utf-8")
 
     def boom(*_args: object, **_kwargs: object) -> None:
         raise OSError("workspace boom")
@@ -205,6 +207,7 @@ def test_submit_unlocks_when_workspace_write_fails(monkeypatch, tmp_path: Path, 
     assert "OK" in out
     assert "NOTE:" in out
     assert "workspace boom" in out
+    assert "Account.py is not compiled" in out
 
 
 def test_stub_runs_do_not_unlock_next_level(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -294,6 +297,35 @@ def test_start_same_problem_keeps_unlock(monkeypatch, tmp_path: Path, capsys) ->
     assert main(["start", "bank_system", "javascript", "--level", "2"]) == 0
     level_out = capsys.readouterr().out
     assert "LOCKED" not in level_out
+
+
+def test_start_same_problem_other_lang_drops_cleared(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 4
+    save_session(session)
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    capsys.readouterr()
+    assert load_session()["cleared"] is True
+    assert load_session()["unlocked"] == 4
+    assert main(["start", "bank_system", "java", "--no-console"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    assert session["unlocked"] == 4
+    assert session["lang"] == "java"
+    written = json.loads(session_file.read_text(encoding="utf-8"))
+    assert "cleared" not in written
+    assert session["cleared"] is False
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "DONE: bank_system java" in out
+    assert "still complete" not in out
+    assert load_session()["cleared"] is True
 
 
 def test_timer_reads_session(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -1315,10 +1347,16 @@ def test_start_back_and_reset_after_last_level_cleared(monkeypatch, tmp_path: Pa
     session["unlocked"] = 4
     save_session(session)
     write_workspace("bank_system", "python3", 4)
+    before = json.loads(tasks_path.read_text(encoding="utf-8"))
+    before_labels = {task["label"] for task in before["tasks"]}
+    assert "Submit last level" in before_labels
+    assert "Replay last level" not in before_labels
+    assert "inputs" not in before
     capsys.readouterr()
     assert main(["run", "bank_system"]) == 0
     assert load_session()["cleared"] is True
     assert load_session()["unlocked"] == 4
+    write_workspace("bank_system", "python3", 4, cleared=True)
     replay = json.loads(tasks_path.read_text(encoding="utf-8"))
     replay_labels = {task["label"] for task in replay["tasks"]}
     assert "Replay last level" in replay_labels
@@ -1343,7 +1381,8 @@ def test_start_back_and_reset_after_last_level_cleared(monkeypatch, tmp_path: Pa
     assert load_session()["cleared"] is False
     after_unlock = json.loads(tasks_path.read_text(encoding="utf-8"))
     unlock_labels = {task["label"] for task in after_unlock["tasks"]}
-    assert "Replay last level" in unlock_labels
+    assert "Submit last level" in unlock_labels
+    assert "Replay last level" not in unlock_labels
     assert "Submit (unlock next level)" not in unlock_labels
     assert "inputs" not in after_unlock
     capsys.readouterr()

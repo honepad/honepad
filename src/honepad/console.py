@@ -103,6 +103,7 @@ def cmd_vscode(args: argparse.Namespace) -> int:
             str(session["problem"]),
             str(session["lang"]),
             int(session["unlocked"]),
+            cleared=bool(session.get("cleared")),
         )
         print(f"WORKSPACE: {file_link(path)}")
         _print_spec_link(str(session["problem"]), str(session["lang"]))
@@ -234,7 +235,7 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
             return _print_spec(problem, unlocked, stdout)
         if choice in {"5", "vscode", "code"}:
             ensure_work_copy(problem, lang, reset=False, level=unlocked)
-            path = write_workspace(problem, lang, unlocked)
+            path = write_workspace(problem, lang, unlocked, cleared=bool(session.get("cleared")))
             stdout.write(f"WORKSPACE: {file_link(path)}\n")
             spec = _spec_output(problem, lang)
             if spec is not None:
@@ -373,7 +374,12 @@ def _reset_all(session: dict[str, Any], stdout: TextIO) -> int:
     session.clear()
     session.update(nxt)
     work = ensure_work_copy(str(session["problem"]), str(session["lang"]), reset=True, level=1)
-    write_workspace(str(session["problem"]), str(session["lang"]), 1)
+    write_workspace(
+        str(session["problem"]),
+        str(session["lang"]),
+        1,
+        cleared=bool(session.get("cleared")),
+    )
     stdout.write(f"OK: LEVEL {session['unlocked']}\n{work_line(work)}\n")
     stdout.flush()
     return _print_spec(str(session["problem"]), 1, stdout)

@@ -256,7 +256,12 @@ def cmd_start(args: argparse.Namespace) -> int:
             unlocked = int(session["unlocked"])
             work = ensure_work_copy(args.problem, row["id"], reset=args.reset, level=unlocked)
             if args.reset and workspace_dir(args.problem, row["id"]).exists():
-                write_workspace(args.problem, row["id"], unlocked)
+                write_workspace(
+                    args.problem,
+                    row["id"],
+                    unlocked,
+                    cleared=bool(session.get("cleared")),
+                )
         level = unlocked if args.level is None else args.level
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
@@ -385,6 +390,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         if left == 0:
             print(status_fail("TIME UP: remaining_s=0. Next level stays locked."))
             print(status_note("NOTE: q then honepad start starts a new clock and keeps your work."))
+            if kind == "work":
+                _print_work_notes(args.problem, lang)
             return 0
         if may_unlock:
             try:
@@ -395,7 +402,12 @@ def cmd_run(args: argparse.Namespace) -> int:
                 return 1
             workspace_exc: BaseException | None = None
             try:
-                write_workspace(args.problem, lang, nxt)
+                write_workspace(
+                    args.problem,
+                    lang,
+                    nxt,
+                    cleared=bool(session.get("cleared")),
+                )
             except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
                 workspace_exc = exc
             print(status_ok("OK"))
@@ -407,6 +419,8 @@ def cmd_run(args: argparse.Namespace) -> int:
                     print(paint_spec(spec.read_text(encoding="utf-8")).rstrip() + "\n")
             if workspace_exc is not None:
                 print(status_note(f"NOTE: workspace {workspace_exc}"))
+            if kind == "work":
+                _print_work_notes(args.problem, lang)
             return 0
         print(status_ok("OK"))
         print(

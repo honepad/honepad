@@ -48,7 +48,7 @@ def _require_real_session_dir(path: Path, label: str) -> None:
         raise RuntimeError(f"{label} escapes session: {path}")
 
 
-def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
+def write_workspace(problem: str, lang: str, unlocked: int, cleared: bool = False) -> Path:
     root = workspace_dir(problem, lang)
     work = work_src(problem, lang)
     row = language(lang)
@@ -68,7 +68,7 @@ def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
     elif row["id"] == "python3":
         _write_python_public(public, work, problem, cases)
     _write_readme(public, problem, lang, unlocked, work)
-    _write_tasks(public, problem, lang, unlocked)
+    _write_tasks(public, problem, lang, unlocked, cleared=cleared)
     folders = [
         {"name": "spec", "path": str(spec_folder.resolve())},
         {"name": "public-tests", "path": str(public.resolve())},
@@ -292,13 +292,21 @@ def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Pa
     _replace_text(public / "README.md", "\n".join(lines))
 
 
-def _write_tasks(public: Path, problem: str, lang: str, unlocked: int) -> None:
+def _write_tasks(
+    public: Path, problem: str, lang: str, unlocked: int, cleared: bool = False
+) -> None:
     vscode = public / ".vscode"
     vscode.mkdir(exist_ok=True)
     at_end = unlocked >= max_level(problem)
     submit_args = ["-m", "honepad", "submit", problem, "--lang", lang, "--kind", "work"]
     if not at_end:
         submit_args.extend(["--confirm", "${input:unlockConfirm}"])
+    if at_end and cleared:
+        submit_label = "Replay last level"
+    elif at_end:
+        submit_label = "Submit last level"
+    else:
+        submit_label = "Submit (unlock next level)"
     tasks: list[dict[str, object]] = [
         {
             "label": "Run public tests",
@@ -310,7 +318,7 @@ def _write_tasks(public: Path, problem: str, lang: str, unlocked: int) -> None:
             "problemMatcher": [],
         },
         {
-            "label": "Replay last level" if at_end else "Submit (unlock next level)",
+            "label": submit_label,
             "type": "shell",
             "command": sys.executable,
             "args": submit_args,

@@ -1688,10 +1688,11 @@ def test_workspace_last_level_replay_task_omits_unlock_confirm(monkeypatch, tmp_
     public = dest.parent / "public"
     tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
     by_label = {task["label"]: task for task in tasks["tasks"]}
-    assert "Replay last level" in by_label
+    assert "Submit last level" in by_label
+    assert "Replay last level" not in by_label
     assert "Submit (unlock next level)" not in by_label
-    replay = by_label["Replay last level"]
-    blob = json.dumps(replay)
+    submit = by_label["Submit last level"]
+    blob = json.dumps(submit)
     assert "submit" in blob
     assert "--confirm" not in blob
     assert "${input:unlockConfirm}" not in blob
@@ -1701,6 +1702,17 @@ def test_workspace_last_level_replay_task_omits_unlock_confirm(monkeypatch, tmp_
     readme = (public / "README.md").read_text(encoding="utf-8")
     assert "Submit / Replay" in readme
     assert "later level is still locked" in readme
+    dest = write_workspace("bank_system", "python3", 4, cleared=True)
+    public = dest.parent / "public"
+    tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
+    by_label = {task["label"]: task for task in tasks["tasks"]}
+    assert "Replay last level" in by_label
+    assert "Submit last level" not in by_label
+    replay = by_label["Replay last level"]
+    blob = json.dumps(replay)
+    assert "submit" in blob
+    assert "--confirm" not in blob
+    assert "inputs" not in tasks
 
 
 def test_workspace_run_task_kind_work_mismatch_does_not_replay_solution(
