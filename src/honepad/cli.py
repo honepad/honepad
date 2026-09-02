@@ -381,6 +381,22 @@ def cmd_run(args: argparse.Namespace) -> int:
             first = not bool(session.get("cleared"))
             if first:
                 mark_cleared(session)
+                if lang is not None and workspace_dir(args.problem, lang).exists():
+                    try:
+                        write_workspace(
+                            args.problem,
+                            lang,
+                            max_level(str(session["problem"])),
+                            cleared=True,
+                        )
+                    except (
+                        KeyError,
+                        ValueError,
+                        FileNotFoundError,
+                        OSError,
+                        RuntimeError,
+                    ) as exc:
+                        print(status_note(f"NOTE: workspace {exc}"))
             print_complete(
                 str(session["problem"]),
                 str(session["lang"]),
