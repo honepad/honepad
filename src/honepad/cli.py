@@ -16,7 +16,9 @@ from honepad.session import (
     drop_level,
     ensure_session,
     ensure_work_copy,
+    extra_work_note,
     load_session,
+    mark_cleared,
     max_level,
     note_clock_restarted,
     remaining_s,
@@ -358,7 +360,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             )
         )
         if kind == "work":
-            print(work_line(work_src(args.problem, lang)))
+            _print_work_notes(args.problem, lang)
         return 1
     if report.passed == 0:
         print(status_fail("FAIL: no cases"))
@@ -367,12 +369,18 @@ def cmd_run(args: argparse.Namespace) -> int:
     if practice and session is not None and kind in ("solution", "work"):
         nxt = int(session["unlocked"]) + 1
         if nxt > max_level(str(session["problem"])):
+            first = not bool(session.get("cleared"))
+            if first:
+                mark_cleared(session)
             print_complete(
                 str(session["problem"]),
                 str(session["lang"]),
                 levels=max_level(str(session["problem"])),
                 passed=report.passed,
+                first=first,
             )
+            if kind == "work":
+                _print_work_notes(args.problem, lang)
             return 0
         if left == 0:
             print(status_fail("TIME UP: remaining_s=0. Next level stays locked."))
@@ -406,9 +414,20 @@ def cmd_run(args: argparse.Namespace) -> int:
                 f"NOTE: still LEVEL {session['unlocked']}. 2 submit unlocks the next level."
             )
         )
+        if kind == "work":
+            _print_work_notes(args.problem, lang)
         return 0
     print(status_ok("OK"))
+    if kind == "work":
+        _print_work_notes(args.problem, lang)
     return 0
+
+
+def _print_work_notes(problem: str, lang: str) -> None:
+    print(work_line(work_src(problem, lang)))
+    extra = extra_work_note(problem, lang)
+    if extra is not None:
+        print(status_note(extra))
 
 
 def cmd_submit(args: argparse.Namespace) -> int:

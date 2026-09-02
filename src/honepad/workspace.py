@@ -11,7 +11,7 @@ from pathlib import Path
 from honepad.catalog import language, repo_root
 from honepad.javatest import render_junit, render_pom
 from honepad.pythontest import render_pytest
-from honepad.session import _replace_text, session_path, work_src
+from honepad.session import _replace_text, max_level, session_path, work_src
 from honepad.term import file_link, file_uri
 from honepad.traces import load_cases, problem_dir
 from honepad.workstub import class_name_for
@@ -68,7 +68,7 @@ def write_workspace(problem: str, lang: str, unlocked: int) -> Path:
     elif row["id"] == "python3":
         _write_python_public(public, work, problem, cases)
     _write_readme(public, problem, lang, unlocked, work)
-    _write_tasks(public, problem, lang)
+    _write_tasks(public, problem, lang, unlocked)
     folders = [
         {"name": "spec", "path": str(spec_folder.resolve())},
         {"name": "public-tests", "path": str(public.resolve())},
@@ -263,13 +263,13 @@ def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Pa
         f"Work file: {work}",
         f"URI: {file_uri(work)}",
         "",
-        "VS Code: Terminal > Run Task > Run public tests, or Submit (unlock next level).",
+        "VS Code: Terminal > Run Task > Run public tests, or Submit / Replay.",
         f"`{sys.executable} -m honepad run {problem} --lang {lang} --kind work` does not unlock.",
         (
             f"`{sys.executable} -m honepad submit {problem} --lang {lang} "
-            f"--kind work` unlocks the next level."
+            f"--kind work` unlocks the next level, or replays the last level."
         ),
-        "Submit asks y / n (console) or a VS Code pick (task input) before unlock.",
+        "Submit asks y / n before unlock when a later level is still locked.",
         "",
     ]
     if lang == "java":
@@ -292,9 +292,13 @@ def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Pa
     _replace_text(public / "README.md", "\n".join(lines))
 
 
-def _write_tasks(public: Path, problem: str, lang: str) -> None:
+def _write_tasks(public: Path, problem: str, lang: str, unlocked: int) -> None:
     vscode = public / ".vscode"
     vscode.mkdir(exist_ok=True)
+    at_end = unlocked >= max_level(problem)
+    submit_args = ["-m", "honepad", "submit", problem, "--lang", lang, "--kind", "work"]
+    if not at_end:
+        submit_args.extend(["--confirm", "${input:unlockConfirm}"])
     tasks: list[dict[str, object]] = [
         {
             "label": "Run public tests",
@@ -306,21 +310,10 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
             "problemMatcher": [],
         },
         {
-            "label": "Submit (unlock next level)",
+            "label": "Replay last level" if at_end else "Submit (unlock next level)",
             "type": "shell",
             "command": sys.executable,
-            "args": [
-                "-m",
-                "honepad",
-                "submit",
-                problem,
-                "--lang",
-                lang,
-                "--kind",
-                "work",
-                "--confirm",
-                "${input:unlockConfirm}",
-            ],
+            "args": submit_args,
             "group": "test",
             "options": {"cwd": "${workspaceFolder:public-tests}"},
             "presentation": {"reveal": "always", "panel": "shared"},
@@ -362,9 +355,12 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
                 "problemMatcher": [],
             }
         )
-    payload = {
+    payload: dict[str, object] = {
         "version": "2.0.0",
-        "inputs": [
+        "tasks": tasks,
+    }
+    if not at_end:
+        payload["inputs"] = [
             {
                 "id": "unlockConfirm",
                 "type": "pickString",
@@ -372,7 +368,5 @@ def _write_tasks(public: Path, problem: str, lang: str) -> None:
                 "options": ["n", "y"],
                 "default": "n",
             }
-        ],
-        "tasks": tasks,
-    }
+        ]
     _replace_text(vscode / "tasks.json", json.dumps(payload, indent=2) + "\n")

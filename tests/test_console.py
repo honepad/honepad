@@ -14,7 +14,7 @@ from honepad.cli import main
 from honepad.console import _confirm_unlock, _read_choice, dispatch, loop_console, render_banner
 from honepad.javatest import java_ident
 from honepad.pythontest import pytest_ident
-from honepad.session import ensure_work_copy, load_session
+from honepad.session import ensure_work_copy, load_session, save_session
 from honepad.term import (
     color_enabled,
     file_link,
@@ -79,11 +79,30 @@ def test_banner_done_at_last_level_even_when_clock_is_zero() -> None:
         "started_at": 100,
         "minutes": 90,
         "unlocked": 4,
+        "cleared": True,
     }
     text = render_banner(session, now=100 + 90 * 60 + 1)
     assert "DONE: bank_system java" in text
+    assert "2 replay" in text
     assert "TIME UP" not in text
     assert "will not unlock" not in text.lower()
+    assert "LEVEL 4" in text
+
+
+def test_banner_last_level_without_cleared_is_not_done() -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 100,
+        "minutes": 90,
+        "unlocked": 4,
+    }
+    text = render_banner(session, now=100 + 90 * 60 + 1)
+    assert "DONE:" not in text
+    assert "2 replay" not in text
+    assert "2 submit (local)" in text
+    assert "last level" in text.lower()
+    assert "TIME UP" not in text
     assert "LEVEL 4" in text
 
 
@@ -258,6 +277,22 @@ def test_print_complete_plays_firework_when_color_forced(monkeypatch, capsys) ->
     done = out.find("DONE: bank_system java")
     assert done != -1
     assert out.find("*") < done
+    assert "all 4 levels, 19 traces" in out
+    assert "in_memory_database java" in out
+
+
+def test_print_complete_rerun_skips_firework(monkeypatch, capsys) -> None:
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    slept: list[float] = []
+    monkeypatch.setattr("honepad.term.time.sleep", slept.append)
+    print_complete("bank_system", "java", levels=4, passed=19, first=False)
+    out = capsys.readouterr().out
+    assert "OK: bank_system java still complete" in out
+    assert "DONE:" not in out
+    assert "*" not in out
+    assert "\x1b[11A" not in out
+    assert slept == []
     assert "all 4 levels, 19 traces" in out
     assert "in_memory_database java" in out
 
@@ -818,6 +853,49 @@ def test_console_submit_cancel_keeps_level(monkeypatch, tmp_path: Path, capsys) 
     assert "cancelled" in out.lower()
     assert load_session()["unlocked"] == 1
     assert "passed=" not in out
+
+
+def test_console_last_level_submit_skips_unlock_prompt(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    _write_python_solution(tmp_path)
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 4
+    save_session(session)
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("2\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "Unlock?" not in out
+    assert "cancelled" not in out.lower()
+    assert "DONE: bank_system python3" in out
+    assert "passed=" in out
+    assert load_session()["cleared"] is True
+
+
+def test_banner_notes_extra_java_sources(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    work.parent.mkdir(parents=True)
+    work.write_text("public class Simulation {}\n", encoding="utf-8")
+    (work.parent / "Account.java").write_text(
+        "class Simulation {}\npublic class Account {}\n",
+        encoding="utf-8",
+    )
+    text = render_banner(
+        {
+            "problem": "bank_system",
+            "lang": "java",
+            "started_at": 100,
+            "minutes": 90,
+            "unlocked": 4,
+            "cleared": True,
+        }
+    )
+    assert "Account.java is not compiled" in text
+    assert "Tests run Simulation.java" in text
+    assert "DONE: bank_system java" in text
 
 
 def test_console_reset(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -1592,9 +1670,32 @@ def test_workspace_has_submit_task_not_default(monkeypatch, tmp_path: Path) -> N
     assert "work" in submit_args
     assert submit_args[submit_args.index("--kind") + 1] == "work"
     readme = (public / "README.md").read_text(encoding="utf-8")
-    assert "Submit (unlock next level)" in readme
+    assert "Submit / Replay" in readme
+    assert "later level is still locked" in readme
     assert "-m honepad run bank_system --lang python3 --kind work" in readme
     assert "-m honepad submit bank_system --lang python3 --kind work" in readme
+
+
+def test_workspace_last_level_replay_task_omits_unlock_confirm(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    dest = write_workspace("bank_system", "python3", 4)
+    public = dest.parent / "public"
+    tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
+    by_label = {task["label"]: task for task in tasks["tasks"]}
+    assert "Replay last level" in by_label
+    assert "Submit (unlock next level)" not in by_label
+    replay = by_label["Replay last level"]
+    blob = json.dumps(replay)
+    assert "submit" in blob
+    assert "--confirm" not in blob
+    assert "${input:unlockConfirm}" not in blob
+    assert "inputs" not in tasks
+    default = by_label["Run public tests"]
+    assert default["group"]["isDefault"] is True
+    readme = (public / "README.md").read_text(encoding="utf-8")
+    assert "Submit / Replay" in readme
+    assert "later level is still locked" in readme
 
 
 def test_workspace_run_task_kind_work_mismatch_does_not_replay_solution(
