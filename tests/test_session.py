@@ -207,7 +207,8 @@ def test_submit_unlocks_when_workspace_write_fails(monkeypatch, tmp_path: Path, 
     assert "OK" in out
     assert "NOTE:" in out
     assert "workspace boom" in out
-    assert "Account.py is not compiled" in out
+    assert "Account.py is ignored" in out
+    assert "Put the Simulation class in work.py" in out
 
 
 def test_stub_runs_do_not_unlock_next_level(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -1169,6 +1170,40 @@ def test_submit_last_level_prints_done(monkeypatch, tmp_path: Path, capsys) -> N
     assert load_session()["cleared"] is True
 
 
+def test_submit_last_level_skips_unlock_confirm_on_tty(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 4,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    fake_in = io.StringIO("")
+    monkeypatch.setattr(fake_in, "isatty", lambda: True)
+    monkeypatch.setattr(sys, "stdin", fake_in)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr("honepad.console._use_live", lambda *_a, **_k: False)
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "Unlock?" not in out
+    assert "cancelled" not in out.lower()
+    assert "DONE: bank_system python3" in out
+    assert load_session()["cleared"] is True
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    again = capsys.readouterr().out
+    assert "Unlock?" not in again
+    assert "cancelled" not in again.lower()
+    assert "still complete" in again
+
+
 def test_submit_last_workers_level_prints_done(monkeypatch, tmp_path: Path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
@@ -1264,13 +1299,13 @@ def test_extra_work_file_is_not_run(monkeypatch, tmp_path: Path, capsys) -> None
     assert leftover in extra_work_sources("bank_system", "python3")
     note = extra_work_note("bank_system", "python3")
     assert note is not None
-    assert "Account.py is not compiled" in note
-    assert "work.py" in note
+    assert "Account.py is ignored" in note
+    assert "Put the Simulation class in work.py" in note
     assert main(["run", "bank_system"]) == 0
     out = capsys.readouterr().out
     assert "DONE: bank_system python3" in out
-    assert "Account.py is not compiled" in out
-    assert "Tests run work.py" in out
+    assert "Account.py is ignored" in out
+    assert "Put the Simulation class in work.py" in out
     leftover.write_text(
         "class Simulation:\n"
         "    def create_account(self, timestamp, account_id):\n"
@@ -1281,6 +1316,21 @@ def test_extra_work_file_is_not_run(monkeypatch, tmp_path: Path, capsys) -> None
     again = capsys.readouterr().out
     assert "still complete" in again
     assert "FAIL " not in again
+
+
+def test_extra_work_note_on_work_compile_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    leftover = work.parent / "Account.py"
+    leftover.write_text("raise SystemExit('leftover must not load')\n", encoding="utf-8")
+    work.write_text("class Simulation  # syntax error\n", encoding="utf-8")
+    assert main(["run", "bank_system"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "Account.py is ignored" in out
+    assert "Put the Simulation class in work.py" in out
 
 
 @pytest.mark.skipif(shutil.which("javac") is None, reason="javac not on PATH")
@@ -1308,13 +1358,13 @@ def test_extra_java_work_file_is_not_run(monkeypatch, tmp_path: Path, capsys) ->
     assert leftover in extra_work_sources("bank_system", "java")
     note = extra_work_note("bank_system", "java")
     assert note is not None
-    assert "Account.java is not compiled" in note
-    assert "Simulation.java" in note
+    assert "Account.java is ignored" in note
+    assert "Put the Simulation class in Simulation.java" in note
     assert main(["run", "bank_system"]) == 0
     out = capsys.readouterr().out
     assert "DONE: bank_system java" in out
-    assert "Account.java is not compiled" in out
-    assert "Tests run Simulation.java" in out
+    assert "Account.java is ignored" in out
+    assert "Put the Simulation class in Simulation.java" in out
     assert "javac failed" not in out
     leftover.write_text(
         "class Simulation {\n"

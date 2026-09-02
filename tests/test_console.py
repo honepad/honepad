@@ -877,6 +877,14 @@ def test_console_last_level_submit_skips_unlock_prompt(monkeypatch, tmp_path: Pa
     after = out[done_idx:]
     assert "2 replay" in after
     assert "pass all traces to finish" not in after.lower()
+    assert "NOTE: local submit" in out
+    assert "NOTE: replay" not in out
+    monkeypatch.setattr(sys, "stdin", io.StringIO("2\nq\n"))
+    assert main(["console"]) == 0
+    replay_out = capsys.readouterr().out
+    assert "NOTE: replay. Same work-file test." in replay_out
+    assert "NOTE: local submit" not in replay_out
+    assert "Unlock?" not in replay_out
 
 
 def test_banner_notes_extra_java_sources(monkeypatch, tmp_path: Path) -> None:
@@ -898,8 +906,8 @@ def test_banner_notes_extra_java_sources(monkeypatch, tmp_path: Path) -> None:
             "cleared": True,
         }
     )
-    assert "Account.java is not compiled" in text
-    assert "Tests run Simulation.java" in text
+    assert "Account.java is ignored" in text
+    assert "Put the Simulation class in Simulation.java" in text
     assert "DONE: bank_system java" in text
 
 
@@ -1700,8 +1708,11 @@ def test_workspace_last_level_replay_task_omits_unlock_confirm(monkeypatch, tmp_
     default = by_label["Run public tests"]
     assert default["group"]["isDefault"] is True
     readme = (public / "README.md").read_text(encoding="utf-8")
-    assert "Submit / Replay" in readme
-    assert "later level is still locked" in readme
+    assert "Submit last level" in readme
+    assert "Replay last level" not in readme
+    assert "Submit / Replay" not in readme
+    assert "later level is still locked" not in readme
+    assert "No y / n (nothing unlocks)" in readme
     dest = write_workspace("bank_system", "python3", 4, cleared=True)
     public = dest.parent / "public"
     tasks = json.loads((public / ".vscode" / "tasks.json").read_text(encoding="utf-8"))
@@ -1713,6 +1724,12 @@ def test_workspace_last_level_replay_task_omits_unlock_confirm(monkeypatch, tmp_
     assert "submit" in blob
     assert "--confirm" not in blob
     assert "inputs" not in tasks
+    readme = (public / "README.md").read_text(encoding="utf-8")
+    assert "Replay last level" in readme
+    assert "Submit last level" not in readme
+    assert "Submit / Replay" not in readme
+    assert "later level is still locked" not in readme
+    assert "No y / n unlock" in readme
 
 
 def test_workspace_run_task_kind_work_mismatch_does_not_replay_solution(

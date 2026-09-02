@@ -67,7 +67,7 @@ def write_workspace(problem: str, lang: str, unlocked: int, cleared: bool = Fals
         _write_work_java_settings(work.parent)
     elif row["id"] == "python3":
         _write_python_public(public, work, problem, cases)
-    _write_readme(public, problem, lang, unlocked, work)
+    _write_readme(public, problem, lang, unlocked, work, cleared=cleared)
     _write_tasks(public, problem, lang, unlocked, cleared=cleared)
     folders = [
         {"name": "spec", "path": str(spec_folder.resolve())},
@@ -251,7 +251,36 @@ def _write_specs(public: Path, problem: str, unlocked: int) -> Path:
     return spec_folder
 
 
-def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Path) -> None:
+def _write_readme(
+    public: Path,
+    problem: str,
+    lang: str,
+    unlocked: int,
+    work: Path,
+    cleared: bool = False,
+) -> None:
+    at_end = unlocked >= max_level(problem)
+    if at_end and cleared:
+        vscode_task = "Replay last level"
+        submit_line = (
+            f"`{sys.executable} -m honepad submit {problem} --lang {lang} "
+            f"--kind work` replays the last level."
+        )
+        confirm_line = "Replay last level. No y / n unlock."
+    elif at_end:
+        vscode_task = "Submit last level"
+        submit_line = (
+            f"`{sys.executable} -m honepad submit {problem} --lang {lang} "
+            f"--kind work` submits the last level. Nothing unlocks."
+        )
+        confirm_line = "Submit last level. No y / n (nothing unlocks)."
+    else:
+        vscode_task = "Submit / Replay"
+        submit_line = (
+            f"`{sys.executable} -m honepad submit {problem} --lang {lang} "
+            f"--kind work` unlocks the next level, or replays the last level."
+        )
+        confirm_line = "Submit asks y / n before unlock when a later level is still locked."
     lines = [
         f"# {problem} public tests (unlocked through L{unlocked})",
         "",
@@ -263,13 +292,10 @@ def _write_readme(public: Path, problem: str, lang: str, unlocked: int, work: Pa
         f"Work file: {work}",
         f"URI: {file_uri(work)}",
         "",
-        "VS Code: Terminal > Run Task > Run public tests, or Submit / Replay.",
+        f"VS Code: Terminal > Run Task > Run public tests, or {vscode_task}.",
         f"`{sys.executable} -m honepad run {problem} --lang {lang} --kind work` does not unlock.",
-        (
-            f"`{sys.executable} -m honepad submit {problem} --lang {lang} "
-            f"--kind work` unlocks the next level, or replays the last level."
-        ),
-        "Submit asks y / n before unlock when a later level is still locked.",
+        submit_line,
+        confirm_line,
         "",
     ]
     if lang == "java":

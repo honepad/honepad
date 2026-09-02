@@ -226,7 +226,10 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
         if choice in {"1", "run", "test"}:
             return _run_work(problem, lang, unlock=False)
         if choice in {"2", "submit"}:
-            stdout.write(status_note("NOTE: local submit. Nothing is sent.") + "\n")
+            if session.get("cleared"):
+                stdout.write(status_note("NOTE: replay. Same work-file test.") + "\n")
+            else:
+                stdout.write(status_note("NOTE: local submit. Nothing is sent.") + "\n")
             stdout.flush()
             return _run_work(problem, lang, unlock=True)
         if choice in {"3", "reset"}:

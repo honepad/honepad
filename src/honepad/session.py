@@ -45,7 +45,9 @@ def extra_work_note(problem: str, lang_id: str) -> str | None:
     if not extras:
         return None
     names = ", ".join(path.name for path in extras)
-    return f"NOTE: {names} is not compiled. Tests run {work_src(problem, lang_id).name}."
+    cls = class_name_for(problem)
+    work = work_src(problem, lang_id)
+    return f"NOTE: {names} is ignored. Put the {cls} class in {work.name}."
 
 
 def mark_cleared(session: dict[str, Any]) -> dict[str, Any]:
