@@ -28,6 +28,32 @@ def session_path() -> Path:
     return Path.home() / ".honepad" / "session.json"
 
 
+def extra_work_sources(problem: str, lang_id: str) -> list[Path]:
+    work = work_src(problem, lang_id)
+    ext = str(language(lang_id)["ext"])
+    extras: list[Path] = []
+    if not work.parent.is_dir():
+        return extras
+    for path in sorted(work.parent.glob(f"*.{ext}")):
+        if path.resolve() != work.resolve():
+            extras.append(path)
+    return extras
+
+
+def extra_work_note(problem: str, lang_id: str) -> str | None:
+    extras = extra_work_sources(problem, lang_id)
+    if not extras:
+        return None
+    names = ", ".join(path.name for path in extras)
+    return f"NOTE: {names} is not compiled. Tests run {work_src(problem, lang_id).name}."
+
+
+def mark_cleared(session: dict[str, Any]) -> dict[str, Any]:
+    session["cleared"] = True
+    save_session(session)
+    return session
+
+
 def work_src(problem: str, lang_id: str) -> Path:
     ext = str(language(lang_id)["ext"])
     parent = session_path().parent / "work" / problem / lang_id
@@ -161,6 +187,7 @@ def load_session(path: Path | None = None) -> dict[str, Any] | None:
         "started_at": started_at,
         "minutes": minutes,
         "unlocked": unlocked,
+        "cleared": bool(payload.get("cleared")),
     }
 
 
@@ -182,6 +209,8 @@ def save_session(session: dict[str, Any], path: Path | None = None) -> Path:
         "minutes": int(session["minutes"]),
         "unlocked": int(session["unlocked"]),
     }
+    if session.get("cleared"):
+        payload["cleared"] = True
     fd, tmp_name = tempfile.mkstemp(prefix=".session.", suffix=".tmp", dir=str(target.parent))
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
@@ -260,6 +289,7 @@ def unlock_next(session: dict[str, Any]) -> int | None:
     if nxt > max_level(str(session["problem"])):
         return None
     session["unlocked"] = nxt
+    session["cleared"] = False
     save_session(session)
     return nxt
 
@@ -271,6 +301,7 @@ def lock_to_level(session: dict[str, Any], level: int) -> dict[str, Any]:
     if level > top:
         raise ValueError(f"level {level} > max {top}")
     session["unlocked"] = level
+    session["cleared"] = False
     save_session(session)
     return session
 

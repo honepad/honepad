@@ -15,6 +15,7 @@ from honepad.session import (
     drop_level,
     ensure_session,
     ensure_work_copy,
+    extra_work_note,
     load_session,
     max_level,
     note_clock_restarted,
@@ -55,10 +56,15 @@ def render_banner(session: dict[str, Any], now: int | None = None) -> str:
     lines = [
         f"{title}  {problem}  {lang}  {level}  remaining_s={left}  [{clock}]",
         work_line(work),
-        render_keys(),
+        render_keys(last_level=bool(session.get("cleared"))),
     ]
-    if unlocked >= max_level(problem):
+    extra = extra_work_note(problem, lang)
+    if extra is not None:
+        lines.append(status_note(extra))
+    if session.get("cleared"):
         lines.append(status_unlock(f"DONE: {problem} {lang}"))
+    elif unlocked >= max_level(problem):
+        lines.append(status_note("NOTE: last level. Pass all traces to finish."))
     elif left == 0:
         lines.append(status_fail("TIME UP: submit will not unlock."))
         lines.append(
@@ -190,13 +196,14 @@ def loop_console(
                 stdout.write("\n")
                 continue
             if choice in {"2", "submit"}:
-                unlock = _confirm_unlock(stdin, stdout, live=use_live)
-                if unlock is None:
-                    return last
-                if not unlock:
-                    stdout.write("OK: submit cancelled\n")
-                    stdout.flush()
-                    continue
+                if int(session["unlocked"]) < max_level(str(session["problem"])):
+                    unlock = _confirm_unlock(stdin, stdout, live=use_live)
+                    if unlock is None:
+                        return last
+                    if not unlock:
+                        stdout.write("OK: submit cancelled\n")
+                        stdout.flush()
+                        continue
             stdout.write("\n")
             last = dispatch(choice, session, stdout)
             stdout.write("\n")
@@ -234,7 +241,7 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
             stdout.flush()
             return open_vscode(path)
         stdout.write(status_fail(f"FAIL: unknown option {choice!r}") + "\n")
-        stdout.write(f"Keys: {render_keys()}\n")
+        stdout.write(f"Keys: {render_keys(last_level=bool(session.get('cleared')))}\n")
         stdout.flush()
         return 1
     except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:

@@ -10,7 +10,17 @@ import pytest
 from honepad.catalog import language, problems, repo_root
 from honepad.cli import main
 from honepad.runner import _RUNNERS
-from honepad.session import ensure_work_copy, load_session, remaining_s, save_session, work_src
+from honepad.session import (
+    ensure_work_copy,
+    extra_work_note,
+    extra_work_sources,
+    load_session,
+    lock_to_level,
+    mark_cleared,
+    remaining_s,
+    save_session,
+    work_src,
+)
 from honepad.workstub import (
     _java_method,
     class_name_for,
@@ -1115,6 +1125,14 @@ def test_submit_last_level_prints_done(monkeypatch, tmp_path: Path, capsys) -> N
     assert "NEXT:" in out
     assert "in_memory_database java" in out
     assert load_session()["unlocked"] == 4
+    assert load_session()["cleared"] is True
+    assert "cleared" in json.loads(session_file.read_text(encoding="utf-8"))
+    assert main(["submit", "bank_system", "--kind", "solution", "--confirm", "y"]) == 0
+    again = capsys.readouterr().out
+    assert "OK: bank_system java still complete" in again
+    assert "DONE:" not in again
+    assert "UNLOCKED" not in again
+    assert load_session()["cleared"] is True
 
 
 def test_submit_last_workers_level_prints_done(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -1139,6 +1157,126 @@ def test_submit_last_workers_level_prints_done(monkeypatch, tmp_path: Path, caps
     assert "all 3 levels" in out
     assert "UNLOCKED" not in out
     assert "NEXT:" not in out
+    assert load_session()["unlocked"] == 3
+    assert load_session()["cleared"] is True
+
+
+def test_run_last_level_marks_cleared(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 4,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "DONE: bank_system python3" in out
+    assert "still complete" not in out
+    assert load_session()["cleared"] is True
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    again = capsys.readouterr().out
+    assert "OK: bank_system python3 still complete" in again
+    assert "DONE:" not in again
+
+
+def test_last_level_broken_work_fails_after_cleared(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 4
+    mark_cleared(session)
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text(
+        "class Simulation:\n"
+        "    def create_account(self, timestamp, account_id):\n"
+        "        return False\n",
+        encoding="utf-8",
+    )
+    assert main(["run", "bank_system"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL " in out
+    assert "still complete" not in out
+    assert "DONE:" not in out
+    assert "WORK:" in out
+    assert str(work) in out
+    assert load_session()["cleared"] is True
+    assert load_session()["unlocked"] == 4
+
+
+def test_extra_work_file_is_not_run(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 4
+    save_session(session)
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    work.write_text(solution.read_text(encoding="utf-8"), encoding="utf-8")
+    leftover = work.parent / "Account.py"
+    leftover.write_text("raise SystemExit('leftover must not load')\n", encoding="utf-8")
+    assert leftover in extra_work_sources("bank_system", "python3")
+    note = extra_work_note("bank_system", "python3")
+    assert note is not None
+    assert "Account.py is not compiled" in note
+    assert "work.py" in note
+    assert main(["run", "bank_system"]) == 0
+    out = capsys.readouterr().out
+    assert "DONE: bank_system python3" in out
+    assert "Account.py is not compiled" in out
+    assert "Tests run work.py" in out
+    leftover.write_text(
+        "class Simulation:\n"
+        "    def create_account(self, timestamp, account_id):\n"
+        "        return False\n",
+        encoding="utf-8",
+    )
+    assert main(["run", "bank_system"]) == 0
+    again = capsys.readouterr().out
+    assert "still complete" in again
+    assert "FAIL " not in again
+
+
+def test_mark_cleared_persists_only_when_true(monkeypatch, tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 4,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    session = load_session()
+    assert session is not None
+    assert session["cleared"] is False
+    written = json.loads(session_file.read_text(encoding="utf-8"))
+    assert "cleared" not in written
+    mark_cleared(session)
+    written = json.loads(session_file.read_text(encoding="utf-8"))
+    assert written["cleared"] is True
+    lock_to_level(session, 3)
+    written = json.loads(session_file.read_text(encoding="utf-8"))
+    assert "cleared" not in written
+    assert load_session()["cleared"] is False
     assert load_session()["unlocked"] == 3
 
 

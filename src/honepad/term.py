@@ -26,6 +26,14 @@ _MENU_ITEMS = (
     ("5", "vscode"),
     ("q", "quit"),
 )
+_LAST_LEVEL_MENU = (
+    ("1", "run"),
+    ("2", "replay"),
+    ("3", "reset / back"),
+    ("4", "spec"),
+    ("5", "vscode"),
+    ("q", "quit"),
+)
 
 
 def color_enabled(*, stream: object | None = None) -> bool:
@@ -98,10 +106,11 @@ def clock_style(seconds: int, clock: str) -> str:
     return paint(clock, _BOLD, fg256(114))
 
 
-def render_keys(*, enabled: bool | None = None) -> str:
+def render_keys(*, last_level: bool = False, enabled: bool | None = None) -> str:
+    menu = _LAST_LEVEL_MENU if last_level else _MENU_ITEMS
     items = [
         f"{bold(key, enabled=enabled)} {paint(label, fg256(252), enabled=enabled)}"
-        for key, label in _MENU_ITEMS
+        for key, label in menu
     ]
     return "  ".join(items)
 
@@ -116,8 +125,16 @@ def render_prompt(clock: str, *, seconds: int | None = None, level: int | None =
     return prefix
 
 
-def render_menu(clock: str, *, seconds: int | None = None, level: int | None = None) -> str:
-    return f"{render_prompt(clock, seconds=seconds, level=level)} {render_keys()}"
+def render_menu(
+    clock: str,
+    *,
+    seconds: int | None = None,
+    level: int | None = None,
+    last_level: bool = False,
+) -> str:
+    return (
+        f"{render_prompt(clock, seconds=seconds, level=level)} {render_keys(last_level=last_level)}"
+    )
 
 
 def paint_spec(text: str, *, enabled: bool | None = None) -> str:
@@ -258,9 +275,14 @@ def play_firework(*, frames: int = _FIREWORK_FRAMES, delay_s: float = _FIREWORK_
         stream.flush()
 
 
-def print_complete(problem: str, lang: str, *, levels: int, passed: int) -> None:
-    play_firework()
-    print(status_unlock(f"DONE: {problem} {lang}"))
+def print_complete(
+    problem: str, lang: str, *, levels: int, passed: int, first: bool = True
+) -> None:
+    if first:
+        play_firework()
+        print(status_unlock(f"DONE: {problem} {lang}"))
+    else:
+        print(status_ok(f"OK: {problem} {lang} still complete"))
     print(status_note(f"NOTE: all {levels} levels, {passed} traces"))
     nxt = next_problem(problem)
     if nxt is not None:
