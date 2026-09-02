@@ -7,6 +7,8 @@ import re
 import sys
 from pathlib import Path
 
+from honepad.catalog import next_problem
+
 _CODE_SPAN = re.compile(r"`([^`]+)`")
 
 _OSC = "\033]8;;"
@@ -181,6 +183,14 @@ def invocation(argv0: str | None = None) -> str:
 
 def start_next() -> str:
     return f"NEXT: {invocation()} start bank_system java"
+
+
+def print_complete(problem: str, lang: str, *, levels: int, passed: int) -> None:
+    print(status_unlock(f"DONE: {problem} {lang}"))
+    print(status_note(f"NOTE: all {levels} levels, {passed} traces"))
+    nxt = next_problem(problem)
+    if nxt is not None:
+        print(f"NEXT: {invocation()} start {nxt} {lang}")
 
 
 def print_fail(exc: BaseException) -> None:

@@ -69,6 +69,21 @@ def test_banner_time_up_when_remaining_zero() -> None:
     assert "keeps work" in text.lower()
 
 
+def test_banner_done_at_last_level_even_when_clock_is_zero() -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 100,
+        "minutes": 90,
+        "unlocked": 4,
+    }
+    text = render_banner(session, now=100 + 90 * 60 + 1)
+    assert "DONE: bank_system java" in text
+    assert "TIME UP" not in text
+    assert "will not unlock" not in text.lower()
+    assert "LEVEL 4" in text
+
+
 def test_loop_console_reprints_time_up_when_clock_hits_zero(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     session = {

@@ -224,6 +224,11 @@ def test_unlock_does_not_skip_a_level(monkeypatch, tmp_path: Path, capsys) -> No
     assert main(["submit", "bank_system", "--kind", "solution"]) == 0
     last = capsys.readouterr().out
     assert "UNLOCKED" not in last
+    assert "DONE: bank_system python3" in last
+    assert "all 4 levels" in last
+    assert "19 traces" in last
+    assert "NEXT:" in last
+    assert "in_memory_database python3" in last
     assert load_session()["unlocked"] == 4
 
 
@@ -1082,6 +1087,59 @@ def test_run_with_session_prints_remaining_s(monkeypatch, tmp_path: Path, capsys
     submit_out = capsys.readouterr().out
     assert "UNLOCKED: level 2" in submit_out
     assert load_session()["unlocked"] == 2
+
+
+def test_submit_last_level_prints_done(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "java",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 4,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert main(["submit", "bank_system", "--kind", "solution", "--confirm", "y"]) == 0
+    out = capsys.readouterr().out
+    assert "DONE: bank_system java" in out
+    assert "all 4 levels" in out
+    assert "19 traces" in out
+    assert "UNLOCKED" not in out
+    assert "TIME UP" not in out
+    assert "NEXT:" in out
+    assert "in_memory_database java" in out
+    assert load_session()["unlocked"] == 4
+
+
+def test_submit_last_workers_level_prints_done(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "workers",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 3,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert main(["submit", "workers", "--kind", "solution", "--confirm", "y"]) == 0
+    out = capsys.readouterr().out
+    assert "DONE: workers python3" in out
+    assert "all 3 levels" in out
+    assert "UNLOCKED" not in out
+    assert "NEXT:" not in out
+    assert load_session()["unlocked"] == 3
 
 
 def test_expired_run_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:

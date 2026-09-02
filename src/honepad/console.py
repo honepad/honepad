@@ -16,6 +16,7 @@ from honepad.session import (
     ensure_session,
     ensure_work_copy,
     load_session,
+    max_level,
     note_clock_restarted,
     remaining_s,
     restart_all,
@@ -35,6 +36,7 @@ from honepad.term import (
     spec_line,
     status_fail,
     status_note,
+    status_unlock,
     work_line,
 )
 from honepad.traces import problem_dir
@@ -55,7 +57,9 @@ def render_banner(session: dict[str, Any], now: int | None = None) -> str:
         work_line(work),
         render_keys(),
     ]
-    if left == 0:
+    if unlocked >= max_level(problem):
+        lines.append(status_unlock(f"DONE: {problem} {lang}"))
+    elif left == 0:
         lines.append(status_fail("TIME UP: submit will not unlock."))
         lines.append(
             status_note("NOTE: a new clock is quit then start (keeps work). 3 deletes the file.")

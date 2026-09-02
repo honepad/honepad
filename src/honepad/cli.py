@@ -27,6 +27,7 @@ from honepad.session import (
 from honepad.term import (
     invocation,
     paint_spec,
+    print_complete,
     print_fail,
     spec_line,
     start_next,
@@ -366,7 +367,12 @@ def cmd_run(args: argparse.Namespace) -> int:
     if practice and session is not None and kind in ("solution", "work"):
         nxt = int(session["unlocked"]) + 1
         if nxt > max_level(str(session["problem"])):
-            print(status_ok("OK"))
+            print_complete(
+                str(session["problem"]),
+                str(session["lang"]),
+                levels=max_level(str(session["problem"])),
+                passed=report.passed,
+            )
             return 0
         if left == 0:
             print(status_fail("TIME UP: remaining_s=0. Next level stays locked."))
