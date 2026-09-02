@@ -1092,6 +1092,17 @@ def test_corrupt_session_timer_prints_fail(monkeypatch, tmp_path: Path, capsys) 
     assert "Traceback" not in out
 
 
+def test_corrupt_session_submit_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text("{", encoding="utf-8")
+    assert main(["submit", "bank_system"]) == 1
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "Traceback" not in out
+
+
 def test_incomplete_session_timer_prints_fail(monkeypatch, tmp_path: Path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
@@ -2590,6 +2601,8 @@ def test_merge_fail_prints_next_reset(monkeypatch, tmp_path: Path, capsys) -> No
     capsys.readouterr()
     work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
     work.write_text("notes\n", encoding="utf-8")
+    leftover = work.parent / "Account.py"
+    leftover.write_text("raise SystemExit('leftover must not load')\n", encoding="utf-8")
     code = main(["submit", "bank_system", "--kind", "solution"])
     out = capsys.readouterr().out
     assert code == 1
@@ -2600,6 +2613,8 @@ def test_merge_fail_prints_next_reset(monkeypatch, tmp_path: Path, capsys) -> No
     next_lines = [line for line in out.splitlines() if "NEXT:" in line]
     assert next_lines
     assert any("start --reset" in line or "work" in line for line in next_lines)
+    assert "WORK:" in out
+    assert "Account.py is ignored" in out
     assert load_session()["unlocked"] == 1
 
 

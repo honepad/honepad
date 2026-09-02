@@ -294,6 +294,18 @@ def test_start_java_bank_system_swaps_lang_and_problem(monkeypatch, tmp_path) ->
     assert session["problem"] == "bank_system"
 
 
+def test_vscode_java_bank_system_swaps_lang_and_problem(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["vscode", "java", "bank_system", "--no-open"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "invalid problem: java" not in out
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "java"
+    assert session["problem"] == "bank_system"
+
+
 def test_start_python3_bank_system_swaps_lang_and_problem(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "python3", "bank_system", "--no-console"]) == 0

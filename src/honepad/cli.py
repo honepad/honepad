@@ -373,6 +373,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         return 1
     if report.passed == 0:
         print(status_fail("FAIL: no cases"))
+        if kind == "work":
+            _print_work_notes(args.problem, lang)
         return 1
     may_unlock = bool(getattr(args, "unlock", False))
     if practice and session is not None and kind in ("solution", "work"):
@@ -419,6 +421,8 @@ def cmd_run(args: argparse.Namespace) -> int:
             except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
                 print(status_fail(f"FAIL: {exc}"))
                 print(work_reset_next())
+                if lang is not None and (kind == "work" or _is_work_file_problem(exc)):
+                    _print_work_notes(args.problem, lang)
                 return 1
             workspace_exc: BaseException | None = None
             try:
@@ -467,23 +471,25 @@ def _print_work_notes(problem: str, lang: str) -> None:
 def cmd_submit(args: argparse.Namespace) -> int:
     try:
         _require_problem(args.problem)
-    except ValueError as exc:
+        confirm = getattr(args, "confirm", None)
+        if confirm is not None:
+            if str(confirm).strip().lower() not in {"y", "yes"}:
+                print("OK: submit cancelled")
+                return 0
+        elif (
+            not _unlocked_at_last_level(args.problem) and sys.stdin.isatty() and sys.stdout.isatty()
+        ):
+            from honepad.console import _confirm_unlock, _use_live
+
+            ok = _confirm_unlock(sys.stdin, sys.stdout, live=_use_live(sys.stdin, sys.stdout))
+            if ok is None:
+                return 1
+            if not ok:
+                print("OK: submit cancelled")
+                return 0
+    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
         _print_fail(exc)
         return 1
-    confirm = getattr(args, "confirm", None)
-    if confirm is not None:
-        if str(confirm).strip().lower() not in {"y", "yes"}:
-            print("OK: submit cancelled")
-            return 0
-    elif not _unlocked_at_last_level(args.problem) and sys.stdin.isatty() and sys.stdout.isatty():
-        from honepad.console import _confirm_unlock, _use_live
-
-        ok = _confirm_unlock(sys.stdin, sys.stdout, live=_use_live(sys.stdin, sys.stdout))
-        if ok is None:
-            return 1
-        if not ok:
-            print("OK: submit cancelled")
-            return 0
     args.unlock = True
     return cmd_run(args)
 
