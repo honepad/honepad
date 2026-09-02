@@ -63,6 +63,26 @@ def test_bank_level2_spec_shows_worked_example() -> None:
     assert '["acc1(500)", "acc2(500)", "acc3(300)"]' in text
 
 
+def test_bank_level4_cases_include_merge_history_example() -> None:
+    wanted = [
+        {"m": "create_account", "a": [1, "acc1"], "e": True},
+        {"m": "deposit", "a": [2, "acc1", 1000], "e": 1000},
+        {"m": "pay", "a": [3, "acc1", 500], "e": "payment1"},
+        {"m": "create_account", "a": [4, "acc2"], "e": True},
+        {"m": "merge_accounts", "a": [5, "acc2", "acc1"], "e": True},
+        {"m": "get_balance", "a": [6, "acc1", 5], "e": None},
+        {"m": "get_payment_status", "a": [6, "acc1", "payment1"], "e": None},
+        {"m": "get_balance", "a": [6, "acc2", 1], "e": 0},
+        {"m": "get_balance", "a": [6, "acc2", 2], "e": 1000},
+        {"m": "get_balance", "a": [6, "acc2", 3], "e": 500},
+        {"m": "get_balance", "a": [6, "acc2", 5], "e": 500},
+        {"m": "top_spenders", "a": [6, 2], "e": ["acc2(500)"]},
+    ]
+    cases = load_cases("bank_system", 4)
+    assert any(case["id"] == "l4-merge-history" and case["calls"] == wanted for case in cases)
+    assert any(case["id"] == "l4-merge-same" for case in cases)
+
+
 def test_bank_level2_cases_include_zero_outgoing_example() -> None:
     wanted = [
         {"m": "create_account", "a": [1, "acc1"], "e": True},
@@ -120,6 +140,9 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
                 '["acc1(1300)"]',
                 'get_balance(4, "acc1", 3) -> 700',
                 'get_balance(86400005, "acc1", 86400003) -> 706',
+                'get_balance(6, "acc1", 5) -> null',
+                'get_balance(6, "acc2", 3) -> 500',
+                'merge_accounts(7, "acc2", "acc2") -> false',
             ),
         ),
         (

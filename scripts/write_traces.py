@@ -238,6 +238,7 @@ def bank() -> list[dict]:
                 call("pay", 6, "acc2", 800, e="payment2"),
                 call("merge_accounts", 7, "acc1", "acc2", e=True),
                 call("top_spenders", 8, 1, e=["acc1(1300)"]),
+                call("top_spenders", 9, 2, e=["acc1(1300)"]),
             ],
         ),
         c(
@@ -250,6 +251,32 @@ def bank() -> list[dict]:
                 call("get_balance", 4, "acc1", 3, e=700),
                 call("get_balance", 24 * 60 * 60 * 1000 + 5, "acc1", 24 * 60 * 60 * 1000 + 2, e=700),
                 call("get_balance", 24 * 60 * 60 * 1000 + 5, "acc1", 24 * 60 * 60 * 1000 + 3, e=706),
+            ],
+        ),
+        c(
+            "l4-merge-same",
+            4,
+            [
+                call("create_account", 1, "acc1", e=True),
+                call("merge_accounts", 2, "acc1", "acc1", e=False),
+            ],
+        ),
+        c(
+            "l4-merge-history",
+            4,
+            [
+                call("create_account", 1, "acc1", e=True),
+                call("deposit", 2, "acc1", 1000, e=1000),
+                call("pay", 3, "acc1", 500, e="payment1"),
+                call("create_account", 4, "acc2", e=True),
+                call("merge_accounts", 5, "acc2", "acc1", e=True),
+                call("get_balance", 6, "acc1", 5, e=None),
+                call("get_payment_status", 6, "acc1", "payment1", e=None),
+                call("get_balance", 6, "acc2", 1, e=0),
+                call("get_balance", 6, "acc2", 2, e=1000),
+                call("get_balance", 6, "acc2", 3, e=500),
+                call("get_balance", 6, "acc2", 5, e=500),
+                call("top_spenders", 6, 2, e=["acc2(500)"]),
             ],
         ),
     ]

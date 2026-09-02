@@ -242,7 +242,7 @@ def test_unlock_does_not_skip_a_level(monkeypatch, tmp_path: Path, capsys) -> No
     assert "UNLOCKED" not in last
     assert "DONE: bank_system python3" in last
     assert "all 4 levels" in last
-    assert "19 traces" in last
+    assert "21 traces" in last
     assert "NEXT:" in last
     assert "in_memory_database python3" in last
     assert load_session()["unlocked"] == 4
@@ -1165,7 +1165,7 @@ def test_submit_last_level_prints_done(monkeypatch, tmp_path: Path, capsys) -> N
     out = capsys.readouterr().out
     assert "DONE: bank_system java" in out
     assert "all 4 levels" in out
-    assert "19 traces" in out
+    assert "21 traces" in out
     assert "UNLOCKED" not in out
     assert "TIME UP" not in out
     assert "NEXT:" in out
