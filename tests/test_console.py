@@ -1576,6 +1576,75 @@ def test_write_workspace_refuses_public_dir_symlink(monkeypatch, tmp_path: Path)
             public.unlink()
 
 
+def test_write_workspace_refuses_workspace_dir_symlink_outside(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    root = tmp_path / "workspace" / "bank_system-java"
+    outside = tmp_path / "outside-workspace"
+    outside.mkdir()
+    marker = outside / "keep.txt"
+    marker.write_text("keep-outside\n", encoding="utf-8")
+    root.parent.mkdir(parents=True, exist_ok=True)
+    if root.exists() or root.is_symlink():
+        if root.is_dir() and not root.is_symlink():
+            shutil.rmtree(root)
+        else:
+            root.unlink()
+    root.symlink_to(outside)
+    polluters = (
+        "public",
+        "honepad.code-workspace",
+        "cases.json",
+        "pom.xml",
+        "README.md",
+        "spec.md",
+        "spec",
+    )
+    try:
+        with pytest.raises((ValueError, RuntimeError), match="symlink"):
+            write_workspace("bank_system", "java", 1)
+        assert root.is_symlink()
+        assert root.resolve() == outside.resolve()
+        assert marker.read_text(encoding="utf-8") == "keep-outside\n"
+        assert {path.name for path in outside.iterdir()} == {"keep.txt"}
+        for name in polluters:
+            assert not (outside / name).exists()
+    finally:
+        if root.is_symlink():
+            root.unlink()
+
+
+def test_write_workspace_refuses_spec_dir_symlink_outside(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset"]) == 0
+    dest = write_workspace("bank_system", "java", 1)
+    public = dest.parent / "public"
+    assert public.is_dir()
+    spec = public / "spec"
+    outside = tmp_path / "outside-spec"
+    outside.mkdir()
+    marker = outside / "keep.txt"
+    marker.write_text("keep-outside\n", encoding="utf-8")
+    if spec.exists() or spec.is_symlink():
+        if spec.is_dir() and not spec.is_symlink():
+            shutil.rmtree(spec)
+        else:
+            spec.unlink()
+    spec.symlink_to(outside)
+    try:
+        with pytest.raises((ValueError, RuntimeError), match="symlink"):
+            write_workspace("bank_system", "java", 1)
+        assert spec.is_symlink()
+        assert spec.resolve() == outside.resolve()
+        assert marker.read_text(encoding="utf-8") == "keep-outside\n"
+        assert {path.name for path in outside.iterdir()} == {"keep.txt"}
+        for name in ("current.md", "level1.md"):
+            assert not (outside / name).exists()
+    finally:
+        if spec.is_symlink():
+            spec.unlink()
+
+
 def test_link_or_copy_falls_back_on_oserror(tmp_path: Path, monkeypatch) -> None:
     src = tmp_path / "work.java"
     dest = tmp_path / "Simulation.java"

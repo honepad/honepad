@@ -12,6 +12,7 @@ from honepad.catalog import language, repo_root
 from honepad.javatest import render_junit, render_pom
 from honepad.pythontest import render_pytest
 from honepad.session import (
+    _ensure_real_session_dir,
     _replace_text,
     _require_real_session_dir,
     max_level,
@@ -48,9 +49,8 @@ def write_workspace(problem: str, lang: str, unlocked: int, cleared: bool = Fals
     if row["id"] in {"java", "python3"} and not work.is_file():
         raise ValueError(f"work file missing: {work}")
     public = root / "public"
-    public.mkdir(parents=True, exist_ok=True)
-    _require_real_session_dir(root, "workspace")
-    _require_real_session_dir(public, "public")
+    _ensure_real_session_dir(root, "workspace")
+    _ensure_real_session_dir(public, "public")
     _require_real_session_dir(work.parent, "work")
     cases = load_cases(problem, unlocked)
     _replace_text(public / "cases.json", json.dumps(cases, indent=2) + "\n")
@@ -140,7 +140,7 @@ def _workspace_settings(lang: str) -> dict[str, object]:
 
 def _write_work_java_settings(work_dir: Path) -> None:
     vscode = work_dir / ".vscode"
-    vscode.mkdir(parents=True, exist_ok=True)
+    _ensure_real_session_dir(vscode, "vscode")
     _replace_text(
         vscode / "settings.json",
         json.dumps(
@@ -156,7 +156,7 @@ def _write_work_java_settings(work_dir: Path) -> None:
 
 def _write_extensions(public: Path, ids: list[str]) -> None:
     vscode = public / ".vscode"
-    vscode.mkdir(exist_ok=True)
+    _ensure_real_session_dir(vscode, "vscode")
     _replace_text(
         vscode / "extensions.json",
         json.dumps({"recommendations": ids}, indent=2) + "\n",
@@ -177,8 +177,8 @@ def _write_java_public(
     _replace_text(public / "MiniJson.java", (pack / "MiniJson.java").read_text(encoding="utf-8"))
     main_java = public / "src" / "main" / "java"
     test_java = public / "src" / "test" / "java"
-    main_java.mkdir(parents=True, exist_ok=True)
-    test_java.mkdir(parents=True, exist_ok=True)
+    _ensure_real_session_dir(main_java, "src")
+    _ensure_real_session_dir(test_java, "src")
     class_name = class_name_for(problem)
     _link_or_copy(work, main_java / f"{class_name}.java")
     spec = problem_dir(problem) / "spec" / f"level{unlocked}.md"
@@ -222,7 +222,7 @@ def _write_python_public(
 def _write_specs(public: Path, problem: str, unlocked: int) -> Path:
     spec_dir = problem_dir(problem) / "spec"
     spec_folder = public / "spec"
-    spec_folder.mkdir(parents=True, exist_ok=True)
+    _ensure_real_session_dir(spec_folder, "spec")
     latest = spec_dir / f"level{unlocked}.md"
     if latest.is_file():
         text = latest.read_text(encoding="utf-8")
@@ -315,7 +315,7 @@ def _write_tasks(
     public: Path, problem: str, lang: str, unlocked: int, cleared: bool = False
 ) -> None:
     vscode = public / ".vscode"
-    vscode.mkdir(exist_ok=True)
+    _ensure_real_session_dir(vscode, "vscode")
     at_end = unlocked >= max_level(problem)
     submit_args = ["-m", "honepad", "submit", problem, "--lang", lang, "--kind", "work"]
     if not at_end:
