@@ -6,7 +6,7 @@ Create accounts, deposit, transfer.
 - `deposit(timestamp, account_id, amount)` returns the new balance, or null if missing.
 - `transfer(timestamp, source, target, amount)` returns the source balance, or null if missing, same account, or insufficient funds.
 
-Timestamps are unique integers. Operations are applied in call order.
+Call timestamps never decrease. Operations are applied in call order.
 
 ## Example
 

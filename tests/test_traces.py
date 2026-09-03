@@ -108,6 +108,34 @@ def test_bank_level2_cases_include_zero_outgoing_example() -> None:
     assert any(case["calls"] == wanted for case in cases)
 
 
+def test_bank_create_applies_keeps_increasing_timestamps() -> None:
+    wanted = [
+        {"m": "create_account", "a": [1, "acc1"], "e": True},
+        {"m": "deposit", "a": [2, "acc1", 1000], "e": 1000},
+        {"m": "pay", "a": [3, "acc1", 500], "e": "payment1"},
+        {"m": "create_account", "a": [86400003, "acc2"], "e": True},
+        {
+            "m": "get_payment_status",
+            "a": [86400004, "acc1", "payment1"],
+            "e": "CASHBACK_RECEIVED",
+        },
+        {"m": "deposit", "a": [86400005, "acc1", 0], "e": 510},
+    ]
+    cases = load_cases("bank_system", 3)
+    assert any(case["id"] == "l3-create-applies" and case["calls"] == wanted for case in cases)
+
+
+def test_bank_call_timestamps_do_not_go_backward() -> None:
+    for case in load_cases("bank_system"):
+        prev: int | None = None
+        for call in case["calls"]:
+            ts = call["a"][0]
+            assert isinstance(ts, int), case["id"]
+            if prev is not None:
+                assert ts >= prev, f"{case['id']} {call['m']} {ts} < {prev}"
+            prev = ts
+
+
 def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path: Path) -> None:
     cases_dir = tmp_path / "cases"
     cases_dir.mkdir()
@@ -144,6 +172,8 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
                 'pay(4, "acc1", 100) -> "payment1"',
                 'deposit(86400004, "acc1", 0) -> 151',
                 'create_account(86400003, "acc2") -> true',
+                'get_payment_status(86400004, "acc1", "payment1") -> "CASHBACK_RECEIVED"',
+                'deposit(86400005, "acc1", 0) -> 510',
             ),
         ),
         (
