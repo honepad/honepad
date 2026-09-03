@@ -42,6 +42,22 @@ def public_test_file(problem: str, lang: str) -> Path | None:
     return None
 
 
+def refresh_workspace(problem: str, lang: str, unlocked: int, cleared: bool = False) -> Path | None:
+    root = workspace_dir(problem, lang)
+    if not root.is_dir():
+        return None
+    cases = load_cases(problem, unlocked)
+    dest = root / "public" / "cases.json"
+    if dest.is_file():
+        try:
+            existing = json.loads(dest.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+            existing = None
+        if existing == cases:
+            return workspace_file(problem, lang)
+    return write_workspace(problem, lang, unlocked, cleared=cleared)
+
+
 def write_workspace(problem: str, lang: str, unlocked: int, cleared: bool = False) -> Path:
     root = workspace_dir(problem, lang)
     work = work_src(problem, lang)

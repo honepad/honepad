@@ -41,7 +41,13 @@ from honepad.term import (
     work_line,
 )
 from honepad.traces import problem_dir
-from honepad.workspace import open_vscode, public_test_file, workspace_dir, write_workspace
+from honepad.workspace import (
+    open_vscode,
+    public_test_file,
+    refresh_workspace,
+    workspace_dir,
+    write_workspace,
+)
 
 
 def render_banner(session: dict[str, Any], now: int | None = None) -> str:
@@ -81,6 +87,12 @@ def cmd_console(args: argparse.Namespace) -> int:
             str(session["lang"]),
             reset=False,
             level=int(session["unlocked"]),
+        )
+        refresh_workspace(
+            str(session["problem"]),
+            str(session["lang"]),
+            int(session["unlocked"]),
+            cleared=bool(session.get("cleared")),
         )
     except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
         _print_fail(exc)
