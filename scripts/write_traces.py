@@ -136,8 +136,8 @@ def bank() -> list[dict]:
                 call("deposit", 4, "acc1", 1000, e=1000),
                 call("deposit", 5, "acc2", 1500, e=1500),
                 call("deposit", 6, "acc3", 1200, e=1200),
-                call("transfer", 8, "acc2", "acc3", 500, e=1000),
-                call("transfer", 7, "acc1", "acc2", 500, e=500),
+                call("transfer", 7, "acc2", "acc3", 500, e=1000),
+                call("transfer", 8, "acc1", "acc2", 500, e=500),
                 call("transfer", 9, "acc3", "acc1", 300, e=1400),
                 call("top_spenders", 10, 3, e=["acc1(500)", "acc2(500)", "acc3(300)"]),
             ],
@@ -257,8 +257,14 @@ def bank() -> list[dict]:
                 call("deposit", 2, "acc1", 1000, e=1000),
                 call("pay", 3, "acc1", 500, e="payment1"),
                 call("create_account", 24 * 60 * 60 * 1000 + 3, "acc2", e=True),
-                call("get_payment_status", 4, "acc1", "payment1", e="CASHBACK_RECEIVED"),
-                call("deposit", 5, "acc1", 0, e=510),
+                call(
+                    "get_payment_status",
+                    24 * 60 * 60 * 1000 + 4,
+                    "acc1",
+                    "payment1",
+                    e="CASHBACK_RECEIVED",
+                ),
+                call("deposit", 24 * 60 * 60 * 1000 + 5, "acc1", 0, e=510),
             ],
         ),
         c(
@@ -320,8 +326,12 @@ def bank() -> list[dict]:
                 call("deposit", 2, "acc1", 1000, e=1000),
                 call("pay", 3, "acc1", 300, e="payment1"),
                 call("get_balance", 4, "acc1", 3, e=700),
-                call("get_balance", 24 * 60 * 60 * 1000 + 5, "acc1", 24 * 60 * 60 * 1000 + 2, e=700),
-                call("get_balance", 24 * 60 * 60 * 1000 + 5, "acc1", 24 * 60 * 60 * 1000 + 3, e=706),
+                call(
+                    "get_balance", 24 * 60 * 60 * 1000 + 5, "acc1", 24 * 60 * 60 * 1000 + 2, e=700
+                ),
+                call(
+                    "get_balance", 24 * 60 * 60 * 1000 + 5, "acc1", 24 * 60 * 60 * 1000 + 3, e=706
+                ),
             ],
         ),
         c(

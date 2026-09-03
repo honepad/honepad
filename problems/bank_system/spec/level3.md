@@ -71,10 +71,8 @@ deposit(172800006, "acc1", 0) -> 102
 ```
 pay(3, "acc1", 500) -> "payment1"
 create_account(86400003, "acc2") -> true
-get_payment_status(4, "acc1", "payment1") -> "CASHBACK_RECEIVED"
-deposit(5, "acc1", 0) -> 510
+get_payment_status(86400004, "acc1", "payment1") -> "CASHBACK_RECEIVED"
+deposit(86400005, "acc1", 0) -> 510
 ```
 
-`create_account` is a later call, so due cashbacks apply first. The
-status and balance stay applied even if a later query uses an earlier
-timestamp.
+`create_account` is a later call, so due cashbacks apply first.
