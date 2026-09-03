@@ -41,7 +41,7 @@ from honepad.term import (
     work_reset_next,
 )
 from honepad.traces import load_cases, method_name, problem_dir
-from honepad.workspace import workspace_dir, write_workspace
+from honepad.workspace import refresh_workspace, workspace_dir, write_workspace
 
 
 def cmd_langs(_args: argparse.Namespace) -> int:
@@ -262,6 +262,13 @@ def cmd_start(args: argparse.Namespace) -> int:
                     unlocked,
                     cleared=bool(session.get("cleared")),
                 )
+            else:
+                refresh_workspace(
+                    args.problem,
+                    row["id"],
+                    unlocked,
+                    cleared=bool(session.get("cleared")),
+                )
         level = unlocked if args.level is None else args.level
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
@@ -336,6 +343,22 @@ def cmd_run(args: argparse.Namespace) -> int:
         if session is not None and same:
             left = remaining_s(int(session["started_at"]), int(session["minutes"]))
             print(f"remaining_s={left}")
+            if lang is not None:
+                try:
+                    refresh_workspace(
+                        args.problem,
+                        lang,
+                        int(session["unlocked"]),
+                        cleared=bool(session.get("cleared")),
+                    )
+                except (
+                    KeyError,
+                    ValueError,
+                    FileNotFoundError,
+                    OSError,
+                    RuntimeError,
+                ) as exc:
+                    print(status_note(f"NOTE: workspace {exc}"))
         report = run(args.problem, lang, level, kind=kind)
         if session is not None and same:
             left = remaining_s(int(session["started_at"]), int(session["minutes"]))

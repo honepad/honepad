@@ -1501,6 +1501,49 @@ def test_workspace_python_skips_java_adapter(monkeypatch, tmp_path: Path) -> Non
     assert "public-tests" not in json.dumps(by_label["Run public tests"])
 
 
+def test_start_without_workspace_does_not_create_one(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    root = tmp_path / "workspace" / "bank_system-python3"
+    assert not root.exists()
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    assert not root.exists()
+
+
+def test_start_refreshes_stale_workspace_cases(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    dest = write_workspace("bank_system", "python3", 1)
+    public = dest.parent / "public"
+    cases_path = public / "cases.json"
+    pytest_path = public / "test_public.py"
+    cases_path.write_text("[]\n", encoding="utf-8")
+    pytest_path.write_text("from work import Simulation\n", encoding="utf-8")
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    fresh = load_cases("bank_system", 1)
+    assert json.loads(cases_path.read_text(encoding="utf-8")) == fresh
+    text = pytest_path.read_text(encoding="utf-8")
+    assert text.count("def test_") == len(fresh)
+    assert "def test_l1_create()" in text
+
+
+def test_run_refreshes_stale_workspace_cases(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    dest = write_workspace("bank_system", "python3", 1)
+    public = dest.parent / "public"
+    cases_path = public / "cases.json"
+    pytest_path = public / "test_public.py"
+    cases_path.write_text("[]\n", encoding="utf-8")
+    pytest_path.write_text("from work import Simulation\n", encoding="utf-8")
+    main(["run", "bank_system", "--kind", "work"])
+    fresh = load_cases("bank_system", 1)
+    assert json.loads(cases_path.read_text(encoding="utf-8")) == fresh
+    text = pytest_path.read_text(encoding="utf-8")
+    assert text.count("def test_") == len(fresh)
+    assert "def test_l1_create()" in text
+
+
 def test_write_workspace_breaks_cases_hardlink_to_pack(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
