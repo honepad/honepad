@@ -26,6 +26,12 @@ Parent session is the outer loop. Read `factory/WORK_SOURCES.md` and run `factor
 
 Public for hosted Actions. Empty description, no topics, no FUNDING, README stays `# honepad` / `Not ready.` Do not run `/oss-announce`. See `factory/CONSTITUTION.md`.
 
+## Language packs
+
+A pack is a directory: `langs/<id>/meta.json` (identity plus a `run` recipe), an adapter, and
+`problems/*/{solution,stub}.<ext>`. `honepad.runner` executes the recipe, so adding a language
+touches no Python. Schema and worked examples: `langs/ADDING-A-LANGUAGE.md`.
+
 ## Methodology
 
 Constitution + `/design` + executable tests. Spec Kit is ritual only.

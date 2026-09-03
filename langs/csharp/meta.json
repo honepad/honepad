@@ -8,5 +8,40 @@
     "ica"
   ],
   "ci": true,
-  "adapter": "dotnet"
+  "adapter": "dotnet",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.cs",
+    "stub": "stub.cs",
+    "copy": {
+      "Adapter.cs": "{{pack}}/Adapter.cs",
+      "honepadrun.csproj": "{{pack}}/honepadrun.csproj"
+    },
+    "src_as": "Solution.cs",
+    "env_hook": "dotnet",
+    "steps": [
+      {
+        "tool": [
+          "dotnet"
+        ],
+        "argv": [
+          "{{tool}}",
+          "build",
+          "-o",
+          "out",
+          "--verbosity",
+          "quiet"
+        ],
+        "fail": "dotnet compile failed"
+      }
+    ],
+    "argv": [
+      "{{tmp}}/out/honepadrun",
+      "{{cases}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "dotnet"
+    ]
+  }
 }

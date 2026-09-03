@@ -7,5 +7,23 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "Rscript"
+  "adapter": "Rscript",
+  "run": {
+    "kind": "script",
+    "solution": "solution.R",
+    "stub": "stub.R",
+    "tool": [
+      "Rscript"
+    ],
+    "tool_error": "Rscript not found",
+    "argv": [
+      "{{tool}}",
+      "{{pack}}/adapter.R",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "Rscript"
+    ]
+  }
 }

@@ -7,5 +7,53 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "gdc"
+  "adapter": "gdc",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.d",
+    "stub": "stub.d",
+    "copy": {
+      "adapter.d": "{{pack}}/adapter.d"
+    },
+    "src_as": "solution.d",
+    "steps": [
+      {
+        "tool": [
+          "gdc",
+          "ldc2",
+          "dmd"
+        ],
+        "tool_error": "d compiler not found",
+        "argv_by_tool": {
+          "gdc": [
+            "{{tool}}",
+            "-O0",
+            "-o",
+            "run",
+            "adapter.d",
+            "solution.d"
+          ],
+          "*": [
+            "{{tool}}",
+            "-O0",
+            "-of=run",
+            "adapter.d",
+            "solution.d"
+          ]
+        },
+        "fail": "d compile failed"
+      }
+    ],
+    "argv": [
+      "{{tmp}}/run",
+      "{{cases}}"
+    ],
+    "requires": [
+      [
+        "gdc",
+        "ldc2",
+        "dmd"
+      ]
+    ]
+  }
 }

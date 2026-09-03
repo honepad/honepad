@@ -7,5 +7,23 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "groovy"
+  "adapter": "groovy",
+  "run": {
+    "kind": "script",
+    "solution": "solution.groovy",
+    "stub": "stub.groovy",
+    "tool": [
+      "groovy"
+    ],
+    "tool_error": "groovy not found",
+    "argv": [
+      "{{tool}}",
+      "{{pack}}/adapter.groovy",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "groovy"
+    ]
+  }
 }

@@ -7,5 +7,40 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "ghc"
+  "adapter": "ghc",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.hs",
+    "stub": "stub.hs",
+    "copy": {
+      "Adapter.hs": "{{pack}}/Adapter.hs",
+      "Harness.hs": "{{pack}}/Harness.hs",
+      "MiniJson.hs": "{{pack}}/MiniJson.hs"
+    },
+    "src_as": "Solution.hs",
+    "steps": [
+      {
+        "tool": [
+          "ghc"
+        ],
+        "tool_error": "ghc not found",
+        "argv": [
+          "{{tool}}",
+          "-O0",
+          "-w",
+          "-o",
+          "run",
+          "Adapter.hs"
+        ],
+        "fail": "ghc compile failed"
+      }
+    ],
+    "argv": [
+      "{{tmp}}/run",
+      "{{cases}}"
+    ],
+    "requires": [
+      "ghc"
+    ]
+  }
 }

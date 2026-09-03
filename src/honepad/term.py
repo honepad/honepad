@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import os
 import re
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -12,6 +13,7 @@ from pathlib import Path
 from honepad.catalog import next_problem
 
 _CODE_SPAN = re.compile(r"`([^`]+)`")
+_ANSI = re.compile(r"\033\[[0-9;]*m")
 
 _OSC = "\033]8;;"
 _ST = "\033\\"
@@ -24,6 +26,7 @@ _MENU_ITEMS = (
     ("3", "reset / back"),
     ("4", "spec"),
     ("5", "vscode"),
+    ("?", "help"),
     ("q", "quit"),
 )
 _LAST_LEVEL_MENU = (
@@ -32,6 +35,7 @@ _LAST_LEVEL_MENU = (
     ("3", "reset / back"),
     ("4", "spec"),
     ("5", "vscode"),
+    ("?", "help"),
     ("q", "quit"),
 )
 
@@ -295,6 +299,9 @@ def print_fail(exc: BaseException) -> None:
     if text in {"javac not on PATH", "java not on PATH"}:
         print("NEXT: install a JDK so javac and java are on PATH")
         return
+    if text.endswith(" not on PATH"):
+        print(f"NEXT: install {text[: -len(' not on PATH')]} and put it on PATH")
+        return
     if text.startswith("no runner for "):
         print(start_next())
         return
@@ -341,9 +348,21 @@ def file_uri(path: Path | str) -> str:
     return target.as_uri()
 
 
+def home_short(path: Path | str) -> str:
+    """`~/...` for paths under $HOME. Other paths are returned unchanged."""
+    text = str(path)
+    try:
+        home = str(Path.home())
+    except (OSError, RuntimeError):
+        return text
+    if home and home != os.sep and (text == home or text.startswith(home + os.sep)):
+        return "~" + text[len(home) :]
+    return text
+
+
 def file_link(path: Path | str, label: str | None = None) -> str:
     target = Path(path)
-    text = label if label is not None else str(target)
+    text = label if label is not None else home_short(target)
     return f"{_OSC}{file_uri(target)}{_ST}{text}{_OSC}{_ST}"
 
 
@@ -353,3 +372,138 @@ def work_line(path: Path | str) -> str:
 
 def spec_line(path: Path | str) -> str:
     return f"{accent('SPEC:')} {file_link(path)}"
+
+
+def term_width(default: int = 80) -> int:
+    """Usable columns, clamped so a narrow or unknown terminal still lays out."""
+    try:
+        cols = shutil.get_terminal_size((default, 24)).columns
+    except (OSError, ValueError):
+        cols = default
+    return max(40, min(int(cols), 120))
+
+
+def level_dots(unlocked: int, total: int) -> str:
+    """Filled dots for unlocked levels. Empty when the terminal takes no color,
+    because the caller already spells the same thing as `LEVEL n/total`."""
+    if total <= 0 or not color_enabled():
+        return ""
+    filled = max(0, min(unlocked, total))
+    return paint("\u25cf" * filled, fg256(114)) + paint("\u25cb" * (total - filled), _DIM)
+
+
+def rule(label: str = "", width: int | None = None) -> str:
+    """A dim horizontal rule, optionally labelled, sized to the terminal."""
+    cols = term_width() if width is None else width
+    if not label:
+        return dim("\u2500" * cols if color_enabled() else "-" * cols)
+    dash = "\u2500" if color_enabled() else "-"
+    head = f"{dash}{dash} {label} "
+    return dim(head + dash * max(0, cols - _visible_len(head)))
+
+
+def _visible_len(text: str) -> int:
+    return len(_ANSI.sub("", text))
+
+
+def columns(items: list[str], *, width: int | None = None, indent: str = "  ") -> list[str]:
+    """Lay a numbered list out in as many columns as the terminal fits."""
+    if not items:
+        return []
+    cols = term_width() if width is None else width
+    num_w = len(str(len(items)))
+    cell_w = num_w + 2 + max(len(item) for item in items) + 2
+    per_row = max(1, (cols - len(indent)) // cell_w)
+    rows = -(-len(items) // per_row)
+    out: list[str] = []
+    for r in range(rows):
+        line = indent
+        for c in range(per_row):
+            i = c * rows + r
+            if i >= len(items):
+                continue
+            cell = f"{bold(f'{i + 1:>{num_w}}')}  {items[i]}"
+            line += cell + " " * max(0, cell_w - _visible_len(cell))
+        out.append(line.rstrip())
+    return out
+
+
+_METER_FULL = "\u25b0"
+_METER_EMPTY = "\u25b1"
+
+
+def meter(passed: int, total: int, cells: int = 20) -> str:
+    if total <= 0:
+        return ""
+    filled = max(0, min(cells, round(cells * passed / total)))
+    if not color_enabled():
+        return f"[{'#' * filled}{'-' * (cells - filled)}]"
+    ok = paint(_METER_FULL * filled, fg256(114)) if filled else ""
+    short = cells - filled
+    rest = paint(_METER_EMPTY * short, fg256(203)) if short else ""
+    return f"{ok}{rest}"
+
+
+def render_pass(problem: str, lang: str, level: int, passed: int) -> str:
+    """One-line green summary under the machine-readable `passed=` line."""
+    trace = "trace" if passed == 1 else "traces"
+    head = status_ok(f"PASS  {problem} {lang} LEVEL {level}")
+    return f"{head}  {passed} {trace}  {meter(passed, passed)}"
+
+
+def render_fail(
+    *,
+    problem: str,
+    lang: str,
+    level: int,
+    case: str,
+    index: int,
+    call: str,
+    expected: str,
+    actual: str,
+    passed: int,
+    total: int,
+    raised: str | None = None,
+) -> str:
+    """Aligned failure block. Keeps `FAIL `, `expected=`, `actual=` greppable."""
+    failed = max(0, total - passed)
+    plural = "case" if failed == 1 else "cases"
+    lines = [
+        status_fail(f"FAIL  {problem} {lang} LEVEL {level}  {failed} {plural} short"),
+        f"  {dim('case')}      {case}  {dim(f'call #{index}')}",
+        f"  {dim('call')}      {call}",
+        f"  {status_ok('expected=' + expected)}",
+        f"  {status_fail('actual=' + actual)}",
+    ]
+    if raised:
+        lines.append(f"  {dim(f'exc: means the call raised {raised} instead of returning')}")
+    lines.append(f"  {meter(passed, total)}  {dim(f'{passed}/{total} traces')}")
+    return "\n".join(lines)
+
+
+_HELP_ROWS = (
+    ("1  run", "replay the unlocked traces against your work file"),
+    ("2  submit", "same run, and unlock the next level when it passes"),
+    ("3  reset", "yes wipes this level, back drops one, all restarts at level 1"),
+    ("4  spec", "reprint the spec for the level you are on"),
+    ("5  vscode", "write a VS Code workspace (work + public traces) and open it"),
+    ("?  help", "this screen"),
+    ("q  quit", "leave the console; the session and your work file stay"),
+)
+
+
+def render_help() -> str:
+    width = max(len(key) for key, _ in _HELP_ROWS)
+    lines = [rule("keys")]
+    lines += [f"  {bold(key.ljust(width))}  {paint(text, fg256(252))}" for key, text in _HELP_ROWS]
+    lines.append("")
+    lines.append(
+        f"  {dim('The clock measures how far you get. Finishing every level is not the bar.')}"
+    )
+    lines.append(
+        f"  {dim('Time up locks further unlocks; quit then start keeps your work on a new clock.')}"
+    )
+    lines.append(
+        f"  {dim('Set NO_COLOR=1 for plain output. Paths are OSC 8 links your terminal can open.')}"
+    )
+    return "\n".join(lines)

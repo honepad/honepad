@@ -1,4 +1,10 @@
-"""Run traces against a language pack."""
+"""Run traces against a language pack.
+
+The per-language knowledge lives in ``langs/<id>/meta.json`` under ``run``; see
+``honepad.packspec`` for the schema. This module is the engine that executes a
+recipe and turns adapter output into a Report, plus the few resolvers that a
+JSON recipe cannot express.
+"""
 
 from __future__ import annotations
 
@@ -9,10 +15,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from honepad import packspec
 from honepad.catalog import language, repo_root
 from honepad.traces import load_cases, method_name
 from honepad.workstub import class_name_for
@@ -45,37 +53,9 @@ class Report:
         return not self.failed
 
 
-def _load_python_class(path: Path, class_name: str) -> Any:
-    spec = importlib.util.spec_from_file_location("honepad_user_mod", path)
-    if spec is None or spec.loader is None:
-        raise FileNotFoundError(path)
-    mod = importlib.util.module_from_spec(spec)
-    try:
-        spec.loader.exec_module(mod)
-        return getattr(mod, class_name)
-    except FileNotFoundError:
-        raise
-    except KeyboardInterrupt:
-        raise
-    except BaseException as exc:  # noqa: BLE001 - user pack load
-        raise RuntimeError(_format_load_error(path, exc)) from exc
-
-
-def _values_differ(actual: Any, expected: Any) -> bool:
-    if expected is True or expected is False or expected is None:
-        return actual is not expected
-    return actual != expected
-
-
-def _format_load_error(path: Path, exc: BaseException) -> str:
-    name = type(exc).__name__
-    msg = getattr(exc, "msg", None) or str(exc).strip()
-    lineno = getattr(exc, "lineno", None)
-    if lineno is not None:
-        return f"{path}: {name}: {msg} (line {lineno})"
-    if msg and msg != name:
-        return f"{path}: {name}: {msg}"
-    return f"{path}: {name}"
+# --------------------------------------------------------------------------
+# Sources
+# --------------------------------------------------------------------------
 
 
 def pack_src(lang_id: str, problem: str, kind: str, solution_name: str, stub_name: str) -> Path:
@@ -92,67 +72,19 @@ def pack_src(lang_id: str, problem: str, kind: str, solution_name: str, stub_nam
     return pack / (solution_name if kind == "solution" else stub_name)
 
 
-def python_entry(problem: str, kind: str) -> Path:
-    return pack_src("python3", problem, kind, "solution.py", "stub.py")
+def spec_src(lang_id: str, problem: str, kind: str, spec: dict[str, Any]) -> Path:
+    return pack_src(lang_id, problem, kind, str(spec["solution"]), str(spec["stub"]))
 
 
-def run_python_body(
-    problem: str,
-    level: int,
-    kind: str = "solution",
-) -> Report:
-    cases = load_cases(problem, level)
-    differ = _values_differ
-    cls = _load_python_class(python_entry(problem, kind), class_name_for(problem))
-    failed: list[Fail] = []
-    passed = 0
-    for case in cases:
-        for i, call in enumerate(case["calls"]):
-            method = call["m"]
-            args = list(call["a"])
-            expected = call["e"]
-            try:
-                if i == 0:
-                    obj = cls()
-                fn = getattr(obj, method)
-                actual = fn(*args)
-            except KeyboardInterrupt:
-                raise
-            except BaseException as exc:  # noqa: BLE001 - user pack
-                failed.append(
-                    Fail(case["id"], i, method, args, expected, f"exc:{type(exc).__name__}")
-                )
-                break
-            if differ(actual, expected):
-                failed.append(Fail(case["id"], i, method, args, expected, actual))
-                break
-        else:
-            passed += 1
-    return Report(problem, "python3", level, passed, failed)
+# --------------------------------------------------------------------------
+# Adapter output
+# --------------------------------------------------------------------------
 
 
-def run_python(
-    problem: str,
-    level: int,
-    kind: str = "solution",
-) -> Report:
-    src = python_entry(problem, kind)
-    env = os.environ.copy()
-    src_dir = str(repo_root() / "src")
-    prior = env.get("PYTHONPATH", "")
-    env["PYTHONPATH"] = src_dir if not prior else src_dir + os.pathsep + prior
-    try:
-        proc = subprocess.run(
-            [sys.executable, "-m", "honepad._pyrun", problem, str(level), kind],
-            check=False,
-            capture_output=True,
-            text=True,
-            timeout=RUN_TIMEOUT_S,
-            env=env,
-        )
-    except subprocess.TimeoutExpired as exc:
-        raise RuntimeError(f"{src}: python3 timed out after {RUN_TIMEOUT_S}s") from exc
-    return report_from_proc(proc, problem, "python3", level)
+def _values_differ(actual: Any, expected: Any) -> bool:
+    if expected is True or expected is False or expected is None:
+        return actual is not expected
+    return actual != expected
 
 
 def _extract_report_payload(stdout: str, lang_id: str) -> tuple[dict[str, Any], str]:
@@ -210,6 +142,11 @@ def report_from_proc(
     return Report(problem, lang_id, level, passed, failed, debug=debug)
 
 
+# --------------------------------------------------------------------------
+# Processes
+# --------------------------------------------------------------------------
+
+
 def run_prepare_cmd(
     argv: list[str],
     cwd: Path | None = None,
@@ -241,7 +178,7 @@ def run_compiled(
     problem: str,
     lang_id: str,
     level: int,
-    prepare,
+    prepare: Callable[[Path, str], list[str]],
     src: Path | None = None,
 ) -> Report:
     """prepare(tmpdir: Path, cases_path: str) -> list[str]  (argv to run in tmpdir)."""
@@ -276,189 +213,136 @@ def run_script(
     return report_from_proc(proc, problem, lang_id, level)
 
 
-def run_javascript(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("javascript", problem, kind, "solution.js", "stub.js")
-    adapter = repo_root() / "langs" / "javascript" / "adapter.js"
-    return run_script(
-        problem,
-        "javascript",
-        level,
-        kind,
-        ["node", str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
+# --------------------------------------------------------------------------
+# Recipe execution
+# --------------------------------------------------------------------------
 
 
-def run_ruby(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("ruby", problem, kind, "solution.rb", "stub.rb")
-    adapter = repo_root() / "langs" / "ruby" / "adapter.rb"
-    return run_script(
-        problem,
-        "ruby",
-        level,
-        kind,
-        ["ruby", str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
+def run_spec_script(
+    problem: str, lang_id: str, level: int, kind: str, spec: dict[str, Any]
+) -> Report:
+    src = spec_src(lang_id, problem, kind, spec)
+    ctx = packspec.context(lang_id, class_name=class_name_for(problem), src=src)
+    tool = packspec.resolve_tool(spec, lang_id)
+    argv = packspec.render_argv(list(spec["argv"]), ctx, tool)
+    return run_script(problem, lang_id, level, kind, argv, src=src)
 
 
-def run_perl(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("perl", problem, kind, "solution.pl", "stub.pl")
-    adapter = repo_root() / "langs" / "perl" / "adapter.pl"
-    return run_script(
-        problem,
-        "perl",
-        level,
-        kind,
-        ["perl", str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def _lua() -> str:
-    for name in ("lua", "lua5.5", "lua5.4", "lua5.3"):
-        path = shutil.which(name)
-        if path:
-            return path
-    raise RuntimeError("lua not found")
-
-
-def _tclsh() -> str:
-    for name in ("tclsh", "tclsh8.6", "tclsh8.7"):
-        path = shutil.which(name)
-        if path:
-            return path
-    raise RuntimeError("tclsh not found")
-
-
-def run_tcl(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("tcl", problem, kind, "solution.tcl", "stub.tcl")
-    adapter = repo_root() / "langs" / "tcl" / "adapter.tcl"
-    return run_script(
-        problem,
-        "tcl",
-        level,
-        kind,
-        [_tclsh(), str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def _rscript() -> str:
-    path = shutil.which("Rscript")
-    if path:
-        return path
-    raise RuntimeError("Rscript not found")
-
-
-def run_r(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("r", problem, kind, "solution.R", "stub.R")
-    adapter = repo_root() / "langs" / "r" / "adapter.R"
-    return run_script(
-        problem,
-        "r",
-        level,
-        kind,
-        [_rscript(), str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def _octave() -> str:
-    for name in ("octave", "octave-cli"):
-        path = shutil.which(name)
-        if path:
-            return path
-    raise RuntimeError("octave not found")
-
-
-def _groovy() -> str:
-    path = shutil.which("groovy")
-    if path:
-        return path
-    raise RuntimeError("groovy not found")
-
-
-def _dart() -> str:
-    path = shutil.which("dart")
-    if path:
-        return path
-    raise RuntimeError("dart not found")
-
-
-def _elixir() -> str:
-    path = shutil.which("elixir")
-    if path:
-        return path
-    raise RuntimeError("elixir not found")
-
-
-def _escript() -> str:
-    path = shutil.which("escript")
-    if path:
-        return path
-    raise RuntimeError("escript not found")
-
-
-def run_elixir(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("elixir", problem, kind, "solution.ex", "stub.ex")
-    adapter = repo_root() / "langs" / "elixir" / "adapter.exs"
-    return run_script(
-        problem,
-        "elixir",
-        level,
-        kind,
-        [_elixir(), str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def haskell_entry(problem: str, kind: str) -> Path:
-    return pack_src("haskell", problem, kind, "solution.hs", "stub.hs")
-
-
-def _ghc() -> str:
-    path = shutil.which("ghc")
-    if path:
-        return path
-    raise RuntimeError("ghc not found")
-
-
-def run_haskell(problem: str, level: int, kind: str = "solution") -> Report:
-    src = haskell_entry(problem, kind)
-    haskell_dir = repo_root() / "langs" / "haskell"
+def run_spec_compiled(
+    problem: str, lang_id: str, level: int, kind: str, spec: dict[str, Any]
+) -> Report:
+    src = spec_src(lang_id, problem, kind, spec)
+    class_name = class_name_for(problem)
 
     def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(haskell_dir / "Adapter.hs", tmpdir / "Adapter.hs")
-        shutil.copy(haskell_dir / "Harness.hs", tmpdir / "Harness.hs")
-        shutil.copy(haskell_dir / "MiniJson.hs", tmpdir / "MiniJson.hs")
-        shutil.copy(src, tmpdir / "Solution.hs")
-        compiled = run_prepare_cmd(
-            [_ghc(), "-O0", "-w", "-o", "run", "Adapter.hs"],
-            tmpdir,
-            "haskell",
+        ctx = packspec.context(
+            lang_id, class_name=class_name, src=src, cases=cases_path, tmpdir=tmpdir
         )
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "ghc compile failed")
-        return [str(tmpdir / "run"), cases_path]
+        packspec.lay_out(spec, tmpdir, src, ctx)
+        packspec.prepare_env(spec, lang_id)
+        for step in spec.get("steps", []):
+            tool = packspec.resolve_tool(step, lang_id)
+            built = run_prepare_cmd(packspec.step_argv(step, ctx, tool), tmpdir, lang_id)
+            if built.returncode != 0:
+                raise compile_fail(src, built, str(step.get("fail", "compile failed")))
+        return packspec.render_argv(list(spec["argv"]), ctx, packspec.resolve_tool(spec, lang_id))
 
-    return run_compiled(problem, "haskell", level, prepare, src=src)
-
-
-def ocaml_entry(problem: str, kind: str) -> Path:
-    return pack_src("ocaml", problem, kind, "solution.ml", "stub.ml")
-
-
-def _ocaml() -> str:
-    for name in ("ocamlopt", "ocamlc"):
-        path = shutil.which(name)
-        if path:
-            return path
-    raise RuntimeError("ocamlopt not found")
+    return run_compiled(problem, lang_id, level, prepare, src=src)
 
 
-def scala_entry(problem: str, kind: str) -> Path:
-    return pack_src("scala", problem, kind, "solution.scala", "stub.scala")
+# --------------------------------------------------------------------------
+# Python 3: imported in a child interpreter, not shelled out to an adapter
+# --------------------------------------------------------------------------
+
+
+def _load_python_class(path: Path, class_name: str) -> Any:
+    spec = importlib.util.spec_from_file_location("honepad_user_mod", path)
+    if spec is None or spec.loader is None:
+        raise FileNotFoundError(path)
+    mod = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(mod)
+        return getattr(mod, class_name)
+    except FileNotFoundError:
+        raise
+    except KeyboardInterrupt:
+        raise
+    except BaseException as exc:  # noqa: BLE001 - user pack load
+        raise RuntimeError(_format_load_error(path, exc)) from exc
+
+
+def _format_load_error(path: Path, exc: BaseException) -> str:
+    name = type(exc).__name__
+    msg = getattr(exc, "msg", None) or str(exc).strip()
+    lineno = getattr(exc, "lineno", None)
+    if lineno is not None:
+        return f"{path}: {name}: {msg} (line {lineno})"
+    if msg and msg != name:
+        return f"{path}: {name}: {msg}"
+    return f"{path}: {name}"
+
+
+def python_entry(problem: str, kind: str) -> Path:
+    return pack_src("python3", problem, kind, "solution.py", "stub.py")
+
+
+def run_python_body(problem: str, level: int, kind: str = "solution") -> Report:
+    cases = load_cases(problem, level)
+    differ = _values_differ
+    cls = _load_python_class(python_entry(problem, kind), class_name_for(problem))
+    failed: list[Fail] = []
+    passed = 0
+    for case in cases:
+        for i, call in enumerate(case["calls"]):
+            method = call["m"]
+            args = list(call["a"])
+            expected = call["e"]
+            try:
+                if i == 0:
+                    obj = cls()
+                fn = getattr(obj, method)
+                actual = fn(*args)
+            except KeyboardInterrupt:
+                raise
+            except BaseException as exc:  # noqa: BLE001 - user pack
+                failed.append(
+                    Fail(case["id"], i, method, args, expected, f"exc:{type(exc).__name__}")
+                )
+                break
+            if differ(actual, expected):
+                failed.append(Fail(case["id"], i, method, args, expected, actual))
+                break
+        else:
+            passed += 1
+    return Report(problem, "python3", level, passed, failed)
+
+
+def run_python(problem: str, level: int, kind: str = "solution") -> Report:
+    src = python_entry(problem, kind)
+    env = os.environ.copy()
+    src_dir = str(repo_root() / "src")
+    prior = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = src_dir if not prior else src_dir + os.pathsep + prior
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", "honepad._pyrun", problem, str(level), kind],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=RUN_TIMEOUT_S,
+            env=env,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(f"{src}: python3 timed out after {RUN_TIMEOUT_S}s") from exc
+    return report_from_proc(proc, problem, "python3", level)
+
+
+_HOOK_RUNNERS: dict[str, Callable[[str, int, str], Report]] = {"python": run_python}
+
+
+# --------------------------------------------------------------------------
+# Resolvers a JSON recipe cannot express
+# --------------------------------------------------------------------------
 
 
 def _coursier_bins() -> list[Path]:
@@ -497,245 +381,31 @@ def _ensure_scala() -> None:
             return
 
 
-def _scalac() -> str:
-    found = _tool("scalac")
+def _scala_tool(name: str) -> str:
+    found = _tool(name)
     if found:
         return found
     _ensure_scala()
-    found = _tool("scalac")
+    found = _tool(name)
     if found:
         return found
-    raise RuntimeError("scalac not found")
+    raise RuntimeError(f"{name} not found")
 
 
-def _scala() -> str:
-    found = _tool("scala")
-    if found:
-        return found
-    _ensure_scala()
-    found = _tool("scala")
-    if found:
-        return found
-    raise RuntimeError("scala not found")
+@packspec.tool_hook("scalac")
+def _scalac() -> list[str]:
+    """Scala installs through Coursier, whose bin dir is not always on PATH."""
+    return [_scala_tool("scalac")]
 
 
-def run_scala(problem: str, level: int, kind: str = "solution") -> Report:
-    src = scala_entry(problem, kind)
-    scala_dir = repo_root() / "langs" / "scala"
-    class_name = class_name_for(problem)
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(scala_dir / "Adapter.scala", tmpdir / "Adapter.scala")
-        shutil.copy(repo_root() / "langs" / "java" / "MiniJson.java", tmpdir / "MiniJson.java")
-        shutil.copy(src, tmpdir / "solution.scala")
-        # scalac type-checks .java sources but does not emit those classes.
-        java_compiled = run_prepare_cmd(
-            ["javac", "MiniJson.java"],
-            tmpdir,
-            "scala",
-        )
-        if java_compiled.returncode != 0:
-            raise compile_fail(src, java_compiled, "javac failed")
-        compiled = run_prepare_cmd(
-            [_scalac(), "-classpath", ".", "Adapter.scala", "solution.scala"],
-            tmpdir,
-            "scala",
-        )
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "scalac failed")
-        return [_scala(), "-nc", "-classpath", ".", "Adapter", cases_path, class_name]
-
-    return run_compiled(problem, "scala", level, prepare, src=src)
+@packspec.tool_hook("scala")
+def _scala() -> list[str]:
+    return [_scala_tool("scala")]
 
 
-def d_entry(problem: str, kind: str) -> Path:
-    return pack_src("d", problem, kind, "solution.d", "stub.d")
-
-
-def _d_compiler() -> str:
-    for name in ("gdc", "ldc2", "dmd"):
-        path = shutil.which(name)
-        if path:
-            return path
-    raise RuntimeError("d compiler not found")
-
-
-def _d_compile_cmd(compiler: str) -> list[str]:
-    name = Path(compiler).name.lower()
-    if name == "gdc" or name.startswith("gdc-"):
-        return [compiler, "-O0", "-o", "run", "adapter.d", "solution.d"]
-    return [compiler, "-O0", "-of=run", "adapter.d", "solution.d"]
-
-
-def run_d(problem: str, level: int, kind: str = "solution") -> Report:
-    src = d_entry(problem, kind)
-    d_dir = repo_root() / "langs" / "d"
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(d_dir / "adapter.d", tmpdir / "adapter.d")
-        shutil.copy(src, tmpdir / "solution.d")
-        compiled = run_prepare_cmd(
-            _d_compile_cmd(_d_compiler()),
-            tmpdir,
-            "d",
-        )
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "d compile failed")
-        return [str(tmpdir / "run"), cases_path]
-
-    return run_compiled(problem, "d", level, prepare, src=src)
-
-
-def run_ocaml(problem: str, level: int, kind: str = "solution") -> Report:
-    src = ocaml_entry(problem, kind)
-    ocaml_dir = repo_root() / "langs" / "ocaml"
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(ocaml_dir / "adapter.ml", tmpdir / "adapter.ml")
-        shutil.copy(ocaml_dir / "minijson.ml", tmpdir / "minijson.ml")
-        shutil.copy(src, tmpdir / "solution.ml")
-        compiled = run_prepare_cmd(
-            [_ocaml(), "-o", "run", "minijson.ml", "solution.ml", "adapter.ml"],
-            tmpdir,
-            "ocaml",
-        )
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "ocaml compile failed")
-        return [str(tmpdir / "run"), cases_path]
-
-    return run_compiled(problem, "ocaml", level, prepare, src=src)
-
-
-def run_erlang(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("erlang", problem, kind, "solution.erl", "stub.erl")
-    adapter = repo_root() / "langs" / "erlang" / "adapter.erl"
-    return run_script(
-        problem,
-        "erlang",
-        level,
-        kind,
-        [_escript(), str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def run_dart(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("dart", problem, kind, "solution.dart", "stub.dart")
-    adapter = repo_root() / "langs" / "dart" / "adapter.dart"
-    return run_script(
-        problem,
-        "dart",
-        level,
-        kind,
-        [_dart(), "run", str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def _julia() -> str:
-    path = shutil.which("julia")
-    if path:
-        return path
-    raise RuntimeError("julia not found")
-
-
-def run_julia(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("julia", problem, kind, "solution.jl", "stub.jl")
-    adapter = repo_root() / "langs" / "julia" / "adapter.jl"
-    return run_script(
-        problem,
-        "julia",
-        level,
-        kind,
-        [_julia(), str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def _coffee() -> list[str]:
-    path = shutil.which("coffee")
-    if path:
-        return [path]
-    npx = shutil.which("npx")
-    if npx:
-        return [npx, "--yes", "-p", "coffeescript@2.7.0", "coffee"]
-    raise RuntimeError("coffee not found")
-
-
-def run_coffeescript(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("coffeescript", problem, kind, "solution.coffee", "stub.coffee")
-    adapter = repo_root() / "langs" / "coffeescript" / "adapter.coffee"
-    return run_script(
-        problem,
-        "coffeescript",
-        level,
-        kind,
-        [*_coffee(), str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def run_bash(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("bash", problem, kind, "solution.sh", "stub.sh")
-    adapter = repo_root() / "langs" / "bash" / "adapter.sh"
-    return run_script(
-        problem,
-        "bash",
-        level,
-        kind,
-        ["bash", str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def run_shell(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("shell", problem, kind, "solution.sh", "stub.sh")
-    adapter = repo_root() / "langs" / "bash" / "adapter.sh"
-    return run_script(
-        problem,
-        "shell",
-        level,
-        kind,
-        ["bash", str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def _pwsh() -> str:
-    path = shutil.which("pwsh")
-    if path:
-        return path
-    raise RuntimeError("pwsh not found")
-
-
-def run_powershell(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("powershell", problem, kind, "solution.ps1", "stub.ps1")
-    adapter = repo_root() / "langs" / "powershell" / "adapter.ps1"
-    return run_script(
-        problem,
-        "powershell",
-        level,
-        kind,
-        [
-            _pwsh(),
-            "-NoProfile",
-            "-File",
-            str(adapter),
-            str(src),
-            class_name_for(problem),
-        ],
-        src=src,
-    )
-
-
-def _sbcl() -> str:
-    path = shutil.which("sbcl")
-    if path:
-        return path
-    raise RuntimeError("sbcl not found")
-
-
+@packspec.tool_hook("clojure")
 def _clojure() -> list[str]:
+    """The CLI needs -M to run a script; the older launcher and the jar do not."""
     path = shutil.which("clojure")
     if path:
         help_proc = subprocess.run(
@@ -758,221 +428,7 @@ def _clojure() -> list[str]:
     raise RuntimeError("clojure not found")
 
 
-def run_clojure(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("clojure", problem, kind, "solution.clj", "stub.clj")
-    adapter = repo_root() / "langs" / "clojure" / "adapter.clj"
-    return run_script(
-        problem,
-        "clojure",
-        level,
-        kind,
-        [*_clojure(), str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def _gst() -> str:
-    path = shutil.which("gst")
-    if path:
-        return path
-    raise RuntimeError("gst not found")
-
-
-def run_smalltalk(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("smalltalk", problem, kind, "solution.st", "stub.st")
-    adapter = repo_root() / "langs" / "smalltalk" / "adapter.st"
-    return run_script(
-        problem,
-        "smalltalk",
-        level,
-        kind,
-        [
-            _gst(),
-            "-q",
-            "--no-user-files",
-            str(adapter),
-            "-a",
-            str(src),
-            class_name_for(problem),
-        ],
-        src=src,
-    )
-
-
-def run_common_lisp(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("common-lisp", problem, kind, "solution.lisp", "stub.lisp")
-    adapter = repo_root() / "langs" / "common-lisp" / "adapter.lisp"
-    return run_script(
-        problem,
-        "common-lisp",
-        level,
-        kind,
-        [_sbcl(), "--script", str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def run_groovy(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("groovy", problem, kind, "solution.groovy", "stub.groovy")
-    adapter = repo_root() / "langs" / "groovy" / "adapter.groovy"
-    return run_script(
-        problem,
-        "groovy",
-        level,
-        kind,
-        [_groovy(), str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def run_octave(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("octave", problem, kind, "solution.m", "stub.m")
-    adapter = repo_root() / "langs" / "octave" / "adapter.m"
-    return run_script(
-        problem,
-        "octave",
-        level,
-        kind,
-        [
-            _octave(),
-            "--quiet",
-            "--no-gui",
-            "--no-window-system",
-            "--no-history",
-            "--norc",
-            "--path",
-            str(adapter.parent),
-            str(adapter),
-            str(src),
-            class_name_for(problem),
-        ],
-        src=src,
-    )
-
-
-def run_lua(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("lua", problem, kind, "solution.lua", "stub.lua")
-    adapter = repo_root() / "langs" / "lua" / "adapter.lua"
-    return run_script(
-        problem,
-        "lua",
-        level,
-        kind,
-        [_lua(), str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def run_php(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("php", problem, kind, "solution.php", "stub.php")
-    adapter = repo_root() / "langs" / "php" / "adapter.php"
-    return run_script(
-        problem,
-        "php",
-        level,
-        kind,
-        ["php", str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def go_entry(problem: str, kind: str) -> Path:
-    return pack_src("go", problem, kind, "solution.go", "stub.go")
-
-
-def run_go(problem: str, level: int, kind: str = "solution") -> Report:
-    src = go_entry(problem, kind)
-    adapter = repo_root() / "langs" / "go" / "adapter.go"
-    ctor = class_name_for(problem)
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(adapter, tmpdir / "adapter.go")
-        shutil.copy(src, tmpdir / src.name)
-        (tmpdir / "ctor.go").write_text(
-            f"package main\nfunc NewTarget() any {{ return New{ctor}() }}\n",
-            encoding="utf-8",
-        )
-        (tmpdir / "go.mod").write_text("module honepadrun\n\ngo 1.22\n", encoding="utf-8")
-        compiled = run_prepare_cmd(["go", "build", "-o", "run", "."], tmpdir, "go")
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "go compile failed")
-        return [str(tmpdir / "run"), cases_path]
-
-    return run_compiled(problem, "go", level, prepare, src=src)
-
-
-def rust_entry(problem: str, kind: str) -> Path:
-    return pack_src("rust", problem, kind, "solution.rs", "stub.rs")
-
-
-def run_rust(problem: str, level: int, kind: str = "solution") -> Report:
-    src = rust_entry(problem, kind)
-    rust_dir = repo_root() / "langs" / "rust"
-    adapter = rust_dir / "adapter.rs"
-    harness = rust_dir / "harness.rs"
-    ctor = class_name_for(problem)
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        src_dir = tmpdir / "src"
-        src_dir.mkdir()
-        shutil.copy(adapter, src_dir / "main.rs")
-        shutil.copy(harness, src_dir / "harness.rs")
-        shutil.copy(src, src_dir / "solution.rs")
-        (src_dir / "ctor.rs").write_text(
-            "use crate::harness::Harness;\n"
-            f"use crate::solution::{ctor};\n\n"
-            "pub fn new_target() -> Box<dyn Harness> {\n"
-            f"    Box::new({ctor}::new())\n"
-            "}\n",
-            encoding="utf-8",
-        )
-        (tmpdir / "Cargo.toml").write_text(
-            "[package]\n"
-            'name = "honepadrun"\n'
-            'version = "0.1.0"\n'
-            'edition = "2021"\n\n'
-            "[dependencies]\n"
-            'serde = { version = "1", features = ["derive"] }\n'
-            'serde_json = "1"\n',
-            encoding="utf-8",
-        )
-        compiled = run_prepare_cmd(["cargo", "build", "--quiet"], tmpdir, "rust")
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "cargo compile failed")
-        return [str(tmpdir / "target" / "debug" / "honepadrun"), cases_path]
-
-    return run_compiled(problem, "rust", level, prepare, src=src)
-
-
-def java_entry(problem: str, kind: str) -> Path:
-    return pack_src("java", problem, kind, "solution.java", "stub.java")
-
-
-def run_java(problem: str, level: int, kind: str = "solution") -> Report:
-    src = java_entry(problem, kind)
-    java_dir = repo_root() / "langs" / "java"
-    class_name = class_name_for(problem)
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(java_dir / "Adapter.java", tmpdir / "Adapter.java")
-        shutil.copy(java_dir / "MiniJson.java", tmpdir / "MiniJson.java")
-        shutil.copy(src, tmpdir / f"{class_name}.java")
-        compiled = run_prepare_cmd(
-            ["javac", "Adapter.java", "MiniJson.java", f"{class_name}.java"],
-            tmpdir,
-            "java",
-        )
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "javac failed")
-        return ["java", "Adapter", cases_path, class_name]
-
-    return run_compiled(problem, "java", level, prepare, src=src)
-
-
-def csharp_entry(problem: str, kind: str) -> Path:
-    return pack_src("csharp", problem, kind, "solution.cs", "stub.cs")
-
-
+@packspec.env_hook("dotnet")
 def _prepare_dotnet_env() -> None:
     os.environ["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1"
     os.environ["DOTNET_NOLOGO"] = "1"
@@ -991,438 +447,71 @@ def _prepare_dotnet_env() -> None:
             return
 
 
-def run_csharp(problem: str, level: int, kind: str = "solution") -> Report:
-    src = csharp_entry(problem, kind)
-    csharp_dir = repo_root() / "langs" / "csharp"
-    class_name = class_name_for(problem)
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(csharp_dir / "Adapter.cs", tmpdir / "Adapter.cs")
-        shutil.copy(csharp_dir / "honepadrun.csproj", tmpdir / "honepadrun.csproj")
-        shutil.copy(src, tmpdir / "Solution.cs")
-        _prepare_dotnet_env()
-        compiled = run_prepare_cmd(
-            ["dotnet", "build", "-o", "out", "--verbosity", "quiet"],
-            tmpdir,
-            "csharp",
-        )
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "dotnet compile failed")
-        return [str(tmpdir / "out" / "honepadrun"), cases_path, class_name]
-
-    return run_compiled(problem, "csharp", level, prepare, src=src)
-
-
-def fsharp_entry(problem: str, kind: str) -> Path:
-    return pack_src("fsharp", problem, kind, "solution.fs", "stub.fs")
-
-
-def run_fsharp(problem: str, level: int, kind: str = "solution") -> Report:
-    src = fsharp_entry(problem, kind)
-    fsharp_dir = repo_root() / "langs" / "fsharp"
-    class_name = class_name_for(problem)
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(fsharp_dir / "Adapter.fs", tmpdir / "Adapter.fs")
-        shutil.copy(fsharp_dir / "honepadrun.fsproj", tmpdir / "honepadrun.fsproj")
-        shutil.copy(src, tmpdir / "Solution.fs")
-        _prepare_dotnet_env()
-        compiled = run_prepare_cmd(
-            ["dotnet", "build", "-o", "out", "--verbosity", "quiet"],
-            tmpdir,
-            "fsharp",
-        )
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "dotnet compile failed")
-        return [str(tmpdir / "out" / "honepadrun"), cases_path, class_name]
-
-    return run_compiled(problem, "fsharp", level, prepare, src=src)
-
-
-def freepascal_entry(problem: str, kind: str) -> Path:
-    return pack_src("freepascal", problem, kind, "solution.pas", "stub.pas")
-
-
-def _fpc() -> str:
-    path = shutil.which("fpc")
-    if path:
-        return path
-    raise RuntimeError("fpc not found")
-
-
-def run_freepascal(problem: str, level: int, kind: str = "solution") -> Report:
-    src = freepascal_entry(problem, kind)
-    fpc_dir = repo_root() / "langs" / "freepascal"
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(fpc_dir / "adapter.pas", tmpdir / "adapter.pas")
-        shutil.copy(fpc_dir / "minijson.pas", tmpdir / "minijson.pas")
-        shutil.copy(src, tmpdir / "solution.pas")
-        compiled = run_prepare_cmd(
-            [_fpc(), "-O-", "-orun", "adapter.pas"],
-            tmpdir,
-            "freepascal",
-        )
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "fpc compile failed")
-        return [str(tmpdir / "run"), cases_path]
-
-    return run_compiled(problem, "freepascal", level, prepare, src=src)
-
-
-def run_typescript(problem: str, level: int, kind: str = "solution") -> Report:
-    src = pack_src("typescript", problem, kind, "solution.ts", "stub.ts")
-    adapter = repo_root() / "langs" / "javascript" / "adapter.js"
-    return run_script(
-        problem,
-        "typescript",
-        level,
-        kind,
-        ["node", str(adapter), str(src), class_name_for(problem)],
-        src=src,
-    )
-
-
-def kotlin_entry(problem: str, kind: str) -> Path:
-    return pack_src("kotlin", problem, kind, "solution.kt", "stub.kt")
-
-
-def _kotlinc() -> str:
-    for name in ("kotlinc", "kotlinc-jvm"):
-        path = shutil.which(name)
-        if path:
-            return path
-    raise RuntimeError("kotlinc not found")
-
-
-def run_kotlin(problem: str, level: int, kind: str = "solution") -> Report:
-    src = kotlin_entry(problem, kind)
-    kotlin_dir = repo_root() / "langs" / "kotlin"
-    class_name = class_name_for(problem)
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(kotlin_dir / "Adapter.kt", tmpdir / "Adapter.kt")
-        shutil.copy(repo_root() / "langs" / "java" / "MiniJson.java", tmpdir / "MiniJson.java")
-        shutil.copy(src, tmpdir / "solution.kt")
-        # kotlinc type-checks .java sources but does not emit those classes.
-        java_compiled = run_prepare_cmd(
-            ["javac", "MiniJson.java"],
-            tmpdir,
-            "kotlin",
-        )
-        if java_compiled.returncode != 0:
-            raise compile_fail(src, java_compiled, "javac failed")
-        compiled = run_prepare_cmd(
-            [
-                _kotlinc(),
-                "Adapter.kt",
-                "solution.kt",
-                "-classpath",
-                ".",
-                "-include-runtime",
-                "-d",
-                "run.jar",
-            ],
-            tmpdir,
-            "kotlin",
-        )
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "kotlinc failed")
-        return [
-            "java",
-            "-cp",
-            os.pathsep.join(["run.jar", "."]),
-            "Adapter",
-            cases_path,
-            class_name,
-        ]
-
-    return run_compiled(problem, "kotlin", level, prepare, src=src)
-
-
-def cpp_entry(problem: str, kind: str) -> Path:
-    return pack_src("cpp", problem, kind, "solution.cpp", "stub.cpp")
-
-
-def _cxx() -> str:
-    for name in ("c++", "g++", "clang++"):
-        path = shutil.which(name)
-        if path:
-            return path
-    raise RuntimeError("c++ compiler not found")
-
-
-def run_cpp(problem: str, level: int, kind: str = "solution") -> Report:
-    src = cpp_entry(problem, kind)
-    cpp_dir = repo_root() / "langs" / "cpp"
-    ctor_name = class_name_for(problem)
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(cpp_dir / "adapter.cpp", tmpdir / "adapter.cpp")
-        shutil.copy(cpp_dir / "minijson.hpp", tmpdir / "minijson.hpp")
-        shutil.copy(cpp_dir / "harness.hpp", tmpdir / "harness.hpp")
-        shutil.copy(src, tmpdir / "solution.cpp")
-        (tmpdir / "ctor.cpp").write_text(
-            '#include "harness.hpp"\n'
-            '#include "solution.cpp"\n\n'
-            f"Harness* new_target() {{ return new {ctor_name}(); }}\n",
-            encoding="utf-8",
-        )
-        compiled = run_prepare_cmd(
-            [_cxx(), "-std=c++17", "-O0", "adapter.cpp", "ctor.cpp", "solution.cpp", "-o", "run"],
-            tmpdir,
-            "cpp",
-        )
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "c++ compile failed")
-        return [str(tmpdir / "run"), cases_path]
-
-    return run_compiled(problem, "cpp", level, prepare, src=src)
-
-
-def c_entry(problem: str, kind: str) -> Path:
-    return pack_src("c", problem, kind, "solution.c", "stub.c")
-
-
-def _cc() -> str:
-    for name in ("cc", "gcc", "clang"):
-        path = shutil.which(name)
-        if path:
-            return path
-    raise RuntimeError("c compiler not found")
-
-
-def nim_entry(problem: str, kind: str) -> Path:
-    return pack_src("nim", problem, kind, "solution.nim", "stub.nim")
-
-
-def _nim() -> str:
-    path = shutil.which("nim")
-    if path:
-        return path
-    raise RuntimeError("nim not found")
-
-
-def _nim_c_argv(tmpdir: Path, nim_bin: str | None = None) -> list[str]:
-    return [
-        nim_bin or _nim(),
-        "c",
-        "--hints:off",
-        "--warnings:off",
-        f"--nimcache:{tmpdir / 'nimcache'}",
-        "-o:run",
-        "adapter.nim",
-    ]
-
-
-def run_nim(problem: str, level: int, kind: str = "solution") -> Report:
-    src = nim_entry(problem, kind)
-    adapter = repo_root() / "langs" / "nim" / "adapter.nim"
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(adapter, tmpdir / "adapter.nim")
-        shutil.copy(src, tmpdir / "solution.nim")
-        compiled = run_prepare_cmd(
-            _nim_c_argv(tmpdir),
-            tmpdir,
-            "nim",
-        )
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "nim compile failed")
-        return [str(tmpdir / "run"), cases_path]
-
-    return run_compiled(problem, "nim", level, prepare, src=src)
-
-
-def fortran_entry(problem: str, kind: str) -> Path:
-    return pack_src("fortran", problem, kind, "solution.f90", "stub.f90")
-
-
-def _gfortran() -> str:
-    path = shutil.which("gfortran")
-    if path:
-        return path
-    raise RuntimeError("gfortran not found")
-
-
-def run_fortran(problem: str, level: int, kind: str = "solution") -> Report:
-    src = fortran_entry(problem, kind)
-    fortran_dir = repo_root() / "langs" / "fortran"
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(fortran_dir / "adapter.f90", tmpdir / "adapter.f90")
-        shutil.copy(fortran_dir / "honepad_json.f90", tmpdir / "honepad_json.f90")
-        shutil.copy(fortran_dir / "minijson.c", tmpdir / "minijson.c")
-        shutil.copy(fortran_dir / "minijson.h", tmpdir / "minijson.h")
-        shutil.copy(fortran_dir / "json_bridge.c", tmpdir / "json_bridge.c")
-        shutil.copy(src, tmpdir / "solution.f90")
-        compiled_c = run_prepare_cmd(
-            [_cc(), "-std=c11", "-O0", "-c", "minijson.c", "json_bridge.c"],
-            tmpdir,
-            "fortran",
-        )
-        if compiled_c.returncode != 0:
-            raise compile_fail(src, compiled_c, "c json helper compile failed")
-        compiled = run_prepare_cmd(
-            [
-                _gfortran(),
-                "-O0",
-                "-o",
-                "run",
-                "minijson.o",
-                "json_bridge.o",
-                "honepad_json.f90",
-                "solution.f90",
-                "adapter.f90",
-            ],
-            tmpdir,
-            "fortran",
-        )
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "gfortran compile failed")
-        return [str(tmpdir / "run"), cases_path]
-
-    return run_compiled(problem, "fortran", level, prepare, src=src)
-
-
-def run_c(problem: str, level: int, kind: str = "solution") -> Report:
-    src = c_entry(problem, kind)
-    c_dir = repo_root() / "langs" / "c"
-    ctor_name = class_name_for(problem)
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(c_dir / "adapter.c", tmpdir / "adapter.c")
-        shutil.copy(c_dir / "minijson.h", tmpdir / "minijson.h")
-        shutil.copy(c_dir / "minijson.c", tmpdir / "minijson.c")
-        shutil.copy(c_dir / "harness.h", tmpdir / "harness.h")
-        shutil.copy(src, tmpdir / "solution.c")
-        (tmpdir / "ctor.c").write_text(
-            '#include "harness.h"\n'
-            '#include "solution.c"\n\n'
-            f"HonepadTarget *new_target(void) {{ return {ctor_name}_new(); }}\n",
-            encoding="utf-8",
-        )
-        compiled = run_prepare_cmd(
-            [
-                _cc(),
-                "-std=c11",
-                "-O0",
-                "adapter.c",
-                "minijson.c",
-                "solution.c",
-                "ctor.c",
-                "-o",
-                "run",
-            ],
-            tmpdir,
-            "c",
-        )
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "c compile failed")
-        return [str(tmpdir / "run"), cases_path]
-
-    return run_compiled(problem, "c", level, prepare, src=src)
-
-
-def swift_entry(problem: str, kind: str) -> Path:
-    return pack_src("swift", problem, kind, "solution.swift", "stub.swift")
-
-
-def _swiftc() -> str:
-    path = shutil.which("swiftc")
-    if path:
-        return path
-    raise RuntimeError("swiftc not found")
-
-
-def run_swift(problem: str, level: int, kind: str = "solution") -> Report:
-    src = swift_entry(problem, kind)
-    swift_dir = repo_root() / "langs" / "swift"
-    ctor_name = class_name_for(problem)
-
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
-        shutil.copy(swift_dir / "Adapter.swift", tmpdir / "Adapter.swift")
-        shutil.copy(swift_dir / "Harness.swift", tmpdir / "Harness.swift")
-        shutil.copy(src, tmpdir / "solution.swift")
-        (tmpdir / "ctor.swift").write_text(
-            f"func newTarget() -> Harness {{ return {ctor_name}() }}\n",
-            encoding="utf-8",
-        )
-        compiled = run_prepare_cmd(
-            [
-                _swiftc(),
-                "Adapter.swift",
-                "Harness.swift",
-                "ctor.swift",
-                "solution.swift",
-                "-o",
-                "run",
-            ],
-            tmpdir,
-            "swift",
-        )
-        if compiled.returncode != 0:
-            raise compile_fail(src, compiled, "swiftc failed")
-        return [str(tmpdir / "run"), cases_path]
-
-    return run_compiled(problem, "swift", level, prepare, src=src)
-
-
-_RUNNERS = {
-    "python3": run_python,
-    "javascript": run_javascript,
-    "ruby": run_ruby,
-    "php": run_php,
-    "perl": run_perl,
-    "lua": run_lua,
-    "tcl": run_tcl,
-    "r": run_r,
-    "octave": run_octave,
-    "groovy": run_groovy,
-    "dart": run_dart,
-    "elixir": run_elixir,
-    "erlang": run_erlang,
-    "haskell": run_haskell,
-    "ocaml": run_ocaml,
-    "scala": run_scala,
-    "d": run_d,
-    "julia": run_julia,
-    "coffeescript": run_coffeescript,
-    "bash": run_bash,
-    "shell": run_shell,
-    "powershell": run_powershell,
-    "clojure": run_clojure,
-    "common-lisp": run_common_lisp,
-    "smalltalk": run_smalltalk,
-    "freepascal": run_freepascal,
-    "go": run_go,
-    "rust": run_rust,
-    "java": run_java,
-    "typescript": run_typescript,
-    "csharp": run_csharp,
-    "fsharp": run_fsharp,
-    "kotlin": run_kotlin,
-    "cpp": run_cpp,
-    "c": run_c,
-    "fortran": run_fortran,
-    "swift": run_swift,
-    "nim": run_nim,
-}
-
-
-def run(
-    problem: str,
-    lang_id: str,
-    level: int,
-    kind: str = "solution",
-) -> Report:
+# --------------------------------------------------------------------------
+# Dispatch
+# --------------------------------------------------------------------------
+
+
+def _run_pack(problem: str, lang_id: str, level: int, kind: str) -> Report:
+    spec = packspec.run_spec(lang_id)
+    if spec is None:
+        raise NotImplementedError(f"no run recipe for {lang_id}")
+    if spec["kind"] == "hook":
+        fn = _HOOK_RUNNERS.get(str(spec["hook"]))
+        if fn is None:
+            raise NotImplementedError(f"{lang_id}: unknown run hook {spec['hook']}")
+        return fn(problem, level, kind)
+    if spec["kind"] == "script":
+        return run_spec_script(problem, lang_id, level, kind, spec)
+    return run_spec_compiled(problem, lang_id, level, kind, spec)
+
+
+class _PackRunners:
+    """The runner table, keyed by catalog id, backed by the pack recipes.
+
+    Reads like the hand-written dict it replaced (``lang in _RUNNERS``,
+    ``len(_RUNNERS)``, ``_RUNNERS[lang](problem, level, kind)``) so callers and
+    the catalog completeness tests do not care that it is data now.
+    """
+
+    def _ids(self) -> list[str]:
+        return packspec.runnable_ids()
+
+    def __contains__(self, lang_id: object) -> bool:
+        return isinstance(lang_id, str) and lang_id in self._ids()
+
+    def __iter__(self):
+        return iter(self._ids())
+
+    def __len__(self) -> int:
+        return len(self._ids())
+
+    def __getitem__(self, lang_id: str) -> Callable[..., Report]:
+        if lang_id not in self:
+            raise KeyError(lang_id)
+
+        def call(problem: str, level: int, kind: str = "solution") -> Report:
+            return _run_pack(problem, lang_id, level, kind)
+
+        return call
+
+    def get(self, lang_id: str, default: Any = None) -> Any:
+        return self[lang_id] if lang_id in self else default
+
+    def keys(self) -> list[str]:
+        return self._ids()
+
+
+_RUNNERS = _PackRunners()
+
+
+def run(problem: str, lang_id: str, level: int, kind: str = "solution") -> Report:
     row = language(lang_id)
-    fn = _RUNNERS.get(row["id"])
-    if fn is None:
+    if row["id"] not in _RUNNERS:
         raise NotImplementedError(
             f"runner for {lang_id} is a factory job (adapter={row.get('adapter')})"
         )
-    return fn(problem, level, kind)
+    return _run_pack(problem, str(row["id"]), level, kind)
 
 
 def map_call(call: dict[str, Any], naming: str) -> dict[str, Any]:

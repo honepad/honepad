@@ -8,5 +8,39 @@
     "ica"
   ],
   "ci": true,
-  "adapter": "cargo-run"
+  "adapter": "cargo-run",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.rs",
+    "stub": "stub.rs",
+    "copy": {
+      "src/main.rs": "{{pack}}/adapter.rs",
+      "src/harness.rs": "{{pack}}/harness.rs"
+    },
+    "src_as": "src/solution.rs",
+    "write": {
+      "src/ctor.rs": "use crate::harness::Harness;\nuse crate::solution::{{class}};\n\npub fn new_target() -> Box<dyn Harness> {\n    Box::new({{class}}::new())\n}\n",
+      "Cargo.toml": "[package]\nname = \"honepadrun\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\nserde = { version = \"1\", features = [\"derive\"] }\nserde_json = \"1\"\n"
+    },
+    "steps": [
+      {
+        "tool": [
+          "cargo"
+        ],
+        "argv": [
+          "{{tool}}",
+          "build",
+          "--quiet"
+        ],
+        "fail": "cargo compile failed"
+      }
+    ],
+    "argv": [
+      "{{tmp}}/target/debug/honepadrun",
+      "{{cases}}"
+    ],
+    "requires": [
+      "cargo"
+    ]
+  }
 }

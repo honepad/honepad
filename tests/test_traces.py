@@ -1,4 +1,6 @@
+import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -6,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from honepad.catalog import language, repo_root
+from honepad import packspec
+from honepad.catalog import language, languages, repo_root
 from honepad.runner import (
     _RUNNERS,
     COMPILE_TIMEOUT_S,
@@ -15,11 +18,8 @@ from honepad.runner import (
     report_from_proc,
     run,
     run_compiled,
-    run_csharp,
-    run_go,
     run_prepare_cmd,
     run_python,
-    run_rust,
     run_script,
 )
 from honepad.traces import load_cases
@@ -38,7 +38,7 @@ def test_scalac_finds_coursier_bin(tmp_path: Path, monkeypatch) -> None:
     scalac.chmod(0o755)
     monkeypatch.setattr(runner, "_coursier_bins", lambda: [fake])
     monkeypatch.setattr(runner.shutil, "which", lambda _name, **_k: None)
-    assert runner._scalac() == str(scalac)
+    assert runner._scalac() == [str(scalac)]
     path_parts = os.environ.get("PATH", "").split(os.pathsep)
     assert path_parts[0] != str(fake)
     assert str(fake) not in path_parts
@@ -1155,17 +1155,86 @@ _CARGO = shutil.which("cargo")
 _DOTNET = shutil.which("dotnet")
 
 
-def test_compiled_langs_prepare_builds_before_run() -> None:
-    text = (repo_root() / "src" / "honepad" / "runner.py").read_text(encoding="utf-8")
-    assert 'return ["go", "run"' not in text
-    assert 'return ["cargo", "run"' not in text
-    assert 'return ["dotnet", "run"' not in text
-    assert '["go", "build", "-o", "run", "."]' in text
-    assert '["cargo", "build", "--quiet"]' in text
-    assert '["dotnet", "build", "-o", "out", "--verbosity", "quiet"]' in text
+def _compiled_specs() -> dict[str, dict]:
+    out = {}
+    for lang_id in _RUNNERS:
+        spec = packspec.run_spec(lang_id)
+        assert spec is not None, lang_id
+        if spec["kind"] == "compiled":
+            out[lang_id] = spec
+    return out
 
 
-def _execute_argv_after_prepare(monkeypatch, run_fn, *args) -> list[str]:
+def test_compiled_langs_build_then_run_the_artifact() -> None:
+    # `go run` / `cargo run` / `dotnet run` would rebuild on every replay, so a
+    # compiled pack always builds in a step and then executes what it built.
+    specs = _compiled_specs()
+    assert {"go", "rust", "csharp"} <= set(specs)
+    for lang_id, spec in specs.items():
+        assert spec.get("steps"), lang_id
+        argv = [str(word) for word in spec["argv"]]
+        assert argv[:2] != ["{{tool}}", "run"], lang_id
+        assert Path(argv[0]).name not in {"go", "cargo", "dotnet"}, lang_id
+        if lang_id in {"go", "rust", "csharp"}:
+            assert argv[0].startswith("{{tmp}}/"), lang_id
+
+
+def test_compiled_langs_keep_their_build_commands() -> None:
+    specs = _compiled_specs()
+    assert specs["go"]["steps"][0]["argv"] == ["{{tool}}", "build", "-o", "run", "."]
+    assert specs["rust"]["steps"][0]["argv"] == ["{{tool}}", "build", "--quiet"]
+    assert specs["csharp"]["steps"][0]["argv"] == [
+        "{{tool}}",
+        "build",
+        "-o",
+        "out",
+        "--verbosity",
+        "quiet",
+    ]
+
+
+def test_every_runner_has_a_valid_recipe() -> None:
+    ids = list(_RUNNERS)
+    assert len(ids) == len(set(ids))
+    catalog = {row["id"] for row in languages()}
+    for lang_id in ids:
+        assert lang_id in catalog, lang_id
+        spec = packspec.run_spec(lang_id)
+        assert spec is not None, lang_id
+        assert spec["kind"] in packspec.KINDS, lang_id
+        pack = packspec.pack_dir(lang_id) / "problems"
+        for problem in ("bank_system", "in_memory_database", "file_storage", "workers"):
+            assert (pack / problem / str(spec["solution"])).is_file(), (lang_id, problem)
+            assert (pack / problem / str(spec["stub"])).is_file(), (lang_id, problem)
+
+
+def test_recipe_argv_only_uses_known_tokens() -> None:
+    known = set(packspec.context("python3", class_name="Simulation", src=Path("s")))
+    known.add("tool")
+    pattern = re.compile(r"\{\{([a-z_]+)\}\}")
+    for lang_id in _RUNNERS:
+        spec = packspec.run_spec(lang_id)
+        assert spec is not None
+        blobs = [json.dumps(spec.get(key, "")) for key in ("argv", "steps", "write", "copy")]
+        for name in pattern.findall(" ".join(blobs)):
+            assert name in known, (lang_id, name)
+
+
+def test_script_recipes_do_not_name_the_cases_file() -> None:
+    # run_script appends it, so a recipe that also named it would pass it twice.
+    for lang_id in _RUNNERS:
+        spec = packspec.run_spec(lang_id)
+        assert spec is not None
+        if spec["kind"] == "script":
+            assert "{{cases}}" not in json.dumps(spec["argv"]), lang_id
+
+
+def test_compiled_recipes_name_the_cases_file() -> None:
+    for lang_id, spec in _compiled_specs().items():
+        assert "{{cases}}" in json.dumps(spec["argv"]), lang_id
+
+
+def _execute_argv_after_prepare(monkeypatch, lang_id: str, kind: str = "stub") -> list[str]:
     captured: dict[str, list[str]] = {}
     real = run_prepare_cmd
 
@@ -1185,27 +1254,27 @@ def _execute_argv_after_prepare(monkeypatch, run_fn, *args) -> list[str]:
         return real(argv, cwd, lang_id, timeout, src=src)
 
     monkeypatch.setattr("honepad.runner.run_prepare_cmd", spy)
-    run_fn(*args)
+    run("bank_system", lang_id, 1, kind)
     return captured["argv"]
 
 
 @pytest.mark.skipif(_GO is None, reason="go not found")
 def test_go_prepare_execute_argv_is_built_binary(monkeypatch) -> None:
-    argv = _execute_argv_after_prepare(monkeypatch, run_go, "bank_system", 1, "stub")
+    argv = _execute_argv_after_prepare(monkeypatch, "go")
     assert Path(argv[0]).name == "run"
     assert Path(argv[0]).name not in {"go", "cargo", "dotnet"}
 
 
 @pytest.mark.skipif(_CARGO is None, reason="cargo not found")
 def test_rust_prepare_execute_argv_is_built_binary(monkeypatch) -> None:
-    argv = _execute_argv_after_prepare(monkeypatch, run_rust, "bank_system", 1, "stub")
+    argv = _execute_argv_after_prepare(monkeypatch, "rust")
     assert Path(argv[0]).name == "honepadrun"
     assert argv[0].endswith(str(Path("target") / "debug" / "honepadrun"))
 
 
 @pytest.mark.skipif(_DOTNET is None, reason="dotnet not found")
 def test_csharp_prepare_execute_argv_is_built_binary(monkeypatch) -> None:
-    argv = _execute_argv_after_prepare(monkeypatch, run_csharp, "bank_system", 1, "stub")
+    argv = _execute_argv_after_prepare(monkeypatch, "csharp")
     assert Path(argv[0]).name == "honepadrun"
     assert Path(argv[0]).name not in {"go", "cargo", "dotnet"}
 
@@ -1214,9 +1283,9 @@ def test_csharp_prepare_execute_argv_is_built_binary(monkeypatch) -> None:
 def test_go_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypatch) -> None:
     broken = tmp_path / "stub.go"
     broken.write_text("package main\nthis is not go\n", encoding="utf-8")
-    monkeypatch.setattr("honepad.runner.go_entry", lambda *_a, **_k: broken)
+    monkeypatch.setattr("honepad.runner.spec_src", lambda *_a, **_k: broken)
     with pytest.raises(RuntimeError) as excinfo:
-        run_go("bank_system", 1, "stub")
+        run("bank_system", "go", 1, "stub")
     msg = str(excinfo.value)
     assert "timed out" not in msg.lower()
     assert "30s" not in msg
@@ -1227,9 +1296,9 @@ def test_go_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypatch)
 def test_rust_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypatch) -> None:
     broken = tmp_path / "stub.rs"
     broken.write_text("this is not rust\n", encoding="utf-8")
-    monkeypatch.setattr("honepad.runner.rust_entry", lambda *_a, **_k: broken)
+    monkeypatch.setattr("honepad.runner.spec_src", lambda *_a, **_k: broken)
     with pytest.raises(RuntimeError) as excinfo:
-        run_rust("bank_system", 1, "stub")
+        run("bank_system", "rust", 1, "stub")
     msg = str(excinfo.value)
     assert "timed out" not in msg.lower()
     assert "30s" not in msg
@@ -1240,9 +1309,9 @@ def test_rust_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypatc
 def test_csharp_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypatch) -> None:
     broken = tmp_path / "stub.cs"
     broken.write_text("this is not csharp\n", encoding="utf-8")
-    monkeypatch.setattr("honepad.runner.csharp_entry", lambda *_a, **_k: broken)
+    monkeypatch.setattr("honepad.runner.spec_src", lambda *_a, **_k: broken)
     with pytest.raises(RuntimeError) as excinfo:
-        run_csharp("bank_system", 1, "stub")
+        run("bank_system", "csharp", 1, "stub")
     msg = str(excinfo.value)
     assert "timed out" not in msg.lower()
     assert "30s" not in msg

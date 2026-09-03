@@ -7,5 +7,23 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "julia"
+  "adapter": "julia",
+  "run": {
+    "kind": "script",
+    "solution": "solution.jl",
+    "stub": "stub.jl",
+    "tool": [
+      "julia"
+    ],
+    "tool_error": "julia not found",
+    "argv": [
+      "{{tool}}",
+      "{{pack}}/adapter.jl",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "julia"
+    ]
+  }
 }

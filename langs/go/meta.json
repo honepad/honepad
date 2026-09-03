@@ -8,5 +8,40 @@
     "ica"
   ],
   "ci": true,
-  "adapter": "go-run"
+  "adapter": "go-run",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.go",
+    "stub": "stub.go",
+    "copy": {
+      "adapter.go": "{{pack}}/adapter.go"
+    },
+    "src_as": "{{src_name}}",
+    "write": {
+      "ctor.go": "package main\nfunc NewTarget() any { return New{{class}}() }\n",
+      "go.mod": "module honepadrun\n\ngo 1.22\n"
+    },
+    "steps": [
+      {
+        "tool": [
+          "go"
+        ],
+        "argv": [
+          "{{tool}}",
+          "build",
+          "-o",
+          "run",
+          "."
+        ],
+        "fail": "go compile failed"
+      }
+    ],
+    "argv": [
+      "{{tmp}}/run",
+      "{{cases}}"
+    ],
+    "requires": [
+      "go"
+    ]
+  }
 }

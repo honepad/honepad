@@ -8,5 +8,61 @@
     "ica"
   ],
   "ci": true,
-  "adapter": "kotlinc"
+  "adapter": "kotlinc",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.kt",
+    "stub": "stub.kt",
+    "copy": {
+      "Adapter.kt": "{{pack}}/Adapter.kt",
+      "MiniJson.java": "{{langs}}/java/MiniJson.java"
+    },
+    "src_as": "solution.kt",
+    "steps": [
+      {
+        "tool": [
+          "javac"
+        ],
+        "argv": [
+          "{{tool}}",
+          "MiniJson.java"
+        ],
+        "fail": "javac failed"
+      },
+      {
+        "tool": [
+          "kotlinc",
+          "kotlinc-jvm"
+        ],
+        "tool_error": "kotlinc not found",
+        "argv": [
+          "{{tool}}",
+          "Adapter.kt",
+          "solution.kt",
+          "-classpath",
+          ".",
+          "-include-runtime",
+          "-d",
+          "run.jar"
+        ],
+        "fail": "kotlinc failed"
+      }
+    ],
+    "argv": [
+      "java",
+      "-cp",
+      "run.jar{{pathsep}}.",
+      "Adapter",
+      "{{cases}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "javac",
+      "java",
+      [
+        "kotlinc",
+        "kotlinc-jvm"
+      ]
+    ]
+  }
 }

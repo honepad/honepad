@@ -7,5 +7,26 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "gst"
+  "adapter": "gst",
+  "run": {
+    "kind": "script",
+    "solution": "solution.st",
+    "stub": "stub.st",
+    "tool": [
+      "gst"
+    ],
+    "tool_error": "gst not found",
+    "argv": [
+      "{{tool}}",
+      "-q",
+      "--no-user-files",
+      "{{pack}}/adapter.st",
+      "-a",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "gst"
+    ]
+  }
 }

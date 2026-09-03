@@ -350,7 +350,15 @@ def main() -> None:
             else:
                 stub.write_text(comment_stub(row["ext"], cls, methods), encoding="utf-8")
         meta = lang_dir / "meta.json"
-        meta.write_text(json.dumps(row, indent=2) + "\n", encoding="utf-8")
+        # The catalog row owns identity; the pack owns its run recipe. Merge so
+        # regenerating the catalog never drops langs/<id> run blocks.
+        merged = dict(row)
+        if meta.is_file():
+            existing = json.loads(meta.read_text(encoding="utf-8"))
+            for key, value in existing.items():
+                if key not in merged:
+                    merged[key] = value
+        meta.write_text(json.dumps(merged, indent=2) + "\n", encoding="utf-8")
 
     print(f"wrote {len(rows)} languages")
 

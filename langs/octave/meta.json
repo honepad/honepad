@@ -7,5 +7,34 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "octave"
+  "adapter": "octave",
+  "run": {
+    "kind": "script",
+    "solution": "solution.m",
+    "stub": "stub.m",
+    "tool": [
+      "octave",
+      "octave-cli"
+    ],
+    "tool_error": "octave not found",
+    "argv": [
+      "{{tool}}",
+      "--quiet",
+      "--no-gui",
+      "--no-window-system",
+      "--no-history",
+      "--norc",
+      "--path",
+      "{{pack}}",
+      "{{pack}}/adapter.m",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      [
+        "octave",
+        "octave-cli"
+      ]
+    ]
+  }
 }

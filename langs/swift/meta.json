@@ -8,5 +8,43 @@
     "ica"
   ],
   "ci": true,
-  "adapter": "swiftc"
+  "adapter": "swiftc",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.swift",
+    "stub": "stub.swift",
+    "copy": {
+      "Adapter.swift": "{{pack}}/Adapter.swift",
+      "Harness.swift": "{{pack}}/Harness.swift"
+    },
+    "src_as": "solution.swift",
+    "write": {
+      "ctor.swift": "func newTarget() -> Harness { return {{class}}() }\n"
+    },
+    "steps": [
+      {
+        "tool": [
+          "swiftc"
+        ],
+        "tool_error": "swiftc not found",
+        "argv": [
+          "{{tool}}",
+          "Adapter.swift",
+          "Harness.swift",
+          "ctor.swift",
+          "solution.swift",
+          "-o",
+          "run"
+        ],
+        "fail": "swiftc failed"
+      }
+    ],
+    "argv": [
+      "{{tmp}}/run",
+      "{{cases}}"
+    ],
+    "requires": [
+      "swiftc"
+    ]
+  }
 }

@@ -8,5 +8,22 @@
     "ica"
   ],
   "ci": true,
-  "adapter": "ruby"
+  "adapter": "ruby",
+  "run": {
+    "kind": "script",
+    "solution": "solution.rb",
+    "stub": "stub.rb",
+    "tool": [
+      "ruby"
+    ],
+    "argv": [
+      "{{tool}}",
+      "{{pack}}/adapter.rb",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "ruby"
+    ]
+  }
 }

@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import sys
 import time
 from typing import Any
 
 from honepad.catalog import language, language_ids, languages, problems, suggest_choice
 from honepad.console import cmd_console, cmd_vscode, loop_console
+from honepad.packspec import missing_tools
 from honepad.runner import _RUNNERS, run
 from honepad.session import (
     drop_level,
@@ -27,10 +27,15 @@ from honepad.session import (
     work_src,
 )
 from honepad.term import (
+    bold,
+    columns,
+    dim,
     invocation,
     paint_spec,
     print_complete,
     print_fail,
+    render_fail,
+    render_pass,
     spec_line,
     start_next,
     status_fail,
@@ -44,15 +49,32 @@ from honepad.traces import load_cases, method_name, problem_dir
 from honepad.workspace import refresh_workspace, workspace_dir, write_workspace
 
 
-def cmd_langs(_args: argparse.Namespace) -> int:
+def cmd_langs(args: argparse.Namespace) -> int:
     rows = languages()
-    print(f"{len(rows)} languages runner={len(_RUNNERS)}")
+    ready = set(_RUNNERS)
+    check = bool(getattr(args, "check", False))
+    print(f"{len(rows)} languages runner={len(ready)}")
     for row in rows:
+        lang_id = str(row["id"])
         suites = ",".join(row["suites"])
         ci = "ci" if row.get("ci") else "no-ci"
-        mark = "runner" if row["id"] in _RUNNERS else "no-runner"
-        print(f"{row['id']:16} {row['name']:22} {suites:20} {ci:12} {mark:12}")
+        mark = "runner" if lang_id in ready else "no-runner"
+        name = dim(f"{str(row['name']):22}")
+        line = f"{lang_id:16} {name} {suites:20} {ci:12} {mark:12}"
+        if check:
+            line = f"{line} {_toolchain_note(lang_id, lang_id in ready)}"
+        print(line.rstrip())
     return 0
+
+
+def _toolchain_note(lang_id: str, has_runner: bool) -> str:
+    """What `langs --check` says about this machine, not about the pack."""
+    if not has_runner:
+        return status_note("no-recipe")
+    missing = missing_tools(lang_id)
+    if not missing:
+        return status_ok("ready")
+    return status_fail("missing:" + ",".join(missing))
 
 
 def cmd_default(_args: argparse.Namespace) -> int:
@@ -96,12 +118,19 @@ def _runner_ids() -> list[str]:
     return [row["id"] for row in languages() if row["id"] in _RUNNERS]
 
 
-def _print_choices(title: str, items: list[str]) -> None:
-    print(f"{title}:")
-    width = len(str(len(items)))
-    for i, item in enumerate(items, 1):
-        print(f"  {i:>{width}}  {item}")
+def _print_choices(title: str, items: list[str], labels: list[str] | None = None) -> None:
+    print(bold(f"{title}:"))
+    for line in columns(labels if labels is not None else items):
+        print(line)
+    print(status_note("NOTE: pick a number, or type a name or its first letters. q leaves."))
     sys.stdout.flush()
+
+
+def _prefix_match(raw: str, items: list[str]) -> str | None:
+    hits = [item for item in items if item.startswith(raw)]
+    if len(hits) == 1:
+        return hits[0]
+    return None
 
 
 def _read_choice(items: list[str]) -> str | None:
@@ -118,11 +147,19 @@ def _read_choice(items: list[str]) -> str | None:
                 return items[n - 1]
         elif raw in items:
             return raw
+        else:
+            unique = _prefix_match(raw, items)
+            if unique is not None:
+                return unique
         print(status_fail(f"FAIL: not a choice: {raw}"))
         hint = suggest_choice(raw, items)
         if hint is not None:
             print(f"Did you mean {hint}?")
         sys.stdout.flush()
+
+
+def _problem_labels(opts: list[str]) -> list[str]:
+    return [f"{name} ({max_level(name)} levels)" for name in opts]
 
 
 def _fill_start_args(args: argparse.Namespace) -> bool:
@@ -135,7 +172,7 @@ def _fill_start_args(args: argparse.Namespace) -> bool:
         args.lang = picked
     if not args.problem:
         opts = problems()
-        _print_choices("problem", opts)
+        _print_choices("problem", opts, _problem_labels(opts))
         picked = _read_choice(opts)
         if picked is None:
             return False
@@ -167,15 +204,19 @@ def _is_lang_token(name: str) -> bool:
     return name in _RUNNERS or name in language_ids()
 
 
-def require_java_path(lang_id: str) -> None:
-    if lang_id != "java":
-        return
-    missing = next(
-        (name for name in ("javac", "java") if shutil.which(name) is None),
-        None,
-    )
-    if missing is not None:
-        raise RuntimeError(f"{missing} not on PATH")
+def require_tools(lang_id: str) -> None:
+    """Fail before the clock starts when the pack's toolchain is not installed.
+
+    Which binaries matter is the pack's own business: it lists them under
+    `run.requires` in langs/<id>/meta.json.
+    """
+    missing = missing_tools(lang_id)
+    if missing:
+        raise RuntimeError(f"{missing[0]} not on PATH")
+
+
+# Kept for callers that only ever meant the JDK.
+require_java_path = require_tools
 
 
 def _swap_start_lang_problem(args: argparse.Namespace) -> None:
@@ -342,7 +383,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         left = 0
         if session is not None and same:
             left = remaining_s(int(session["started_at"]), int(session["minutes"]))
-            print(f"remaining_s={left}")
+            print(status_note(f"remaining_s={left}"))
             if lang is not None:
                 try:
                     refresh_workspace(
@@ -379,18 +420,33 @@ def cmd_run(args: argparse.Namespace) -> int:
         if lang is not None and (kind == "work" or _is_work_file_problem(exc)):
             _print_work_notes(args.problem, lang)
         return 1
-    print(f"{report.problem} {report.lang} through LEVEL {report.level} passed={report.passed}")
+    total = report.passed + len(report.failed)
+    print(
+        f"{report.problem} {report.lang} through LEVEL {report.level} "
+        f"passed={report.passed} failed={len(report.failed)}"
+    )
     if report.failed:
         fail = report.failed[0]
         naming = str(language(lang)["naming"])
         shown = method_name(fail.method, naming)
         argv = ", ".join(repr(item) for item in fail.args)
         print(
-            status_fail(
-                f"FAIL {fail.case} call[{fail.index}] {shown}({argv}) "
-                f"expected={fail.expected!r} actual={fail.actual!r}"
+            render_fail(
+                problem=report.problem,
+                lang=report.lang,
+                level=report.level,
+                case=fail.case,
+                index=fail.index,
+                call=f"{shown}({argv})",
+                expected=repr(fail.expected),
+                actual=repr(fail.actual),
+                passed=report.passed,
+                total=total,
+                raised=_raised_type(fail.actual),
             )
         )
+        if len(report.failed) > 1:
+            print(status_note(f"NOTE: {len(report.failed) - 1} more failing cases not shown."))
         if kind == "work":
             _print_work_notes(args.problem, lang)
         return 1
@@ -399,6 +455,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         if kind == "work":
             _print_work_notes(args.problem, lang)
         return 1
+    print(render_pass(report.problem, report.lang, report.level, report.passed))
     may_unlock = bool(getattr(args, "unlock", False))
     if practice and session is not None and kind in ("solution", "work"):
         nxt = int(session["unlocked"]) + 1
@@ -482,6 +539,13 @@ def cmd_run(args: argparse.Namespace) -> int:
     if kind == "work":
         _print_work_notes(args.problem, lang)
     return 0
+
+
+def _raised_type(actual: Any) -> str | None:
+    """Every adapter reports a thrown call as the sentinel `exc:<Type>`."""
+    if isinstance(actual, str) and actual.startswith("exc:"):
+        return actual[len("exc:") :] or None
+    return None
 
 
 def _print_work_notes(problem: str, lang: str) -> None:
@@ -570,8 +634,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_default)
     sub = p.add_subparsers(dest="cmd", required=False)
 
-    langs = sub.add_parser("langs", help="list catalog")
-    langs.set_defaults(func=cmd_langs)
+    langs = sub.add_parser(
+        "langs",
+        help="list catalog",
+        description=(
+            "List the catalog. --check also probes this machine for each pack's "
+            "toolchain, as declared by run.requires in langs/<id>/meta.json."
+        ),
+    )
+    langs.add_argument(
+        "--check",
+        action="store_true",
+        help="probe PATH for each pack's toolchain",
+    )
+    langs.set_defaults(func=cmd_langs, check=False)
 
     start = sub.add_parser(
         "start",
