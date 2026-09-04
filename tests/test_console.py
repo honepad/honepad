@@ -2222,6 +2222,9 @@ def test_reset_prompt_offers_switch_as_the_non_destructive_move(
     out = stdout.getvalue()
     assert "6 switches problem without deleting" in out
     assert "Type back" not in out
+    # q at this prompt leaves the console; it does not merely cancel the reset,
+    # so the line must not promise that it does.
+    assert "q leaves the console" in out
 
 
 def test_reset_answers_still_work_after_the_rewording(monkeypatch, tmp_path: Path) -> None:
@@ -2340,3 +2343,36 @@ def test_dispatch_switch_without_an_input_stream_fails(monkeypatch, tmp_path: Pa
     stdout = io.StringIO()
     assert dispatch("6", session, stdout) == 1
     assert "switch needs an input stream" in stdout.getvalue()
+
+
+def test_q_at_the_reset_prompt_leaves_the_console(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = work_src("bank_system", "python3")
+    work.write_text("mine\n", encoding="utf-8")
+    capsys.readouterr()
+    # A second menu key after q would run if q only cancelled the reset.
+    monkeypatch.setattr(sys, "stdin", io.StringIO("3\nq\n4\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "OK: quit" in out
+    assert "# Bank system level 1" not in out
+    assert work.read_text(encoding="utf-8") == "mine\n"
+
+
+def test_a_bad_word_at_the_reset_prompt_keeps_the_console_open(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = work_src("bank_system", "python3")
+    work.write_text("mine\n", encoding="utf-8")
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("3\nnope\n4\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "type yes, back, or all" in out
+    assert "# Bank system level 1" in out
+    assert work.read_text(encoding="utf-8") == "mine\n"
