@@ -389,7 +389,9 @@ def level_dots(unlocked: int, total: int) -> str:
     if total <= 0 or not color_enabled():
         return ""
     filled = max(0, min(unlocked, total))
-    return paint("\u25cf" * filled, fg256(114)) + paint("\u25cb" * (total - filled), _DIM)
+    todo = total - filled
+    done = paint("\u25cf" * filled, fg256(114)) if filled else ""
+    return done + (paint("\u25cb" * todo, _DIM) if todo else "")
 
 
 def rule(label: str = "", width: int | None = None) -> str:

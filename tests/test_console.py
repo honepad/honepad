@@ -2000,6 +2000,16 @@ def test_level_dots_clamp_past_the_last_level(monkeypatch) -> None:
     assert level_dots(0, 0) == ""
 
 
+def test_level_dots_emit_no_empty_escape_pairs(monkeypatch) -> None:
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    full = level_dots(4, 4)
+    assert full.count("\x1b[0m") == 1
+    assert "\u25cb" not in full
+    assert level_dots(0, 4).count("\x1b[0m") == 1
+    assert meter(10, 10, cells=4).count("\x1b[0m") == 1
+
+
 def test_meter_is_ascii_without_color(monkeypatch) -> None:
     monkeypatch.setenv("NO_COLOR", "1")
     assert meter(5, 10, cells=10) == "[#####-----]"
