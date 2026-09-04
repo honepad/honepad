@@ -9,12 +9,19 @@ from pathlib import Path
 
 import pytest
 
-from honepad.catalog import repo_root
+from honepad.catalog import problems, repo_root
 from honepad.cli import main
-from honepad.console import _confirm_unlock, _read_choice, dispatch, loop_console, render_banner
+from honepad.console import (
+    _confirm_reset,
+    _confirm_unlock,
+    _read_choice,
+    dispatch,
+    loop_console,
+    render_banner,
+)
 from honepad.javatest import java_ident
 from honepad.pythontest import pytest_ident
-from honepad.session import ensure_work_copy, load_session, save_session
+from honepad.session import ensure_work_copy, load_session, save_session, work_src
 from honepad.term import (
     color_enabled,
     columns,
@@ -2177,3 +2184,159 @@ def test_console_help_follows_a_cleared_session(monkeypatch, tmp_path: Path, cap
     assert "2 replay" in out
     assert "2  replay" in out
     assert "2  submit" not in out
+
+
+def _session_at(tmp_path: Path, problem: str, lang: str, unlocked: int = 1) -> dict:
+    assert main(["start", problem, lang, "--reset", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = unlocked
+    save_session(session)
+    return session
+
+
+def test_reset_prompt_says_every_answer_deletes_the_work_file(monkeypatch, tmp_path: Path) -> None:
+    # yes, back and all all rewrite the work file from the stub. Only `yes`
+    # used to say so, which is how a "reset my progress" reading loses code.
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    session = _session_at(tmp_path, "bank_system", "python3", unlocked=2)
+    stdout = io.StringIO()
+    assert _confirm_reset(session, io.StringIO("q\n"), stdout) == "quit"
+    out = stdout.getvalue()
+    assert "This deletes what you wrote" in out
+    assert str(work_src("bank_system", "python3")) in out
+    assert "Type yes to delete it and stay at level 2." in out
+    assert "Type back to delete it and drop to level 1." in out
+    assert "Type all to delete it and start over at level 1." in out
+
+
+def test_reset_prompt_offers_switch_as_the_non_destructive_move(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    session = _session_at(tmp_path, "bank_system", "python3")
+    stdout = io.StringIO()
+    _confirm_reset(session, io.StringIO("q\n"), stdout)
+    out = stdout.getvalue()
+    assert "6 switches problem without deleting" in out
+    assert "Type back" not in out
+
+
+def test_reset_answers_still_work_after_the_rewording(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    session = _session_at(tmp_path, "bank_system", "python3", unlocked=2)
+    for typed, expect in (("yes", "work"), ("y", "work"), ("back", "back"), ("all", "all")):
+        assert _confirm_reset(session, io.StringIO(typed + "\n"), io.StringIO()) == expect
+    stdout = io.StringIO()
+    assert _confirm_reset(session, io.StringIO("maybe\n"), stdout) is False
+    assert "type yes, back, or all" in stdout.getvalue()
+
+
+def test_console_switch_changes_problem_and_keeps_every_work_file(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    bank = work_src("bank_system", "python3")
+    bank.write_text("mine\n", encoding="utf-8")
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("6\nfile_storage\n\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    session = load_session()
+    assert session is not None
+    assert session["problem"] == "file_storage"
+    assert session["lang"] == "python3"
+    assert bank.read_text(encoding="utf-8") == "mine\n"
+    assert work_src("file_storage", "python3").is_file()
+    assert "OK: file_storage python3 LEVEL 1" in out
+    # The banner has to follow the switch, not just the level.
+    assert "honepad  file_storage  python3" in out
+
+
+def test_console_switch_enter_keeps_the_current_language(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "ruby", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("6\nworkers\n\nq\n"))
+    assert main(["console"]) == 0
+    assert "Enter keeps ruby" in capsys.readouterr().out
+    session = load_session()
+    assert session is not None
+    assert (session["problem"], session["lang"]) == ("workers", "ruby")
+
+
+def test_console_switch_can_change_language_too(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("6\nworkers\nruby\nq\n"))
+    assert main(["console"]) == 0
+    session = load_session()
+    assert session is not None
+    assert (session["problem"], session["lang"]) == ("workers", "ruby")
+
+
+def test_console_switch_accepts_numbers_and_prefixes(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    problem_n = problems().index("file_storage") + 1
+    monkeypatch.setattr(sys, "stdin", io.StringIO(f"6\n{problem_n}\nrub\nq\n"))
+    assert main(["console"]) == 0
+    session = load_session()
+    assert session is not None
+    assert (session["problem"], session["lang"]) == ("file_storage", "ruby")
+
+
+def test_console_switch_cancelled_leaves_the_session_alone(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("6\nq\nq\n"))
+    assert main(["console"]) == 0
+    assert "OK: switch cancelled" in capsys.readouterr().out
+    session = load_session()
+    assert session is not None
+    assert session["problem"] == "bank_system"
+
+
+def test_console_switch_rejects_a_name_that_is_not_a_problem(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("6\nbank_sistem\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "not a choice: bank_sistem" in out
+    assert "Did you mean bank_system?" in out
+    assert load_session()["problem"] == "bank_system"
+
+
+def test_switch_warns_when_the_new_language_has_no_toolchain(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    session = _session_at(tmp_path, "bank_system", "python3")
+    monkeypatch.setattr("honepad.packspec.shutil.which", lambda _name: None)
+    stdout = io.StringIO()
+    assert dispatch("6", session, stdout, io.StringIO("workers\nrust\n")) == 0
+    out = stdout.getvalue()
+    assert "cargo not on PATH" in out
+    assert session["problem"] == "workers"
+
+
+def test_dispatch_switch_without_an_input_stream_fails(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    session = _session_at(tmp_path, "bank_system", "python3")
+    stdout = io.StringIO()
+    assert dispatch("6", session, stdout) == 1
+    assert "switch needs an input stream" in stdout.getvalue()
