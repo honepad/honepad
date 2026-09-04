@@ -7,5 +7,52 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "scalac"
+  "adapter": "scalac",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.scala",
+    "stub": "stub.scala",
+    "copy": {
+      "Adapter.scala": "{{pack}}/Adapter.scala",
+      "MiniJson.java": "{{langs}}/java/MiniJson.java"
+    },
+    "src_as": "solution.scala",
+    "steps": [
+      {
+        "tool": [
+          "javac"
+        ],
+        "argv": [
+          "{{tool}}",
+          "MiniJson.java"
+        ],
+        "fail": "javac failed"
+      },
+      {
+        "tool_hook": "scalac",
+        "argv": [
+          "{{tool}}",
+          "-classpath",
+          ".",
+          "Adapter.scala",
+          "solution.scala"
+        ],
+        "fail": "scalac failed"
+      }
+    ],
+    "tool_hook": "scala",
+    "argv": [
+      "{{tool}}",
+      "-nc",
+      "-classpath",
+      ".",
+      "Adapter",
+      "{{cases}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "javac",
+      "java"
+    ]
+  }
 }

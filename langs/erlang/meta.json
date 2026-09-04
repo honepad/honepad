@@ -7,5 +7,23 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "escript"
+  "adapter": "escript",
+  "run": {
+    "kind": "script",
+    "solution": "solution.erl",
+    "stub": "stub.erl",
+    "tool": [
+      "escript"
+    ],
+    "tool_error": "escript not found",
+    "argv": [
+      "{{tool}}",
+      "{{pack}}/adapter.erl",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "escript"
+    ]
+  }
 }

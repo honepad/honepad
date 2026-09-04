@@ -7,5 +7,67 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "gfortran"
+  "adapter": "gfortran",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.f90",
+    "stub": "stub.f90",
+    "copy": {
+      "adapter.f90": "{{pack}}/adapter.f90",
+      "honepad_json.f90": "{{pack}}/honepad_json.f90",
+      "minijson.c": "{{pack}}/minijson.c",
+      "minijson.h": "{{pack}}/minijson.h",
+      "json_bridge.c": "{{pack}}/json_bridge.c"
+    },
+    "src_as": "solution.f90",
+    "steps": [
+      {
+        "tool": [
+          "cc",
+          "gcc",
+          "clang"
+        ],
+        "tool_error": "c compiler not found",
+        "argv": [
+          "{{tool}}",
+          "-std=c11",
+          "-O0",
+          "-c",
+          "minijson.c",
+          "json_bridge.c"
+        ],
+        "fail": "c json helper compile failed"
+      },
+      {
+        "tool": [
+          "gfortran"
+        ],
+        "tool_error": "gfortran not found",
+        "argv": [
+          "{{tool}}",
+          "-O0",
+          "-o",
+          "run",
+          "minijson.o",
+          "json_bridge.o",
+          "honepad_json.f90",
+          "solution.f90",
+          "adapter.f90"
+        ],
+        "fail": "gfortran compile failed"
+      }
+    ],
+    "argv": [
+      "{{tmp}}/run",
+      "{{cases}}"
+    ],
+    "requires": [
+      [
+        "cc",
+        "gcc",
+        "clang"
+      ],
+      "gfortran"
+    ]
+  }
 }

@@ -7,5 +7,31 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "lua"
+  "adapter": "lua",
+  "run": {
+    "kind": "script",
+    "solution": "solution.lua",
+    "stub": "stub.lua",
+    "tool": [
+      "lua",
+      "lua5.5",
+      "lua5.4",
+      "lua5.3"
+    ],
+    "tool_error": "lua not found",
+    "argv": [
+      "{{tool}}",
+      "{{pack}}/adapter.lua",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      [
+        "lua",
+        "lua5.5",
+        "lua5.4",
+        "lua5.3"
+      ]
+    ]
+  }
 }

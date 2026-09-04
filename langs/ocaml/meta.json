@@ -7,5 +7,43 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "ocamlopt"
+  "adapter": "ocamlopt",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.ml",
+    "stub": "stub.ml",
+    "copy": {
+      "adapter.ml": "{{pack}}/adapter.ml",
+      "minijson.ml": "{{pack}}/minijson.ml"
+    },
+    "src_as": "solution.ml",
+    "steps": [
+      {
+        "tool": [
+          "ocamlopt",
+          "ocamlc"
+        ],
+        "tool_error": "ocamlopt not found",
+        "argv": [
+          "{{tool}}",
+          "-o",
+          "run",
+          "minijson.ml",
+          "solution.ml",
+          "adapter.ml"
+        ],
+        "fail": "ocaml compile failed"
+      }
+    ],
+    "argv": [
+      "{{tmp}}/run",
+      "{{cases}}"
+    ],
+    "requires": [
+      [
+        "ocamlopt",
+        "ocamlc"
+      ]
+    ]
+  }
 }

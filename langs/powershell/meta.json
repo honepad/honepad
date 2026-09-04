@@ -7,5 +7,25 @@
     "extra"
   ],
   "ci": true,
-  "adapter": "pwsh"
+  "adapter": "pwsh",
+  "run": {
+    "kind": "script",
+    "solution": "solution.ps1",
+    "stub": "stub.ps1",
+    "tool": [
+      "pwsh"
+    ],
+    "tool_error": "pwsh not found",
+    "argv": [
+      "{{tool}}",
+      "-NoProfile",
+      "-File",
+      "{{pack}}/adapter.ps1",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "pwsh"
+    ]
+  }
 }

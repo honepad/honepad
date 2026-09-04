@@ -26,14 +26,18 @@ from honepad.session import (
 from honepad.term import (
     accent,
     clock_style,
+    dim,
     file_link,
     format_clock,
     gradient,
     invocation,
+    level_dots,
     paint_spec,
     print_fail,
+    render_help,
     render_keys,
     render_prompt,
+    rule,
     spec_line,
     status_fail,
     status_note,
@@ -54,13 +58,18 @@ def render_banner(session: dict[str, Any], now: int | None = None) -> str:
     problem = str(session["problem"])
     lang = str(session["lang"])
     unlocked = int(session["unlocked"])
+    top = max_level(problem)
     left = remaining_s(int(session["started_at"]), int(session["minutes"]), now)
     work = work_src(problem, lang)
     title = gradient("honepad", (94, 234, 212), (56, 189, 248))
-    level = accent(f"LEVEL {unlocked}")
+    level = accent(f"LEVEL {unlocked}/{top}")
     clock = clock_style(left, format_clock(left))
+    dots = level_dots(unlocked, top)
+    head = f"{title}  {problem}  {lang}  {level}"
+    if dots:
+        head = f"{head}  {dots}"
     lines = [
-        f"{title}  {problem}  {lang}  {level}  remaining_s={left}  [{clock}]",
+        f"{head}  [{clock}]  {dim(f'remaining_s={left}')}",
         work_line(work),
         render_keys(last_level=bool(session.get("cleared"))),
     ]
@@ -223,7 +232,7 @@ def loop_console(
                         continue
             stdout.write("\n")
             last = dispatch(choice, session, stdout)
-            stdout.write("\n")
+            stdout.write("\n" + rule() + "\n")
     except KeyboardInterrupt:
         stdout.write("\nOK: quit\n")
         stdout.flush()
@@ -248,6 +257,10 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
             return _reset_work(session, stdout)
         if choice in {"4", "spec"}:
             return _print_spec(problem, unlocked, stdout)
+        if choice in {"?", "h", "help"}:
+            stdout.write(render_help() + "\n")
+            stdout.flush()
+            return 0
         if choice in {"5", "vscode", "code"}:
             ensure_work_copy(problem, lang, reset=False, level=unlocked)
             path = write_workspace(problem, lang, unlocked, cleared=bool(session.get("cleared")))
@@ -262,6 +275,7 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
             return open_vscode(path)
         stdout.write(status_fail(f"FAIL: unknown option {choice!r}") + "\n")
         stdout.write(f"Keys: {render_keys(last_level=bool(session.get('cleared')))}\n")
+        stdout.write(status_note("NOTE: ? prints what each key does.") + "\n")
         stdout.flush()
         return 1
     except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:

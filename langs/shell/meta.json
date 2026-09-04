@@ -7,5 +7,22 @@
     "extra"
   ],
   "ci": true,
-  "adapter": "bash"
+  "adapter": "bash",
+  "run": {
+    "kind": "script",
+    "solution": "solution.sh",
+    "stub": "stub.sh",
+    "tool": [
+      "bash"
+    ],
+    "argv": [
+      "{{tool}}",
+      "{{langs}}/bash/adapter.sh",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "bash"
+    ]
+  }
 }

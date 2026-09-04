@@ -7,5 +7,39 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "nim"
+  "adapter": "nim",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.nim",
+    "stub": "stub.nim",
+    "copy": {
+      "adapter.nim": "{{pack}}/adapter.nim"
+    },
+    "src_as": "solution.nim",
+    "steps": [
+      {
+        "tool": [
+          "nim"
+        ],
+        "tool_error": "nim not found",
+        "argv": [
+          "{{tool}}",
+          "c",
+          "--hints:off",
+          "--warnings:off",
+          "--nimcache:{{tmp}}/nimcache",
+          "-o:run",
+          "adapter.nim"
+        ],
+        "fail": "nim compile failed"
+      }
+    ],
+    "argv": [
+      "{{tmp}}/run",
+      "{{cases}}"
+    ],
+    "requires": [
+      "nim"
+    ]
+  }
 }

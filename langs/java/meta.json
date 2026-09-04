@@ -8,5 +8,40 @@
     "ica"
   ],
   "ci": true,
-  "adapter": "javac"
+  "adapter": "javac",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.java",
+    "stub": "stub.java",
+    "copy": {
+      "Adapter.java": "{{pack}}/Adapter.java",
+      "MiniJson.java": "{{pack}}/MiniJson.java"
+    },
+    "src_as": "{{class}}.java",
+    "steps": [
+      {
+        "tool": [
+          "javac"
+        ],
+        "argv": [
+          "{{tool}}",
+          "Adapter.java",
+          "MiniJson.java",
+          "{{class}}.java"
+        ],
+        "fail": "javac failed"
+      }
+    ],
+    "argv": [
+      "java",
+      "Adapter",
+      "{{cases}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "javac",
+      "java"
+    ],
+    "on_missing_tools": "block"
+  }
 }

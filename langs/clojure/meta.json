@@ -7,5 +7,23 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "clojure"
+  "adapter": "clojure",
+  "run": {
+    "kind": "script",
+    "solution": "solution.clj",
+    "stub": "stub.clj",
+    "tool_hook": "clojure",
+    "argv": [
+      "{{tool}}",
+      "{{pack}}/adapter.clj",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      [
+        "clojure",
+        "java"
+      ]
+    ]
+  }
 }

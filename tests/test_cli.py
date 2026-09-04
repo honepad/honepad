@@ -5,9 +5,10 @@ from pathlib import Path
 
 import pytest
 
+from honepad import packspec
 from honepad.catalog import languages, problems
 from honepad.cli import build_parser, main
-from honepad.runner import _RUNNERS, _nim_c_argv, run_prepare_cmd
+from honepad.runner import _RUNNERS, run_prepare_cmd
 from honepad.session import load_session
 from honepad.term import invocation
 
@@ -99,6 +100,93 @@ def test_langs_runner_column_matches_dispatch_table(capsys) -> None:
     for lang_id in catalog_ids:
         markers = [tok for tok in by_id[lang_id] if tok in ("runner", "no-runner")]
         assert markers == (["runner"] if lang_id in _RUNNERS else ["no-runner"]), lang_id
+
+
+def test_langs_check_reports_toolchain_readiness(monkeypatch, capsys) -> None:
+    monkeypatch.setattr("honepad.packspec.shutil.which", lambda _name: None)
+    assert main(["langs", "--check"]) == 0
+    out = capsys.readouterr().out
+    _header, lang_lines = _langs_header_and_rows(out)
+    by_id = {line.split()[0]: line.split() for line in lang_lines}
+    assert "missing:javac,java" in by_id["java"]
+    assert "missing:cc" in by_id["c"]
+    assert "no-recipe" in by_id[UNIMPLEMENTED_CATALOG_LANG]
+    assert "ready" in by_id["python3"]
+
+
+def test_langs_check_says_ready_when_the_toolchain_is_there(monkeypatch, capsys) -> None:
+    monkeypatch.setattr("honepad.packspec.shutil.which", lambda name: f"/usr/bin/{name}")
+    assert main(["langs", "--check"]) == 0
+    _header, lang_lines = _langs_header_and_rows(capsys.readouterr().out)
+    by_id = {line.split()[0]: line.split() for line in lang_lines}
+    assert "ready" in by_id["java"]
+    assert "ready" in by_id["kotlin"]
+
+
+def test_langs_without_check_does_not_probe_path(monkeypatch, capsys) -> None:
+    def _boom(_name):
+        raise AssertionError("langs must not probe PATH without --check")
+
+    monkeypatch.setattr("honepad.packspec.shutil.which", _boom)
+    assert main(["langs"]) == 0
+    assert "ready" not in capsys.readouterr().out
+
+
+def test_start_warns_when_the_packs_toolchain_is_missing(monkeypatch, tmp_path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+
+    def _which(name: str, mode: int = 0, path: str | None = None) -> str | None:
+        return None if name == "cargo" else f"/usr/bin/{name}"
+
+    monkeypatch.setattr("honepad.packspec.shutil.which", _which)
+    assert main(["start", "bank_system", "rust", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert "cargo not on PATH" in out
+    assert "run fails until it is installed" in out
+    # The spec and the work file are useful before the compiler is.
+    assert session_file.is_file()
+
+
+def test_start_blocks_when_the_pack_says_block(monkeypatch, tmp_path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+
+    def _which(name: str, mode: int = 0, path: str | None = None) -> str | None:
+        return None if name == "javac" else f"/usr/bin/{name}"
+
+    monkeypatch.setattr("honepad.packspec.shutil.which", _which)
+    assert packspec.on_missing_tools("java") == "block"
+    assert main(["start", "bank_system", "java", "--no-console"]) == 1
+    out = capsys.readouterr().out
+    assert "javac not on PATH" in out
+    assert not session_file.is_file()
+
+
+def test_warn_is_the_default_missing_tools_policy() -> None:
+    blocking = [lang_id for lang_id in _RUNNERS if packspec.on_missing_tools(lang_id) == "block"]
+    assert blocking == ["java"]
+
+
+def test_start_slices_a_work_file_without_any_toolchain(monkeypatch, tmp_path, capsys) -> None:
+    # What CI's unit shard does: no compilers installed, but start must still
+    # hand back a work file. Only a pack that opted into block may refuse.
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setattr("honepad.packspec.shutil.which", lambda _name: None)
+    for lang in ("rust", "kotlin", "haskell", "swift", "go"):
+        assert main(["start", "bank_system", lang, "--reset", "--no-console"]) == 0, lang
+        capsys.readouterr()
+
+
+def test_start_accepts_any_member_of_a_tool_group(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+
+    def _which(name: str, mode: int = 0, path: str | None = None) -> str | None:
+        return "/usr/bin/clang" if name == "clang" else None
+
+    monkeypatch.setattr("honepad.packspec.shutil.which", _which)
+    assert main(["start", "bank_system", "c", "--no-console"]) == 0
+    assert "not on PATH" not in capsys.readouterr().out
 
 
 def test_run_bank(monkeypatch, tmp_path, capsys) -> None:
@@ -358,7 +446,7 @@ def test_run_unknown_lang_js_suggests_javascript(monkeypatch, tmp_path, capsys) 
 
 def test_start_picker_typo_reprompts(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
-    _tty_stdin(monkeypatch, "python\npython3\nbank_system\n")
+    _tty_stdin(monkeypatch, "pyton\npython3\nbank_system\n")
     assert main(["start", "--no-console"]) == 0
     out = capsys.readouterr().out
     session = load_session()
@@ -368,6 +456,38 @@ def test_start_picker_typo_reprompts(monkeypatch, tmp_path, capsys) -> None:
     assert "not a choice" in out
     assert "Did you mean python3?" in out
     assert "OK: LEVEL" in out
+
+
+def test_start_picker_accepts_unique_prefix(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "kot\nfile_st\n")
+    assert main(["start", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "kotlin"
+    assert session["problem"] == "file_storage"
+    assert "not a choice" not in out
+
+
+def test_start_picker_ambiguous_prefix_reprompts(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "f\nfortran\nworkers\n")
+    assert main(["start", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "fortran"
+    assert "not a choice: f" in out
+
+
+def test_start_picker_lists_problem_level_counts(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "python3\nworkers\n")
+    assert main(["start", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert "bank_system (4 levels)" in out
+    assert "workers (3 levels)" in out
 
 
 def test_start_picker_problem_typo_does_not_suggest_language(monkeypatch, tmp_path, capsys) -> None:
@@ -597,7 +717,10 @@ def test_run_prepare_cmd_missing_binary_raises(tmp_path: Path) -> None:
 
 
 def test_nim_compile_uses_private_nimcache(tmp_path: Path) -> None:
-    argv = _nim_c_argv(tmp_path, nim_bin="nim")
+    spec = packspec.run_spec("nim")
+    assert spec is not None
+    ctx = packspec.context("nim", class_name="Simulation", src=tmp_path / "s.nim", tmpdir=tmp_path)
+    argv = packspec.step_argv(spec["steps"][0], ctx, ["nim"])
     cache = tmp_path / "nimcache"
     assert f"--nimcache:{cache}" in argv
 

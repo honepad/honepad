@@ -8,5 +8,22 @@
     "ica"
   ],
   "ci": true,
-  "adapter": "php"
+  "adapter": "php",
+  "run": {
+    "kind": "script",
+    "solution": "solution.php",
+    "stub": "stub.php",
+    "tool": [
+      "php"
+    ],
+    "argv": [
+      "{{tool}}",
+      "{{pack}}/adapter.php",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "php"
+    ]
+  }
 }

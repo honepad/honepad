@@ -7,5 +7,23 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "elixir"
+  "adapter": "elixir",
+  "run": {
+    "kind": "script",
+    "solution": "solution.ex",
+    "stub": "stub.ex",
+    "tool": [
+      "elixir"
+    ],
+    "tool_error": "elixir not found",
+    "argv": [
+      "{{tool}}",
+      "{{pack}}/adapter.exs",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "elixir"
+    ]
+  }
 }

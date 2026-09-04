@@ -9,5 +9,12 @@
     "ml"
   ],
   "ci": true,
-  "adapter": "python-import"
+  "adapter": "python-import",
+  "run": {
+    "kind": "hook",
+    "hook": "python",
+    "solution": "solution.py",
+    "stub": "stub.py",
+    "requires": []
+  }
 }

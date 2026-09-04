@@ -7,5 +7,24 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "sbcl"
+  "adapter": "sbcl",
+  "run": {
+    "kind": "script",
+    "solution": "solution.lisp",
+    "stub": "stub.lisp",
+    "tool": [
+      "sbcl"
+    ],
+    "tool_error": "sbcl not found",
+    "argv": [
+      "{{tool}}",
+      "--script",
+      "{{pack}}/adapter.lisp",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "sbcl"
+    ]
+  }
 }

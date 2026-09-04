@@ -8,5 +8,22 @@
     "ica"
   ],
   "ci": true,
-  "adapter": "node"
+  "adapter": "node",
+  "run": {
+    "kind": "script",
+    "solution": "solution.js",
+    "stub": "stub.js",
+    "tool": [
+      "node"
+    ],
+    "argv": [
+      "{{tool}}",
+      "{{pack}}/adapter.js",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "node"
+    ]
+  }
 }

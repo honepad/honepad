@@ -8,5 +8,51 @@
     "ica"
   ],
   "ci": true,
-  "adapter": "g++"
+  "adapter": "g++",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.cpp",
+    "stub": "stub.cpp",
+    "copy": {
+      "adapter.cpp": "{{pack}}/adapter.cpp",
+      "minijson.hpp": "{{pack}}/minijson.hpp",
+      "harness.hpp": "{{pack}}/harness.hpp"
+    },
+    "src_as": "solution.cpp",
+    "write": {
+      "ctor.cpp": "#include \"harness.hpp\"\n#include \"solution.cpp\"\n\nHarness* new_target() { return new {{class}}(); }\n"
+    },
+    "steps": [
+      {
+        "tool": [
+          "c++",
+          "g++",
+          "clang++"
+        ],
+        "tool_error": "c++ compiler not found",
+        "argv": [
+          "{{tool}}",
+          "-std=c++17",
+          "-O0",
+          "adapter.cpp",
+          "ctor.cpp",
+          "solution.cpp",
+          "-o",
+          "run"
+        ],
+        "fail": "c++ compile failed"
+      }
+    ],
+    "argv": [
+      "{{tmp}}/run",
+      "{{cases}}"
+    ],
+    "requires": [
+      [
+        "c++",
+        "g++",
+        "clang++"
+      ]
+    ]
+  }
 }

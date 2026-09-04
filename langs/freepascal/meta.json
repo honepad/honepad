@@ -7,5 +7,37 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "fpc"
+  "adapter": "fpc",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.pas",
+    "stub": "stub.pas",
+    "copy": {
+      "adapter.pas": "{{pack}}/adapter.pas",
+      "minijson.pas": "{{pack}}/minijson.pas"
+    },
+    "src_as": "solution.pas",
+    "steps": [
+      {
+        "tool": [
+          "fpc"
+        ],
+        "tool_error": "fpc not found",
+        "argv": [
+          "{{tool}}",
+          "-O-",
+          "-orun",
+          "adapter.pas"
+        ],
+        "fail": "fpc compile failed"
+      }
+    ],
+    "argv": [
+      "{{tmp}}/run",
+      "{{cases}}"
+    ],
+    "requires": [
+      "fpc"
+    ]
+  }
 }

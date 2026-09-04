@@ -7,5 +7,53 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "gcc"
+  "adapter": "gcc",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.c",
+    "stub": "stub.c",
+    "copy": {
+      "adapter.c": "{{pack}}/adapter.c",
+      "minijson.h": "{{pack}}/minijson.h",
+      "minijson.c": "{{pack}}/minijson.c",
+      "harness.h": "{{pack}}/harness.h"
+    },
+    "src_as": "solution.c",
+    "write": {
+      "ctor.c": "#include \"harness.h\"\n#include \"solution.c\"\n\nHonepadTarget *new_target(void) { return {{class}}_new(); }\n"
+    },
+    "steps": [
+      {
+        "tool": [
+          "cc",
+          "gcc",
+          "clang"
+        ],
+        "tool_error": "c compiler not found",
+        "argv": [
+          "{{tool}}",
+          "-std=c11",
+          "-O0",
+          "adapter.c",
+          "minijson.c",
+          "solution.c",
+          "ctor.c",
+          "-o",
+          "run"
+        ],
+        "fail": "c compile failed"
+      }
+    ],
+    "argv": [
+      "{{tmp}}/run",
+      "{{cases}}"
+    ],
+    "requires": [
+      [
+        "cc",
+        "gcc",
+        "clang"
+      ]
+    ]
+  }
 }

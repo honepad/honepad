@@ -7,5 +7,35 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "coffee"
+  "adapter": "coffee",
+  "run": {
+    "kind": "script",
+    "solution": "solution.coffee",
+    "stub": "stub.coffee",
+    "tool": [
+      [
+        "coffee"
+      ],
+      [
+        "npx",
+        "--yes",
+        "-p",
+        "coffeescript@2.7.0",
+        "coffee"
+      ]
+    ],
+    "tool_error": "coffee not found",
+    "argv": [
+      "{{tool}}",
+      "{{pack}}/adapter.coffee",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      [
+        "coffee",
+        "npx"
+      ]
+    ]
+  }
 }

@@ -7,5 +7,40 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "dotnet"
+  "adapter": "dotnet",
+  "run": {
+    "kind": "compiled",
+    "solution": "solution.fs",
+    "stub": "stub.fs",
+    "copy": {
+      "Adapter.fs": "{{pack}}/Adapter.fs",
+      "honepadrun.fsproj": "{{pack}}/honepadrun.fsproj"
+    },
+    "src_as": "Solution.fs",
+    "env_hook": "dotnet",
+    "steps": [
+      {
+        "tool": [
+          "dotnet"
+        ],
+        "argv": [
+          "{{tool}}",
+          "build",
+          "-o",
+          "out",
+          "--verbosity",
+          "quiet"
+        ],
+        "fail": "dotnet compile failed"
+      }
+    ],
+    "argv": [
+      "{{tmp}}/out/honepadrun",
+      "{{cases}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "dotnet"
+    ]
+  }
 }

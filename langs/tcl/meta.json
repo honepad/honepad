@@ -7,5 +7,29 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "tclsh"
+  "adapter": "tclsh",
+  "run": {
+    "kind": "script",
+    "solution": "solution.tcl",
+    "stub": "stub.tcl",
+    "tool": [
+      "tclsh",
+      "tclsh8.6",
+      "tclsh8.7"
+    ],
+    "tool_error": "tclsh not found",
+    "argv": [
+      "{{tool}}",
+      "{{pack}}/adapter.tcl",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      [
+        "tclsh",
+        "tclsh8.6",
+        "tclsh8.7"
+      ]
+    ]
+  }
 }

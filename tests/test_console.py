@@ -17,16 +17,24 @@ from honepad.pythontest import pytest_ident
 from honepad.session import ensure_work_copy, load_session, save_session
 from honepad.term import (
     color_enabled,
+    columns,
     file_link,
     file_uri,
     firework_frame,
     format_clock,
+    home_short,
+    level_dots,
+    meter,
     paint_spec,
     play_firework,
     print_complete,
+    render_fail,
+    render_help,
     render_menu,
+    render_pass,
     render_prompt,
     spec_line,
+    term_width,
 )
 from honepad.traces import load_cases
 from honepad.workspace import _link_or_copy, open_vscode, write_workspace
@@ -381,6 +389,90 @@ def test_prompt_is_clock_and_level_only(monkeypatch) -> None:
     assert text == "[01:05] LEVEL 2"
     assert "1 run" not in text
     assert "quit" not in text
+
+
+def test_banner_shows_level_out_of_total(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    session = {
+        "problem": "workers",
+        "lang": "python3",
+        "started_at": 100,
+        "minutes": 90,
+        "unlocked": 2,
+    }
+    text = render_banner(session, now=100)
+    assert "LEVEL 2/3" in text
+
+
+def test_banner_dots_only_when_color_is_on(monkeypatch) -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 100,
+        "minutes": 90,
+        "unlocked": 2,
+    }
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert "\u25cf" not in render_banner(session, now=100)
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    lit = render_banner(session, now=100)
+    assert "\u25cf\u25cf" in lit
+    assert "\u25cb\u25cb" in lit
+
+
+def test_banner_keeps_remaining_s_for_agents(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 100,
+        "minutes": 90,
+        "unlocked": 1,
+    }
+    assert "remaining_s=5400" in render_banner(session, now=100)
+
+
+def test_banner_offers_help_key() -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 100,
+        "minutes": 90,
+        "unlocked": 1,
+    }
+    assert "? help" in render_banner(session)
+
+
+def test_console_help_key_prints_every_key(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("?\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "unlock the next level" in out
+    assert "restarts at level 1" in out
+    assert "NO_COLOR" in out
+    assert "passed=" not in out
+    assert "OK: quit" in out
+
+
+def test_console_unknown_key_points_at_help(monkeypatch, tmp_path: Path) -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "python3",
+        "started_at": 100,
+        "minutes": 90,
+        "unlocked": 1,
+    }
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    stdout = io.StringIO()
+    assert dispatch("z", session, stdout) == 1
+    out = stdout.getvalue()
+    assert "unknown option" in out
+    assert "? prints what each key does" in out
 
 
 def test_banner_includes_menu_keys() -> None:
@@ -1873,3 +1965,171 @@ def test_workspace_run_task_kind_work_mismatch_does_not_replay_solution(
     session = load_session()
     assert session is not None
     assert session["problem"] == "workers"
+
+
+def test_home_short_folds_the_home_prefix(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    assert home_short(tmp_path / ".honepad" / "work.py") == "~/.honepad/work.py"
+    assert home_short("/elsewhere/work.py") == "/elsewhere/work.py"
+    assert home_short(tmp_path) == "~"
+
+
+def test_home_short_does_not_fold_a_sibling_of_home(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "me"))
+    assert home_short(tmp_path / "meet" / "work.py") == str(tmp_path / "meet" / "work.py")
+
+
+def test_file_link_label_is_home_short(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    target = tmp_path / ".honepad" / "work.py"
+    text = file_link(target)
+    assert "~/.honepad/work.py" in text
+    assert file_uri(target) in text
+
+
+def test_level_dots_are_empty_without_color(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert level_dots(2, 4) == ""
+
+
+def test_level_dots_clamp_past_the_last_level(monkeypatch) -> None:
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    assert level_dots(9, 4).count("\u25cf") == 4
+    assert level_dots(9, 4).count("\u25cb") == 0
+    assert level_dots(0, 0) == ""
+
+
+def test_level_dots_emit_no_empty_escape_pairs(monkeypatch) -> None:
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    full = level_dots(4, 4)
+    assert full.count("\x1b[0m") == 1
+    assert "\u25cb" not in full
+    assert level_dots(0, 4).count("\x1b[0m") == 1
+    assert meter(10, 10, cells=4).count("\x1b[0m") == 1
+
+
+def test_meter_is_ascii_without_color(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert meter(5, 10, cells=10) == "[#####-----]"
+    assert meter(10, 10, cells=10) == "[##########]"
+    assert meter(0, 0) == ""
+
+
+def test_render_pass_keeps_the_level_and_count(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    text = render_pass("bank_system", "java", 2, 13)
+    assert "PASS  bank_system java LEVEL 2" in text
+    assert "13 traces" in text
+    assert "1 traces" not in text
+
+
+def test_render_pass_says_trace_once(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert "1 trace " in render_pass("bank_system", "java", 1, 1)
+
+
+def test_render_fail_keeps_the_greppable_tokens(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    text = render_fail(
+        problem="bank_system",
+        lang="java",
+        level=2,
+        case="l2-top",
+        index=7,
+        call="topSpenders(9, 3)",
+        expected="True",
+        actual="False",
+        passed=11,
+        total=13,
+    )
+    assert "FAIL " in text
+    assert "expected=True" in text
+    assert "actual=False" in text
+    assert "topSpenders(9, 3)" in text
+    assert "l2-top" in text
+    assert "call #7" in text
+    assert "2 cases short" in text
+    assert "11/13 traces" in text
+
+
+def test_render_fail_counts_one_case_singular(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    text = render_fail(
+        problem="workers",
+        lang="python3",
+        level=1,
+        case="l1-a",
+        index=0,
+        call="add_worker(1, 'w')",
+        expected="None",
+        actual="0",
+        passed=4,
+        total=5,
+    )
+    assert "1 case short" in text
+
+
+def test_columns_number_down_each_column(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    rows = columns(["a", "b", "c", "d"], width=14, indent="")
+    assert rows == ["1  a  3  c", "2  b  4  d"]
+
+
+def test_columns_fall_back_to_one_per_row_when_narrow(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    rows = columns(["alpha", "beta"], width=1, indent="")
+    assert rows == ["1  alpha", "2  beta"]
+    assert columns([]) == []
+
+
+def test_term_width_is_clamped(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "honepad.term.shutil.get_terminal_size", lambda _d: os.terminal_size((9, 2))
+    )
+    assert term_width() == 40
+    monkeypatch.setattr(
+        "honepad.term.shutil.get_terminal_size", lambda _d: os.terminal_size((500, 2))
+    )
+    assert term_width() == 120
+
+
+def test_render_fail_explains_the_exception_sentinel(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    args = dict(
+        problem="bank_system",
+        lang="python3",
+        level=1,
+        case="l1-create",
+        index=0,
+        call="create_account(1, 'acc1')",
+        expected="True",
+        actual="'exc:NotImplementedError'",
+        passed=0,
+        total=6,
+    )
+    plain = render_fail(**args)
+    assert "raised" not in plain
+    told = render_fail(**args, raised="NotImplementedError")
+    assert "the call raised NotImplementedError instead of returning" in told
+    assert "actual='exc:NotImplementedError'" in told
+
+
+def test_render_help_leaves_the_closing_rule_to_the_caller(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    text = render_help()
+    assert text.startswith("-- keys")
+    assert not text.rstrip().endswith("--")
+
+
+def test_fresh_stub_run_explains_why_every_case_failed(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    assert main(["run", "bank_system"]) == 1
+    out = capsys.readouterr().out
+    assert "the call raised NotImplementedError instead of returning" in out
+    assert "cases short" in out
+    assert "more failing cases not shown" in out

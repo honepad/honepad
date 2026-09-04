@@ -7,5 +7,22 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "perl"
+  "adapter": "perl",
+  "run": {
+    "kind": "script",
+    "solution": "solution.pl",
+    "stub": "stub.pl",
+    "tool": [
+      "perl"
+    ],
+    "argv": [
+      "{{tool}}",
+      "{{pack}}/adapter.pl",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "perl"
+    ]
+  }
 }

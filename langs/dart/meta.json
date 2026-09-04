@@ -7,5 +7,24 @@
     "gca"
   ],
   "ci": true,
-  "adapter": "dart"
+  "adapter": "dart",
+  "run": {
+    "kind": "script",
+    "solution": "solution.dart",
+    "stub": "stub.dart",
+    "tool": [
+      "dart"
+    ],
+    "tool_error": "dart not found",
+    "argv": [
+      "{{tool}}",
+      "run",
+      "{{pack}}/adapter.dart",
+      "{{src}}",
+      "{{class}}"
+    ],
+    "requires": [
+      "dart"
+    ]
+  }
 }
