@@ -121,6 +121,11 @@ a group is satisfied when any member is on PATH:
 Leave out tools a hook installs on demand (Scala) or that are the host itself
 (Python 3).
 
+A missing toolchain only warns: a work file and a spec are useful before the
+compiler is, and `run` fails clearly enough on its own. A pack that would rather
+not start at all sets `"on_missing_tools": "block"`. Only Java does, because a
+missing JDK used to surface as a confusing `javac` error.
+
 ## Done means green
 
 Traces in `problems/*/cases/` are the contract (constitution rule 5). A pack is

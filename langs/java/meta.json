@@ -41,6 +41,7 @@
     "requires": [
       "javac",
       "java"
-    ]
+    ],
+    "on_missing_tools": "block"
   }
 }

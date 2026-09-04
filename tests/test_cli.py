@@ -132,7 +132,7 @@ def test_langs_without_check_does_not_probe_path(monkeypatch, capsys) -> None:
     assert "ready" not in capsys.readouterr().out
 
 
-def test_start_fails_when_the_packs_toolchain_is_missing(monkeypatch, tmp_path, capsys) -> None:
+def test_start_warns_when_the_packs_toolchain_is_missing(monkeypatch, tmp_path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
 
@@ -140,11 +140,42 @@ def test_start_fails_when_the_packs_toolchain_is_missing(monkeypatch, tmp_path, 
         return None if name == "cargo" else f"/usr/bin/{name}"
 
     monkeypatch.setattr("honepad.packspec.shutil.which", _which)
-    assert main(["start", "bank_system", "rust", "--no-console"]) == 1
+    assert main(["start", "bank_system", "rust", "--no-console"]) == 0
     out = capsys.readouterr().out
     assert "cargo not on PATH" in out
-    assert "NEXT: install cargo" in out
+    assert "run fails until it is installed" in out
+    # The spec and the work file are useful before the compiler is.
+    assert session_file.is_file()
+
+
+def test_start_blocks_when_the_pack_says_block(monkeypatch, tmp_path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+
+    def _which(name: str, mode: int = 0, path: str | None = None) -> str | None:
+        return None if name == "javac" else f"/usr/bin/{name}"
+
+    monkeypatch.setattr("honepad.packspec.shutil.which", _which)
+    assert packspec.on_missing_tools("java") == "block"
+    assert main(["start", "bank_system", "java", "--no-console"]) == 1
+    out = capsys.readouterr().out
+    assert "javac not on PATH" in out
     assert not session_file.is_file()
+
+
+def test_warn_is_the_default_missing_tools_policy() -> None:
+    blocking = [lang_id for lang_id in _RUNNERS if packspec.on_missing_tools(lang_id) == "block"]
+    assert blocking == ["java"]
+
+
+def test_start_slices_a_work_file_without_any_toolchain(monkeypatch, tmp_path, capsys) -> None:
+    # What CI's unit shard does: no compilers installed, but start must still
+    # hand back a work file. Only a pack that opted into block may refuse.
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setattr("honepad.packspec.shutil.which", lambda _name: None)
+    for lang in ("rust", "kotlin", "haskell", "swift", "go"):
+        assert main(["start", "bank_system", lang, "--reset", "--no-console"]) == 0, lang
+        capsys.readouterr()
 
 
 def test_start_accepts_any_member_of_a_tool_group(monkeypatch, tmp_path, capsys) -> None:

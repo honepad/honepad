@@ -10,7 +10,7 @@ from typing import Any
 
 from honepad.catalog import language, language_ids, languages, problems, suggest_choice
 from honepad.console import cmd_console, cmd_vscode, loop_console
-from honepad.packspec import missing_tools
+from honepad.packspec import missing_tools, on_missing_tools
 from honepad.runner import _RUNNERS, run
 from honepad.session import (
     drop_level,
@@ -205,14 +205,25 @@ def _is_lang_token(name: str) -> bool:
 
 
 def require_tools(lang_id: str) -> None:
-    """Fail before the clock starts when the pack's toolchain is not installed.
+    """Say something before the clock starts when the toolchain is not installed.
 
-    Which binaries matter is the pack's own business: it lists them under
-    `run.requires` in langs/<id>/meta.json.
+    Which binaries matter, and whether their absence blocks or only warns, is
+    the pack's own business: `run.requires` and `run.on_missing_tools` in
+    langs/<id>/meta.json. Warning is the default, because a work file and a spec
+    are useful before the compiler is; `run` fails clearly enough on its own.
     """
     missing = missing_tools(lang_id)
-    if missing:
+    if not missing:
+        return
+    if on_missing_tools(lang_id) == "block":
         raise RuntimeError(f"{missing[0]} not on PATH")
+    subject = "they are" if len(missing) > 1 else "it is"
+    print(
+        status_note(
+            f"NOTE: {', '.join(missing)} not on PATH. "
+            f"Editing works; run fails until {subject} installed."
+        )
+    )
 
 
 # Kept for callers that only ever meant the JDK.

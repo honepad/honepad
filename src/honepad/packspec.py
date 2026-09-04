@@ -162,6 +162,23 @@ def missing_tools(lang_id: str) -> list[str]:
     ]
 
 
+def on_missing_tools(lang_id: str) -> str:
+    """What starting a session should do when the toolchain is absent.
+
+    ``warn`` by default: a work file and a spec are useful before the compiler
+    is installed, and `run` fails clearly enough on its own. A pack sets
+    ``block`` when starting without its toolchain is not worth the clock --
+    Java does, because a missing JDK used to surface as a confusing javac error.
+    """
+    spec = run_spec(lang_id)
+    if spec is None:
+        return "warn"
+    policy = str(spec.get("on_missing_tools", "warn"))
+    if policy not in {"warn", "block"}:
+        raise ValueError(f"{lang_id}: run.on_missing_tools must be warn or block")
+    return policy
+
+
 def _first_word(candidate: Any) -> str:
     return candidate[0] if isinstance(candidate, list) else str(candidate)
 
