@@ -22,8 +22,10 @@ from honepad.term import (
     file_uri,
     firework_frame,
     format_clock,
+    help_rows,
     home_short,
     level_dots,
+    menu_items,
     meter,
     paint_spec,
     play_firework,
@@ -2133,3 +2135,45 @@ def test_fresh_stub_run_explains_why_every_case_failed(monkeypatch, tmp_path: Pa
     assert "the call raised NotImplementedError instead of returning" in out
     assert "cases short" in out
     assert "more failing cases not shown" in out
+
+
+@pytest.mark.parametrize("last_level", [False, True])
+def test_help_names_every_key_the_way_the_menu_does(last_level: bool) -> None:
+    # The menu renames 2 once the problem is cleared. Help has to follow, or it
+    # tells you to submit a problem that has nothing left to unlock.
+    rows = dict(help_rows(last_level=last_level))
+    assert len(rows) == len(menu_items(last_level=last_level))
+    for key, label in menu_items(last_level=last_level):
+        expected = f"{key}  {label.split()[0]}"
+        assert expected in rows, (key, label, sorted(rows))
+
+
+def test_help_calls_key_2_replay_once_the_problem_is_cleared(monkeypatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert "2  submit" in render_help()
+    assert "2  replay" not in render_help()
+    done = render_help(last_level=True)
+    assert "2  replay" in done
+    assert "2  submit" not in done
+    assert "unlock the next level" not in done
+    assert dict(help_rows(last_level=True))["2  replay"] == (
+        "same run again; every level is already open"
+    )
+
+
+def test_console_help_follows_a_cleared_session(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 4
+    session["cleared"] = True
+    save_session(session)
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("?\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "2 replay" in out
+    assert "2  replay" in out
+    assert "2  submit" not in out
