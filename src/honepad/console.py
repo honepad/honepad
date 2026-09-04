@@ -443,7 +443,13 @@ def _confirm_reset(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> st
     if unlocked > 1:
         stdout.write(f"Type back to delete it and drop to level {unlocked - 1}.\n")
     stdout.write("Type all to delete it and start over at level 1.\n")
-    stdout.write(status_note("Anything else cancels. 6 switches problem without deleting.") + "\n")
+    stdout.write(
+        status_note(
+            "Anything else cancels and keeps the file; q leaves the console. "
+            "6 switches problem without deleting."
+        )
+        + "\n"
+    )
     left = remaining_s(int(session["started_at"]), int(session["minutes"]))
     if left == 0:
         stdout.write("NEXT: quit then start starts a new clock and keeps work.\n")
