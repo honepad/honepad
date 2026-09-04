@@ -1,4 +1,4 @@
-"""Live practice console: numbered menu, remaining_s clock, vscode."""
+"""Live practice console: numbered menu, countdown clock, vscode."""
 
 from __future__ import annotations
 
@@ -28,7 +28,6 @@ from honepad.term import (
     bold,
     clock_style,
     columns,
-    dim,
     file_link,
     format_clock,
     gradient,
@@ -71,7 +70,7 @@ def render_banner(session: dict[str, Any], now: int | None = None) -> str:
     if dots:
         head = f"{head}  {dots}"
     lines = [
-        f"{head}  [{clock}]  {dim(f'remaining_s={left}')}",
+        f"{head}  [{clock}]",
         work_line(work),
         render_keys(last_level=bool(session.get("cleared"))),
     ]

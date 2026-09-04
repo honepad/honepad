@@ -30,6 +30,7 @@ from honepad.term import (
     bold,
     columns,
     dim,
+    format_clock,
     invocation,
     paint_spec,
     print_complete,
@@ -366,7 +367,7 @@ def cmd_start(args: argparse.Namespace) -> int:
             "(run, submit, reset, spec, vscode, switch, help)."
         )
     )
-    print(status_ok(f"OK: LEVEL {unlocked} remaining_s={left}"))
+    print(status_ok(f"OK: LEVEL {unlocked}  [{format_clock(left)}]"))
     print(paint_spec(spec.read_text(encoding="utf-8")))
     if not getattr(args, "no_console", False) and _can_prompt():
         return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
@@ -407,7 +408,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         left = 0
         if session is not None and same:
             left = remaining_s(int(session["started_at"]), int(session["minutes"]))
-            print(status_note(f"remaining_s={left}"))
+            # No clock line here: the console prompt one line up already shows
+            # it, and TIME UP below is what actually changes what happens.
             if lang is not None:
                 try:
                     refresh_workspace(
@@ -514,7 +516,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 _print_work_notes(args.problem, lang)
             return 0
         if left == 0:
-            print(status_fail("TIME UP: remaining_s=0. Next level stays locked."))
+            print(status_fail("TIME UP: the clock ran out. Next level stays locked."))
             print(status_note("NOTE: q then honepad start starts a new clock and keeps your work."))
             if kind == "work":
                 _print_work_notes(args.problem, lang)
@@ -746,7 +748,7 @@ def build_parser() -> argparse.ArgumentParser:
         "console",
         help="live practice menu",
         description=(
-            "Live menu with remaining_s clock. On a TTY, keys 1-6, ? and q "
+            "Live menu with a countdown clock. On a TTY, keys 1-6, ? and q "
             "run immediately (no Enter). 1 run tests without unlocking, "
             "2 submit (local) unlocks the next level, "
             "3 reset (yes=this level, back=previous, all=L1; every answer "

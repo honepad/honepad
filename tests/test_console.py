@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -150,7 +151,7 @@ def test_loop_console_reprints_time_up_when_clock_hits_zero(monkeypatch, tmp_pat
     assert code == 0
     idx = out.find("TIME UP")
     assert idx != -1
-    assert "remaining_s=60" in out[:idx]
+    assert "[01:00]" in out[:idx]
     assert out.count("TIME UP") == 1
     assert "will not unlock" in out[idx:].lower()
     assert "will not unlock" not in out[:idx].lower()
@@ -217,17 +218,10 @@ def test_loop_console_reset_all_reprints_banner_after_time_up(monkeypatch, tmp_p
     assert ok_idx != -1
     assert "TIME UP" in out[:ok_idx]
     after = out[ok_idx:]
-    last = after.rfind("remaining_s=")
-    assert last != -1
-    start = last + len("remaining_s=")
-    digits = []
-    for ch in after[start:]:
-        if ch.isdigit():
-            digits.append(ch)
-        else:
-            break
-    assert digits
-    assert int("".join(digits)) > 0
+    # The banner the reset reprints must carry a live clock, not 00:00.
+    clocks = re.findall(r"\[(\d+:\d{2}(?::\d{2})?)\]", after)
+    assert clocks
+    assert clocks[-1] not in {"00:00", "0:00:00"}
     assert out.rfind("TIME UP") < ok_idx
     assert "OK: quit" in out
 
@@ -430,7 +424,9 @@ def test_banner_dots_only_when_color_is_on(monkeypatch) -> None:
     assert "\u25cb\u25cb" in lit
 
 
-def test_banner_keeps_remaining_s_for_agents(monkeypatch) -> None:
+def test_banner_shows_a_clock_and_not_a_seconds_count(monkeypatch) -> None:
+    # The clock says the same thing in a form a person can read. `honepad
+    # timer` is where a machine-readable remaining_s still lives.
     monkeypatch.setenv("NO_COLOR", "1")
     session = {
         "problem": "bank_system",
@@ -439,7 +435,10 @@ def test_banner_keeps_remaining_s_for_agents(monkeypatch) -> None:
         "minutes": 90,
         "unlocked": 1,
     }
-    assert "remaining_s=5400" in render_banner(session, now=100)
+    text = render_banner(session, now=100)
+    assert "[1:30:00]" in text
+    assert "remaining_s" not in text
+    assert "5400" not in text
 
 
 def test_banner_offers_help_key() -> None:
@@ -816,7 +815,8 @@ def test_console_quit(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
     assert main(["console"]) == 0
     out = capsys.readouterr().out
-    assert "remaining_s=" in out
+    assert "[1:30:00]" in out
+    assert "remaining_s" not in out
     assert "1 run" in out
     assert "2 submit" in out
     assert "2 submit (local)" in out
@@ -872,11 +872,11 @@ def test_console_run_then_quit(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setattr(sys, "stdin", io.StringIO("1\nq\n"))
     assert main(["console"]) == 0
     out = capsys.readouterr().out
-    # cmd_run only prints these after traces actually ran; banner remaining_s= is not enough.
+    # These only appear after traces actually ran, so they prove the run
+    # happened without leaning on a clock line the banner already shows.
     assert "create_account" in out or "createAccount" in out
     assert "passed=" in out
     assert "FAIL " in out or "l1-" in out
-    assert "remaining_s=" in out
     assert "OK: quit" in out
 
 

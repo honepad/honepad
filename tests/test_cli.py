@@ -737,3 +737,22 @@ def test_corrupt_cases_prints_fail(monkeypatch, tmp_path, capsys) -> None:
     assert "FAIL:" in out
     assert str(cases_path) in out or "level1.json" in out
     assert "Traceback" not in out
+
+
+def test_only_the_timer_command_prints_remaining_s(monkeypatch, tmp_path, capsys) -> None:
+    """The countdown clock is the UI; remaining_s is the machine contract.
+
+    `honepad timer` exists to hand an agent a number. Nothing a person reads
+    should repeat it next to a clock that already says the same thing.
+    """
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    assert "remaining_s" not in capsys.readouterr().out
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    assert "remaining_s" not in capsys.readouterr().out
+    monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
+    assert main(["console"]) == 0
+    assert "remaining_s" not in capsys.readouterr().out
+    assert main(["timer"]) == 0
+    assert "remaining_s=" in capsys.readouterr().out
