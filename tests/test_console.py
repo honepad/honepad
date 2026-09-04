@@ -748,7 +748,8 @@ def test_live_read_choice_timeout_reprints_time_up(monkeypatch, tmp_path: Path) 
     assert "will not unlock" in out.lower()
 
 
-def test_live_menu_enter_alone_is_empty() -> None:
+def test_live_menu_enter_alone_shows_the_menu_and_stays_put() -> None:
+    """Enter is not a command. It reprints the keys without scrolling."""
     session = {
         "problem": "bank_system",
         "lang": "java",
@@ -757,11 +758,42 @@ def test_live_menu_enter_alone_is_empty() -> None:
         "unlocked": 2,
     }
     stdin = _pipe_stdin(b"\n")
+    buf = io.StringIO()
     try:
-        got = _read_choice(session, stdin, io.StringIO(), live=True, clock_fn=lambda: 12)
+        got = _read_choice(session, stdin, buf, live=True, clock_fn=lambda: 12)
     finally:
         stdin.close()
-    assert got == ""
+    # The pipe hits EOF right after the newline, so the reader backs out.
+    assert got is None
+    out = buf.getvalue()
+    assert "1 run" in out
+    assert "q quit" in out
+
+
+def test_holding_enter_does_not_walk_the_prompt_down_the_screen() -> None:
+    """Twenty Enters print one menu, not twenty newlines.
+
+    Reported from a real session: holding Enter scrolled the banner and
+    the menu off the top and left the prompt alone at the bottom.
+    """
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 1,
+        "minutes": 90,
+        "unlocked": 2,
+    }
+    stdin = _pipe_stdin(b"\n" * 20 + b"q")
+    buf = io.StringIO()
+    try:
+        got = _read_choice(session, stdin, buf, live=True, clock_fn=lambda: 12)
+    finally:
+        stdin.close()
+    assert got == "q"
+    out = buf.getvalue()
+    # One newline for the single menu reprint, one for committing "q".
+    assert out.count("\n") == 2
+    assert out.count("1 run") == 1
 
 
 def test_live_prompt_is_clock_and_level_only() -> None:
