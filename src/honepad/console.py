@@ -258,7 +258,7 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
         if choice in {"4", "spec"}:
             return _print_spec(problem, unlocked, stdout)
         if choice in {"?", "h", "help"}:
-            stdout.write(render_help() + "\n")
+            stdout.write(render_help(last_level=bool(session.get("cleared"))) + "\n")
             stdout.flush()
             return 0
         if choice in {"5", "vscode", "code"}:

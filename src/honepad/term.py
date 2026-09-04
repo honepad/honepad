@@ -110,8 +110,12 @@ def clock_style(seconds: int, clock: str) -> str:
     return paint(clock, _BOLD, fg256(114))
 
 
+def menu_items(*, last_level: bool = False) -> tuple[tuple[str, str], ...]:
+    return _LAST_LEVEL_MENU if last_level else _MENU_ITEMS
+
+
 def render_keys(*, last_level: bool = False, enabled: bool | None = None) -> str:
-    menu = _LAST_LEVEL_MENU if last_level else _MENU_ITEMS
+    menu = menu_items(last_level=last_level)
     items = [
         f"{bold(key, enabled=enabled)} {paint(label, fg256(252), enabled=enabled)}"
         for key, label in menu
@@ -483,9 +487,16 @@ def render_fail(
     return "\n".join(lines)
 
 
+# Key 2 is named by the same flag `render_keys` uses, so help and the menu
+# cannot drift apart: once the problem is cleared there is nothing left to
+# unlock and the key is a replay.
+_HELP_2 = {
+    False: ("2  submit", "same run, and unlock the next level when it passes"),
+    True: ("2  replay", "same run again; every level is already open"),
+}
 _HELP_ROWS = (
     ("1  run", "replay the unlocked traces against your work file"),
-    ("2  submit", "same run, and unlock the next level when it passes"),
+    None,
     ("3  reset", "yes wipes this level, back drops one, all restarts at level 1"),
     ("4  spec", "reprint the spec for the level you are on"),
     ("5  vscode", "write a VS Code workspace (work + public traces) and open it"),
@@ -494,10 +505,15 @@ _HELP_ROWS = (
 )
 
 
-def render_help() -> str:
-    width = max(len(key) for key, _ in _HELP_ROWS)
+def help_rows(*, last_level: bool = False) -> tuple[tuple[str, str], ...]:
+    return tuple(_HELP_2[last_level] if row is None else row for row in _HELP_ROWS)
+
+
+def render_help(*, last_level: bool = False) -> str:
+    rows = help_rows(last_level=last_level)
+    width = max(len(key) for key, _ in rows)
     lines = [rule("keys")]
-    lines += [f"  {bold(key.ljust(width))}  {paint(text, fg256(252))}" for key, text in _HELP_ROWS]
+    lines += [f"  {bold(key.ljust(width))}  {paint(text, fg256(252))}" for key, text in rows]
     lines.append("")
     lines.append(
         f"  {dim('The clock measures how far you get. Finishing every level is not the bar.')}"
