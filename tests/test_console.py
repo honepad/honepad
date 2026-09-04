@@ -1254,7 +1254,7 @@ def test_dispatch_vscode_opens_workspace(monkeypatch, tmp_path: Path) -> None:
     assert session is not None
     opened: list[Path] = []
 
-    def _open(path: Path) -> int:
+    def _open(path: Path, files: list[Path] | None = None) -> int:
         opened.append(path)
         return 0
 
@@ -1304,7 +1304,7 @@ def test_dispatch_vscode_recreates_missing_java_work(monkeypatch, tmp_path: Path
     work.unlink()
     session = load_session()
     assert session is not None
-    monkeypatch.setattr("honepad.console.open_vscode", lambda _path: 0)
+    monkeypatch.setattr("honepad.console.open_vscode", lambda _path, _files=None: 0)
     buf = io.StringIO()
     assert dispatch("5", session, buf) == 0
     assert work.is_file()
@@ -2376,3 +2376,79 @@ def test_a_bad_word_at_the_reset_prompt_keeps_the_console_open(
     assert "type yes, back, or all" in out
     assert "# Bank system level 1" in out
     assert work.read_text(encoding="utf-8") == "mine\n"
+
+
+def _popen_argv(monkeypatch) -> list[list[str]]:
+    seen: list[list[str]] = []
+    monkeypatch.setattr(
+        "honepad.workspace.shutil.which",
+        lambda name: "/usr/bin/code" if name == "code" else None,
+    )
+    monkeypatch.setattr(
+        "honepad.workspace.subprocess.Popen",
+        lambda argv, **_kwargs: seen.append(list(argv)) or object(),
+    )
+    return seen
+
+
+def test_open_vscode_passes_the_work_file_to_the_editor(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    seen = _popen_argv(monkeypatch)
+    workspace = tmp_path / "honepad.code-workspace"
+    workspace.write_text("{}\n", encoding="utf-8")
+    work = tmp_path / "Simulation.java"
+    work.write_text("class Simulation {}\n", encoding="utf-8")
+    assert open_vscode(workspace, [work]) == 0
+    assert seen == [["/usr/bin/code", "--new-window", str(workspace), str(work)]]
+    out = capsys.readouterr().out
+    assert "OK: opened in VS Code" in out
+    # The caller lists the paths; the confirmation must not repeat one.
+    assert str(work) not in out
+
+
+def test_open_vscode_skips_a_file_that_is_not_there(monkeypatch, tmp_path: Path, capsys) -> None:
+    seen = _popen_argv(monkeypatch)
+    workspace = tmp_path / "honepad.code-workspace"
+    workspace.write_text("{}\n", encoding="utf-8")
+    assert open_vscode(workspace, [tmp_path / "gone.java"]) == 0
+    assert seen == [["/usr/bin/code", "--new-window", str(workspace)]]
+    out = capsys.readouterr().out
+    assert str(workspace) in out
+    assert "gone.java" not in out
+
+
+def test_open_vscode_without_files_is_unchanged(monkeypatch, tmp_path: Path) -> None:
+    seen = _popen_argv(monkeypatch)
+    workspace = tmp_path / "honepad.code-workspace"
+    workspace.write_text("{}\n", encoding="utf-8")
+    assert open_vscode(workspace) == 0
+    assert seen == [["/usr/bin/code", "--new-window", str(workspace)]]
+
+
+def test_console_vscode_lists_and_opens_the_work_file(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    session = _session_at(tmp_path, "in_memory_database", "python3")
+    seen = _popen_argv(monkeypatch)
+    stdout = io.StringIO()
+    assert dispatch("5", session, stdout) == 0
+    out = stdout.getvalue()
+    work = work_src("in_memory_database", "python3")
+    # The file you came to edit has to be on the list, not just the workspace.
+    assert "WORK:" in out
+    assert str(work) in out
+    assert seen and seen[0][-1] == str(work)
+
+
+def test_vscode_command_lists_and_opens_the_work_file(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    seen = _popen_argv(monkeypatch)
+    assert main(["vscode"]) == 0
+    out = capsys.readouterr().out
+    work = work_src("bank_system", "python3")
+    assert "WORK:" in out
+    assert seen and seen[0][-1] == str(work)

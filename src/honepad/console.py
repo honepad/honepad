@@ -128,13 +128,15 @@ def cmd_vscode(args: argparse.Namespace) -> int:
             int(session["unlocked"]),
             cleared=bool(session.get("cleared")),
         )
+        work = work_src(str(session["problem"]), str(session["lang"]))
+        print(work_line(work))
         print(f"WORKSPACE: {file_link(path)}")
         _print_spec_link(str(session["problem"]), str(session["lang"]))
         _print_tests(str(session["problem"]), str(session["lang"]))
         if args.no_open:
             print("OK: wrote workspace")
             return 0
-        return open_vscode(path)
+        return open_vscode(path, [work])
     except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
         _print_fail(exc)
         if "both problem and lang" in str(exc):
@@ -355,8 +357,9 @@ def dispatch(
             stdout.flush()
             return 0
         if choice in {"5", "vscode", "code"}:
-            ensure_work_copy(problem, lang, reset=False, level=unlocked)
+            work = ensure_work_copy(problem, lang, reset=False, level=unlocked)
             path = write_workspace(problem, lang, unlocked, cleared=bool(session.get("cleared")))
+            stdout.write(work_line(work) + "\n")
             stdout.write(f"WORKSPACE: {file_link(path)}\n")
             spec = _spec_output(problem, lang)
             if spec is not None:
@@ -365,7 +368,7 @@ def dispatch(
             if tests is not None:
                 stdout.write(tests + "\n")
             stdout.flush()
-            return open_vscode(path)
+            return open_vscode(path, [work])
         stdout.write(status_fail(f"FAIL: unknown option {choice!r}") + "\n")
         stdout.write(f"Keys: {render_keys(last_level=bool(session.get('cleared')))}\n")
         stdout.write(status_note("NOTE: ? prints what each key does.") + "\n")

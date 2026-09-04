@@ -93,21 +93,29 @@ def write_workspace(problem: str, lang: str, unlocked: int, cleared: bool = Fals
     return dest
 
 
-def open_vscode(path: Path) -> int:
+def open_vscode(path: Path, files: list[Path] | None = None) -> int:
+    """Open the workspace with the files worth editing already in the editor.
+
+    `code` takes `[options] [paths...]`, so the workspace and the work file go
+    in one invocation. Opening the workspace alone lands you on an empty editor
+    with three folders to hunt through for the one file you came to write.
+    """
     cmd = _code_cmd()
     if cmd is None:
         print("FAIL: vscode 'code' not on PATH")
         print("NOTE: macOS Command Palette \"Shell Command: Install 'code' command in PATH\"")
         print(f"WORKSPACE: {file_link(path)}")
         return 1
+    open_files = [str(item) for item in (files or []) if Path(item).is_file()]
     subprocess.Popen(
-        [*cmd, "--new-window", str(path)],
+        [*cmd, "--new-window", str(path), *open_files],
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
     )
-    print(f"OK: {file_link(path)}")
+    # The caller already listed the paths; do not print one of them a third time.
+    print("OK: opened in VS Code" if open_files else f"OK: {file_link(path)}")
     return 0
 
 
