@@ -121,7 +121,8 @@ def test_start_locks_higher_level(monkeypatch, tmp_path: Path, capsys) -> None:
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
     out = capsys.readouterr().out
     assert "LEVEL 1" in out
-    assert "remaining_s=" in out
+    assert "[1:30:00]" in out
+    assert "remaining_s" not in out
     assert main(["start", "bank_system", "python3", "--level", "2"]) == 1
     assert "LOCKED: LEVEL 2" in capsys.readouterr().out
 
@@ -1129,13 +1130,17 @@ def test_incomplete_session_run_prints_fail(monkeypatch, tmp_path: Path, capsys)
     assert "Traceback" not in out
 
 
-def test_run_with_session_prints_remaining_s(monkeypatch, tmp_path: Path, capsys) -> None:
+def test_run_does_not_repeat_the_clock(monkeypatch, tmp_path: Path, capsys) -> None:
+    # The console prompt already carries a live clock; a run that reprinted it
+    # put the same time on two adjacent lines.
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
     capsys.readouterr()
     assert main(["run", "bank_system", "--kind", "solution"]) == 0
     out = capsys.readouterr().out
-    assert "remaining_s=" in out
+    assert "] left" not in out
+    assert "remaining_s" not in out
     assert "UNLOCKED" not in out
     assert "2 submit" in out
     assert load_session()["unlocked"] == 1
@@ -1510,10 +1515,8 @@ def test_expired_run_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> Non
     monkeypatch.setattr("honepad.session.time.time", lambda: started + 90 * 60 + 5)
     assert main(["run", "bank_system", "--kind", "solution"]) == 0
     out = capsys.readouterr().out
-    assert "remaining_s=0" in out
     through = [ln for ln in out.splitlines() if "through LEVEL" in ln]
     assert through
-    assert all("remaining_s=" not in ln for ln in through)
     assert "UNLOCKED" not in out
     assert "TIME UP" in out
     assert "q then" in out
@@ -1546,7 +1549,7 @@ def test_start_after_expiry_restarts_clock_keeps_work(monkeypatch, tmp_path: Pat
     assert remaining_s(int(after["started_at"]), int(after["minutes"]), now) == 5400
     assert "keep-me" in work.read_text(encoding="utf-8")
     assert "NOTE: previous clock was 0. New clock started. Work file kept." in out
-    assert "remaining_s=5400" in out
+    assert "[1:30:00]" in out
     on_disk = json.loads(session_file.read_text(encoding="utf-8"))
     assert "clock_restarted" not in after
     assert "clock_restarted" not in on_disk
@@ -1621,7 +1624,7 @@ def test_resume_restarts_dead_clock_keeps_work(
     assert "NOTE: previous clock was 0. New clock started. Work file kept." in out
     assert "clock_restarted" not in after
     if argv != ["vscode", "--no-open"]:
-        assert "remaining_s=5400" in out
+        assert "[1:30:00]" in out
         assert "TIME UP" not in out
 
 
@@ -2431,7 +2434,6 @@ def test_expired_submit_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> 
     monkeypatch.setattr("honepad.session.time.time", lambda: started + 90 * 60 + 5)
     assert main(["submit", "bank_system", "--kind", "solution"]) == 0
     out = capsys.readouterr().out
-    assert "remaining_s=0" in out
     assert "UNLOCKED" not in out
     assert "TIME UP" in out
     assert load_session()["unlocked"] == 1
