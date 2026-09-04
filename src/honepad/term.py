@@ -26,6 +26,7 @@ _MENU_ITEMS = (
     ("3", "reset / back"),
     ("4", "spec"),
     ("5", "vscode"),
+    ("6", "switch"),
     ("?", "help"),
     ("q", "quit"),
 )
@@ -35,6 +36,7 @@ _LAST_LEVEL_MENU = (
     ("3", "reset / back"),
     ("4", "spec"),
     ("5", "vscode"),
+    ("6", "switch"),
     ("?", "help"),
     ("q", "quit"),
 )
@@ -500,6 +502,7 @@ _HELP_ROWS = (
     ("3  reset", "yes wipes this level, back drops one, all restarts at level 1"),
     ("4  spec", "reprint the spec for the level you are on"),
     ("5  vscode", "write a VS Code workspace (work + public traces) and open it"),
+    ("6  switch", "change problem or language; every work file stays where it is"),
     ("?  help", "this screen"),
     ("q  quit", "leave the console; the session and your work file stay"),
 )

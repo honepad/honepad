@@ -212,17 +212,25 @@ def require_tools(lang_id: str) -> None:
     langs/<id>/meta.json. Warning is the default, because a work file and a spec
     are useful before the compiler is; `run` fails clearly enough on its own.
     """
+    note = toolchain_warning(lang_id)
+    if note is not None:
+        print(status_note(note))
+
+
+def toolchain_warning(lang_id: str) -> str | None:
+    """The warning text, or None. Raises when the pack asked to block instead.
+
+    Split from `require_tools` so the console can write it to its own stream.
+    """
     missing = missing_tools(lang_id)
     if not missing:
-        return
+        return None
     if on_missing_tools(lang_id) == "block":
         raise RuntimeError(f"{missing[0]} not on PATH")
     subject = "they are" if len(missing) > 1 else "it is"
-    print(
-        status_note(
-            f"NOTE: {', '.join(missing)} not on PATH. "
-            f"Editing works; run fails until {subject} installed."
-        )
+    return (
+        f"NOTE: {', '.join(missing)} not on PATH. "
+        f"Editing works; run fails until {subject} installed."
     )
 
 
@@ -352,7 +360,12 @@ def cmd_start(args: argparse.Namespace) -> int:
         f"NOTE: {minutes} minutes measures how far you get. "
         "You are not expected to finish every level."
     )
-    print(status_note("NOTE: honepad console opens a live menu (run, submit, reset, vscode)."))
+    print(
+        status_note(
+            "NOTE: honepad console opens a live menu "
+            "(run, submit, reset, spec, vscode, switch, help)."
+        )
+    )
     print(status_ok(f"OK: LEVEL {unlocked} remaining_s={left}"))
     print(paint_spec(spec.read_text(encoding="utf-8")))
     if not getattr(args, "no_console", False) and _can_prompt():
@@ -733,11 +746,13 @@ def build_parser() -> argparse.ArgumentParser:
         "console",
         help="live practice menu",
         description=(
-            "Live menu with remaining_s clock. On a TTY, keys 1-5 and q "
+            "Live menu with remaining_s clock. On a TTY, keys 1-6, ? and q "
             "run immediately (no Enter). 1 run tests without unlocking, "
             "2 submit (local) unlocks the next level, "
-            "3 reset (yes=this level, back=previous, all=L1), "
-            "4 spec, 5 vscode workspace. Paths use OSC 8 file:// links."
+            "3 reset (yes=this level, back=previous, all=L1; every answer "
+            "rewrites the work file from the stub), "
+            "4 spec, 5 vscode workspace, 6 switch problem or language, "
+            "? help. Paths use OSC 8 file:// links."
         ),
     )
     console.add_argument("problem", nargs="?")

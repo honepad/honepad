@@ -9,7 +9,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import Any, TextIO
 
-from honepad.catalog import language, problems
+from honepad.catalog import language, languages, problems, suggest_choice
 from honepad.runner import _RUNNERS
 from honepad.session import (
     drop_level,
@@ -25,7 +25,9 @@ from honepad.session import (
 )
 from honepad.term import (
     accent,
+    bold,
     clock_style,
+    columns,
     dim,
     file_link,
     format_clock,
@@ -155,6 +157,16 @@ def _reload_session(session: dict[str, Any], stdout: TextIO | None = None) -> di
     return session
 
 
+def _banner_key(session: dict[str, Any]) -> tuple[str, str, int, bool]:
+    """What the banner shows. A change here is what makes it reprint."""
+    return (
+        str(session["problem"]),
+        str(session["lang"]),
+        int(session["unlocked"]),
+        bool(session.get("cleared")),
+    )
+
+
 def loop_console(
     session: dict[str, Any],
     *,
@@ -165,27 +177,23 @@ def loop_console(
     last = 0
     use_live = _use_live(stdin, stdout) if live is None else live
     bannered = False
-    shown_level = int(session["unlocked"])
-    shown_cleared = bool(session.get("cleared"))
+    shown = _banner_key(session)
     shown_time_up = [False]
     try:
         while True:
             session = _reload_session(session, stdout)
-            level_now = int(session["unlocked"])
-            cleared_now = bool(session.get("cleared"))
+            now_key = _banner_key(session)
             if not bannered:
                 stdout.write(render_banner(session) + "\n")
                 bannered = True
-                shown_level = level_now
-                shown_cleared = cleared_now
+                shown = now_key
             else:
                 left = remaining_s(int(session["started_at"]), int(session["minutes"]))
                 if left > 0:
                     shown_time_up[0] = False
-                if level_now != shown_level or cleared_now != shown_cleared:
+                if now_key != shown:
                     stdout.write(render_banner(session) + "\n")
-                    shown_level = level_now
-                    shown_cleared = cleared_now
+                    shown = now_key
                 elif left == 0 and not shown_time_up[0]:
                     stdout.write(render_banner(session) + "\n")
                     shown_time_up[0] = True
@@ -231,7 +239,7 @@ def loop_console(
                         stdout.flush()
                         continue
             stdout.write("\n")
-            last = dispatch(choice, session, stdout)
+            last = dispatch(choice, session, stdout, stdin)
             stdout.write("\n" + rule() + "\n")
     except KeyboardInterrupt:
         stdout.write("\nOK: quit\n")
@@ -239,7 +247,86 @@ def loop_console(
         return 0
 
 
-def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
+def _prompt_choice(
+    stdin: TextIO,
+    stdout: TextIO,
+    title: str,
+    items: list[str],
+    labels: list[str] | None = None,
+    *,
+    keep: str | None = None,
+) -> str | None:
+    """One pick from a list. None means the reader backed out.
+
+    `keep` makes an empty line mean "leave this as it is" instead of cancel.
+    """
+    stdout.write(bold(f"{title}:") + "\n")
+    for line in columns(labels if labels is not None else items):
+        stdout.write(line + "\n")
+    stdout.write(
+        status_note("NOTE: pick a number, or a name or its first letters. q cancels.") + "\n"
+    )
+    stdout.flush()
+    line = stdin.readline()
+    if line == "":
+        return None
+    raw = line.strip().lower()
+    if raw == "" and keep is not None:
+        return keep
+    if raw in {"", "q", "quit"}:
+        return None
+    if raw.isdigit() and 1 <= int(raw) <= len(items):
+        return items[int(raw) - 1]
+    if raw in items:
+        return raw
+    hits = [item for item in items if item.startswith(raw)]
+    if len(hits) == 1:
+        return hits[0]
+    stdout.write(status_fail(f"FAIL: not a choice: {raw}") + "\n")
+    hint = suggest_choice(raw, items)
+    if hint is not None:
+        stdout.write(f"Did you mean {hint}?\n")
+    stdout.flush()
+    return None
+
+
+def _switch_session(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> int:
+    """Move the session to another problem or language. Work files are per
+    problem and language, so nothing on disk is touched."""
+    from honepad.cli import toolchain_warning
+
+    opts = problems()
+    problem = _prompt_choice(
+        stdin, stdout, "problem", opts, [f"{name} ({max_level(name)} levels)" for name in opts]
+    )
+    if problem is None:
+        stdout.write("OK: switch cancelled\n")
+        stdout.flush()
+        return 0
+    current = str(session["lang"])
+    langs = [row["id"] for row in languages() if row["id"] in _RUNNERS]
+    lang = _prompt_choice(stdin, stdout, f"language (Enter keeps {current})", langs, keep=current)
+    if lang is None:
+        stdout.write("OK: switch cancelled\n")
+        stdout.flush()
+        return 0
+    note = toolchain_warning(lang)
+    if note is not None:
+        stdout.write(status_note(note) + "\n")
+    nxt = ensure_session(problem, lang)
+    session.clear()
+    session.update(nxt)
+    unlocked = int(session["unlocked"])
+    ensure_work_copy(problem, lang, reset=False, level=unlocked)
+    refresh_workspace(problem, lang, unlocked, cleared=bool(session.get("cleared")))
+    stdout.write(status_unlock(f"OK: {problem} {lang} LEVEL {unlocked}") + "\n")
+    stdout.write(work_line(work_src(problem, lang)) + "\n")
+    return _print_spec(problem, unlocked, stdout)
+
+
+def dispatch(
+    choice: str, session: dict[str, Any], stdout: TextIO, stdin: TextIO | None = None
+) -> int:
     try:
         problem = str(session["problem"])
         lang = str(session["lang"])
@@ -257,6 +344,12 @@ def dispatch(choice: str, session: dict[str, Any], stdout: TextIO) -> int:
             return _reset_work(session, stdout)
         if choice in {"4", "spec"}:
             return _print_spec(problem, unlocked, stdout)
+        if choice in {"6", "switch"}:
+            if stdin is None:
+                stdout.write(status_fail("FAIL: switch needs an input stream") + "\n")
+                stdout.flush()
+                return 1
+            return _switch_session(session, stdin, stdout)
         if choice in {"?", "h", "help"}:
             stdout.write(render_help(last_level=bool(session.get("cleared"))) + "\n")
             stdout.flush()
@@ -338,10 +431,19 @@ def _confirm_unlock(stdin: TextIO, stdout: TextIO, *, live: bool) -> bool | None
 
 def _confirm_reset(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> str | bool | None:
     unlocked = int(session["unlocked"])
-    stdout.write(f"Type yes to wipe work (stay at level {unlocked}).\n")
+    work = work_src(str(session["problem"]), str(session["lang"]))
+    # Every answer here rewrites the work file from the stub, not just `yes`.
+    # Say so once, with the path, before offering any of them.
+    stdout.write(
+        status_fail("3 reset rewrites your work file from the stub. This deletes what you wrote:")
+        + "\n"
+    )
+    stdout.write(f"  {file_link(work)}\n")
+    stdout.write(f"Type yes to delete it and stay at level {unlocked}.\n")
     if unlocked > 1:
-        stdout.write(f"Type back to return to level {unlocked - 1}.\n")
-    stdout.write("Type all to start over at level 1.\n")
+        stdout.write(f"Type back to delete it and drop to level {unlocked - 1}.\n")
+    stdout.write("Type all to delete it and start over at level 1.\n")
+    stdout.write(status_note("Anything else cancels. 6 switches problem without deleting.") + "\n")
     left = remaining_s(int(session["started_at"]), int(session["minutes"]))
     if left == 0:
         stdout.write("NEXT: quit then start starts a new clock and keeps work.\n")
