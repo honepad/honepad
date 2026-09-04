@@ -180,6 +180,10 @@ def loop_console(
     bannered = False
     shown = _banner_key(session)
     shown_time_up = [False]
+    # Latched while the menu is the last thing on screen, so holding Enter
+    # reprints it once rather than once per keypress. Any real output below
+    # clears it.
+    shown_menu = [False]
     try:
         while True:
             session = _reload_session(session, stdout)
@@ -188,6 +192,7 @@ def loop_console(
                 stdout.write(render_banner(session) + "\n")
                 bannered = True
                 shown = now_key
+                shown_menu[0] = True
             else:
                 left = remaining_s(int(session["started_at"]), int(session["minutes"]))
                 if left > 0:
@@ -195,11 +200,20 @@ def loop_console(
                 if now_key != shown:
                     stdout.write(render_banner(session) + "\n")
                     shown = now_key
+                    shown_menu[0] = True
                 elif left == 0 and not shown_time_up[0]:
                     stdout.write(render_banner(session) + "\n")
                     shown_time_up[0] = True
+                    shown_menu[0] = True
             stdout.flush()
-            line = _read_choice(session, stdin, stdout, live=use_live, shown_time_up=shown_time_up)
+            line = _read_choice(
+                session,
+                stdin,
+                stdout,
+                live=use_live,
+                shown_time_up=shown_time_up,
+                shown_menu=shown_menu,
+            )
             if line is None:
                 return last
             choice = line.strip().lower()
@@ -209,6 +223,9 @@ def loop_console(
                 return 0
             if choice == "":
                 continue
+            # Every real command writes something, which pushes the menu up
+            # the screen. Let the next Enter put it back.
+            shown_menu[0] = False
             if choice in {"3", "reset"}:
                 confirmed = _confirm_reset(session, stdin, stdout)
                 if confirmed is None:
@@ -645,8 +662,10 @@ def _read_choice(
     live: bool,
     clock_fn: Callable[[], int] | None = None,
     shown_time_up: list[bool] | None = None,
+    shown_menu: list[bool] | None = None,
 ) -> str | None:
     time_up = shown_time_up if shown_time_up is not None else [False]
+    menu = shown_menu if shown_menu is not None else [False]
 
     def _left() -> int:
         if clock_fn is not None:
@@ -676,9 +695,18 @@ def _read_choice(
                 if ch == "":
                     return None
                 if ch in {"\n", "\r"}:
-                    stdout.write("\r\033[K\n")
+                    # Enter on an empty prompt is not a command. Redraw in
+                    # place instead of emitting a newline, or holding Enter
+                    # walks the prompt down the screen and scrolls the menu
+                    # out of view. Show the menu once per burst so the keys
+                    # are on screen even when the banner has scrolled off.
+                    if not menu[0]:
+                        keys = render_keys(last_level=bool(session.get("cleared")))
+                        stdout.write(f"\r\033[K{keys}\n")
+                        menu[0] = True
+                    stdout.write(f"\r{_prompt()}\033[K")
                     stdout.flush()
-                    return ""
+                    continue
                 if ch == "\x1b":
                     _drain_escape(stdin)
                     continue
