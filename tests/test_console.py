@@ -22,7 +22,13 @@ from honepad.console import (
 )
 from honepad.javatest import java_ident
 from honepad.pythontest import pytest_ident
-from honepad.session import ensure_work_copy, load_session, save_session, work_src
+from honepad.session import (
+    ensure_work_copy,
+    load_session,
+    remaining_s,
+    save_session,
+    work_src,
+)
 from honepad.term import (
     color_enabled,
     columns,
@@ -54,6 +60,15 @@ def test_format_clock_pads_minutes() -> None:
     assert format_clock(0) == "00:00"
     assert format_clock(65) == "01:05"
     assert format_clock(3600) == "1:00:00"
+
+
+def test_format_clock_keeps_hours_for_a_long_session() -> None:
+    """A 90-minute desk starts as 1:30:00. Dropping the hour at 59:59
+    makes the live prompt look like a different clock than the banner."""
+    assert format_clock(3002) == "50:02"
+    assert format_clock(3002, span_s=90 * 60) == "0:50:02"
+    assert format_clock(0, span_s=90 * 60) == "0:00:00"
+    assert format_clock(65, span_s=90 * 60) == "0:01:05"
 
 
 def test_file_link_uses_osc8() -> None:
@@ -151,7 +166,7 @@ def test_loop_console_reprints_time_up_when_clock_hits_zero(monkeypatch, tmp_pat
     assert code == 0
     idx = out.find("TIME UP")
     assert idx != -1
-    assert "[01:00]" in out[:idx]
+    assert "[0:01:00]" in out[:idx]
     assert out.count("TIME UP") == 1
     assert "will not unlock" in out[idx:].lower()
     assert "will not unlock" not in out[:idx].lower()
@@ -748,6 +763,41 @@ def test_live_read_choice_timeout_reprints_time_up(monkeypatch, tmp_path: Path) 
     assert "will not unlock" in out.lower()
 
 
+def test_live_prompt_redraws_when_the_clock_moves(monkeypatch) -> None:
+    session = {
+        "problem": "bank_system",
+        "lang": "java",
+        "started_at": 1,
+        "minutes": 90,
+        "unlocked": 2,
+    }
+    ticks = {"n": 0}
+
+    def fake_select(rlist, wlist, xlist, timeout=None):
+        ticks["n"] += 1
+        if ticks["n"] == 1:
+            return [], [], []
+        return list(rlist), [], []
+
+    left = {"n": 0}
+
+    def clock_fn() -> int:
+        left["n"] += 1
+        return 90 if left["n"] < 3 else 89
+
+    monkeypatch.setattr("honepad.console.select.select", fake_select)
+    stdin = _pipe_stdin(b"q")
+    buf = io.StringIO()
+    try:
+        got = _read_choice(session, stdin, buf, live=True, clock_fn=clock_fn)
+    finally:
+        stdin.close()
+    assert got == "q"
+    out = buf.getvalue()
+    assert "0:01:30" in out
+    assert "0:01:29" in out
+
+
 def test_live_menu_enter_alone_shows_the_menu_and_stays_put() -> None:
     """Enter is not a command. It reprints the keys without scrolling."""
     session = {
@@ -813,7 +863,7 @@ def test_live_prompt_is_clock_and_level_only() -> None:
     assert got == "q"
     out = buf.getvalue()
     assert "LEVEL 2" in out
-    assert "00:12" in out
+    assert "0:00:12" in out
     assert "1 run" not in out
     assert "submit" not in out
     assert out.count("\n") == 1
@@ -836,7 +886,7 @@ def test_live_menu_space_then_key() -> None:
     assert got == "1"
     out = buf.getvalue()
     assert out.count("\n") == 1
-    assert out.count("\r") == 2
+    assert out.count("\r") == 4
     assert "1 run" not in out
 
 
@@ -925,7 +975,7 @@ def test_console_run_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> Non
     assert "passed=" in out
     assert "2 submit" in out
     assert out.count("LEVEL 1") >= 1
-    assert out.count("honepad  bank_system") == 1
+    assert out.count("honepad  bank_system") == 2
 
 
 def test_live_menu_leftover_keys_do_not_submit(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -948,14 +998,38 @@ def test_live_menu_leftover_keys_do_not_submit(monkeypatch, tmp_path: Path, caps
     assert "passed=" in out
 
 
-def test_console_two_runs_keep_one_banner(monkeypatch, tmp_path: Path, capsys) -> None:
+def test_console_run_reprints_the_banner_clock(monkeypatch, tmp_path: Path, capsys) -> None:
+    """After a run the header clock has scrolled away and gone stale.
+
+    A real session showed [1:09:26] on the first banner and [50:02] on
+    the prompt. Reprint the banner after the traces so the time the
+    person looks at is the current one.
+    """
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("1\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    session = load_session()
+    assert session is not None
+    clock = format_clock(
+        remaining_s(int(session["started_at"]), int(session["minutes"])),
+        span_s=int(session["minutes"]) * 60,
+    )
+    after = out[out.find("passed=") :]
+    assert "honepad  bank_system" in after
+    assert f"[{clock}]" in after
+
+
+def test_console_two_runs_reprint_the_banner(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
     capsys.readouterr()
     monkeypatch.setattr(sys, "stdin", io.StringIO("1\n1\nq\n"))
     assert main(["console"]) == 0
     out = capsys.readouterr().out
-    assert out.count("honepad  bank_system") == 1
+    assert out.count("honepad  bank_system") == 3
     assert out.count("passed=") == 2
     assert "\n\n" in out
 

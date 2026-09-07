@@ -336,11 +336,11 @@ def work_reset_next() -> str:
     return f"NEXT: edit the work file or {invocation()} start --reset"
 
 
-def format_clock(seconds: int) -> str:
+def format_clock(seconds: int, *, span_s: int | None = None) -> str:
     left = seconds if seconds > 0 else 0
     hours, rem = divmod(left, 3600)
     minutes, secs = divmod(rem, 60)
-    if hours:
+    if hours or (span_s is not None and span_s >= 3600):
         return f"{hours}:{minutes:02d}:{secs:02d}"
     return f"{minutes:02d}:{secs:02d}"
 

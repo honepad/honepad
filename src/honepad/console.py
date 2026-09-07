@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import select
 import sys
 from collections.abc import Callable, Iterator
@@ -38,7 +39,6 @@ from honepad.term import (
     render_help,
     render_keys,
     render_prompt,
-    rule,
     spec_line,
     status_fail,
     status_note,
@@ -64,7 +64,7 @@ def render_banner(session: dict[str, Any], now: int | None = None) -> str:
     work = work_src(problem, lang)
     title = gradient("honepad", (94, 234, 212), (56, 189, 248))
     level = accent(f"LEVEL {unlocked}/{top}")
-    clock = clock_style(left, format_clock(left))
+    clock = clock_style(left, format_clock(left, span_s=int(session["minutes"]) * 60))
     dots = level_dots(unlocked, top)
     head = f"{title}  {problem}  {lang}  {level}"
     if dots:
@@ -258,7 +258,11 @@ def loop_console(
                         continue
             stdout.write("\n")
             last = dispatch(choice, session, stdout, stdin)
-            stdout.write("\n" + rule() + "\n")
+            session = _reload_session(session, stdout)
+            stdout.write("\n")
+            stdout.write(render_banner(session) + "\n")
+            shown = _banner_key(session)
+            shown_menu[0] = True
     except KeyboardInterrupt:
         stdout.write("\nOK: quit\n")
         stdout.flush()
@@ -636,12 +640,28 @@ def _keys_now(stdin: TextIO) -> Iterator[None]:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
+def _next_char(stdin: TextIO) -> str:
+    """One byte from the TTY. Bypass TextIOWrapper so select cannot
+    report ready while read(1) then blocks on an empty buffer."""
+    try:
+        fd = stdin.fileno()
+    except (AttributeError, OSError):
+        return stdin.read(1)
+    try:
+        raw = os.read(fd, 1)
+    except OSError:
+        return ""
+    if not raw:
+        return ""
+    return raw.decode("utf-8", "replace")
+
+
 def _drain_escape(stdin: TextIO) -> None:
     while True:
         ready, _, _ = select.select([stdin], [], [], 0.02)
         if not ready:
             return
-        if stdin.read(1) == "":
+        if _next_char(stdin) == "":
             return
 
 
@@ -675,7 +695,7 @@ def _read_choice(
     def _prompt() -> str:
         left = _left()
         return render_prompt(
-            format_clock(left),
+            format_clock(left, span_s=int(session["minutes"]) * 60),
             seconds=left,
             level=int(session["unlocked"]),
         )
@@ -691,7 +711,7 @@ def _read_choice(
         while True:
             ready, _, _ = select.select([stdin], [], [], 1.0)
             if ready:
-                ch = stdin.read(1)
+                ch = _next_char(stdin)
                 if ch == "":
                     return None
                 if ch in {"\n", "\r"}:
@@ -709,8 +729,12 @@ def _read_choice(
                     continue
                 if ch == "\x1b":
                     _drain_escape(stdin)
+                    stdout.write(f"\r{_prompt()}\033[K")
+                    stdout.flush()
                     continue
                 if ch.isspace():
+                    stdout.write(f"\r{_prompt()}\033[K")
+                    stdout.flush()
                     continue
                 stdout.write("\r\033[K\n")
                 stdout.flush()
