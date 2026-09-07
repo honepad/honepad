@@ -319,9 +319,12 @@ def ensure_session(
     return current
 
 
-def note_clock_restarted(session: dict[str, Any]) -> None:
+def note_clock_restarted(session: dict[str, Any], *, work_kept: bool = True) -> None:
     if session.pop("clock_restarted", False):
-        print("NOTE: previous clock was 0. New clock started. Work file kept.")
+        if work_kept:
+            print("NOTE: previous clock was 0. New clock started. Work file kept.")
+        else:
+            print("NOTE: previous clock was 0. New clock started.")
     now_minutes = session.pop("clock_now_minutes", None)
     if now_minutes is not None:
         print(f"NOTE: clock is now {now_minutes} minutes")
@@ -363,16 +366,23 @@ def drop_level(session: dict[str, Any], minutes: int | None = None) -> tuple[dic
     from honepad.workspace import write_workspace
 
     unlocked = int(session["unlocked"])
-    session = lock_to_level(session, unlocked - 1)
+    if unlocked <= 1:
+        raise ValueError("already level 1")
     problem = str(session["problem"])
     lang_id = str(session["lang"])
+    target = unlocked - 1
+    work = slice_work_to_level(problem, lang_id, target)
+    session = lock_to_level(session, target)
     session = ensure_session(
         problem,
         lang_id,
         minutes=int(session["minutes"]) if minutes is None else minutes,
         reset=False,
     )
-    unlocked = int(session["unlocked"])
-    work = slice_work_to_level(problem, lang_id, unlocked)
-    write_workspace(problem, lang_id, unlocked, cleared=bool(session.get("cleared")))
+    write_workspace(
+        problem,
+        lang_id,
+        int(session["unlocked"]),
+        cleared=bool(session.get("cleared")),
+    )
     return session, work

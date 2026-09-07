@@ -299,9 +299,22 @@ def print_complete(
         print(f"NEXT: {invocation()} start {nxt} {lang}")
 
 
+def session_fail_next() -> str:
+    return f"NEXT: remove that file (keeps work) or {invocation()} start --reset"
+
+
+def _is_session_file_fail(text: str) -> bool:
+    from honepad.session import session_path
+
+    return str(session_path()) in text
+
+
 def print_fail(exc: BaseException) -> None:
     print(status_fail(f"FAIL: {exc}"))
     text = str(exc)
+    if _is_session_file_fail(text):
+        print(session_fail_next())
+        return
     if text in {"javac not on PATH", "java not on PATH"}:
         print("NEXT: install a JDK so javac and java are on PATH")
         return

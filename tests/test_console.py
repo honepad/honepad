@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from honepad.cli import main
 from honepad.console import (
     _confirm_reset,
     _confirm_unlock,
+    _next_char,
     _read_choice,
     dispatch,
     loop_console,
@@ -238,6 +240,28 @@ def test_loop_console_reset_all_reprints_banner_after_time_up(monkeypatch, tmp_p
     assert clocks
     assert clocks[-1] not in {"00:00", "0:00:00"}
     assert out.rfind("TIME UP") < ok_idx
+    assert "OK: quit" in out
+
+
+def test_loop_console_corrupt_session_json_fails_closed(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    (tmp_path / "session.json").write_text("{", encoding="utf-8")
+    stdout = io.StringIO()
+    code = loop_console(
+        session,
+        stdin=io.StringIO("q\n"),
+        stdout=stdout,
+        live=False,
+    )
+    out = stdout.getvalue()
+    assert code == 0
+    assert "FAIL:" in out
+    assert "Traceback" not in out
+    assert "NEXT:" in out
+    assert "start --reset" in out
     assert "OK: quit" in out
 
 
@@ -681,6 +705,28 @@ def _pipe_stdin(data: bytes) -> io.TextIOWrapper:
     os.write(write_fd, data)
     os.close(write_fd)
     return os.fdopen(read_fd, "r")
+
+
+def test_next_char_returns_cr_while_write_end_stays_open() -> None:
+    """stdin.read(1) blocks on a lone CR if the writer is still open.
+
+    TextIOWrapper waits to see whether \\r is followed by \\n. os.read
+    returns the byte. _pipe_stdin closes the writer, so both paths
+    return and the hang is hidden.
+    """
+    read_fd, write_fd = os.pipe()
+    stdin = os.fdopen(read_fd, "r")
+    box: list[str] = []
+    try:
+        os.write(write_fd, b"\r")
+        worker = threading.Thread(target=lambda: box.append(_next_char(stdin)), daemon=True)
+        worker.start()
+        worker.join(1.0)
+        assert not worker.is_alive()
+        assert box == ["\r"]
+    finally:
+        os.close(write_fd)
+        stdin.close()
 
 
 def test_live_menu_key_does_not_need_enter() -> None:
@@ -1146,6 +1192,30 @@ def test_console_reset_y_wipes_work(monkeypatch, tmp_path: Path, capsys) -> None
     assert "edited-by-candidate" not in work.read_text(encoding="utf-8")
 
 
+def test_console_reset_rewrites_existing_workspace_work_copy(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    write_workspace("bank_system", "python3", 1)
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    dest = tmp_path / "workspace" / "bank_system-python3" / "public" / "work.py"
+    work.write_text("edited-by-candidate\n", encoding="utf-8")
+    if dest.exists() or dest.is_symlink():
+        dest.unlink()
+    dest.write_text("workspace-junk\n", encoding="utf-8")
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("3\nyes\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "OK: reset" in out
+    text = dest.read_text(encoding="utf-8")
+    assert "def create_account(" in text
+    assert "workspace-junk" not in text
+    assert "edited-by-candidate" not in text
+    assert text == work.read_text(encoding="utf-8")
+
+
 def test_console_reset_n_keeps_work_and_hints(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
@@ -1204,6 +1274,51 @@ def test_console_reset_all_starts_level1(monkeypatch, tmp_path: Path, capsys) ->
     assert "def top_spenders(" not in text
 
 
+def test_console_reset_all_keeps_session_when_work_is_symlink(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = _write_python_solution(tmp_path)
+    assert main(["submit", "bank_system", "--lang", "python3"]) == 0
+    capsys.readouterr()
+    before = load_session()
+    assert before is not None
+    assert before["unlocked"] == 2
+    started_at = int(before["started_at"])
+    solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    original = solution.read_text(encoding="utf-8")
+    work.unlink()
+    work.symlink_to(solution)
+    clock["now"] = started_at + 30
+    try:
+        buf = io.StringIO()
+        code = loop_console(before, stdin=io.StringIO("3\nall\nq\n"), stdout=buf, live=False)
+        out = buf.getvalue()
+        assert code == 0
+        assert "FAIL" in out
+        assert "OK: LEVEL 1" not in out
+        after = load_session()
+        assert after is not None
+        assert after["unlocked"] == 2
+        assert after["started_at"] == started_at
+        written = json.loads(session_file.read_text(encoding="utf-8"))
+        assert written["unlocked"] == 2
+        assert written["started_at"] == started_at
+        assert work.is_symlink()
+        assert solution.read_text(encoding="utf-8") == original
+    finally:
+        if solution.read_text(encoding="utf-8") != original:
+            solution.write_text(original, encoding="utf-8")
+
+
 def test_console_reset_back_at_level1_fails(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
@@ -1212,7 +1327,10 @@ def test_console_reset_back_at_level1_fails(monkeypatch, tmp_path: Path, capsys)
     assert main(["console"]) == 0
     out = capsys.readouterr().out
     assert "already level 1" in out
-    assert "NEXT: already LEVEL 1" in out
+    assert "NEXT: already LEVEL 1" not in out
+    assert (
+        "NEXT: type yes to rewrite this level, or all to start over. 6 switches without deleting."
+    ) in out
     assert load_session()["unlocked"] == 1
 
 

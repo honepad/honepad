@@ -310,13 +310,11 @@ def cmd_start(args: argparse.Namespace) -> int:
                 return 1
             session, work = drop_level(session, minutes=args.minutes)
             unlocked = int(session["unlocked"])
-        else:
-            session = ensure_session(
-                args.problem, args.lang, minutes=args.minutes, reset=args.reset
-            )
+        elif args.reset:
+            work = ensure_work_copy(args.problem, row["id"], reset=True, level=1)
+            session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=True)
             unlocked = int(session["unlocked"])
-            work = ensure_work_copy(args.problem, row["id"], reset=args.reset, level=unlocked)
-            if args.reset and workspace_dir(args.problem, row["id"]).exists():
+            if workspace_dir(args.problem, row["id"]).exists():
                 write_workspace(
                     args.problem,
                     row["id"],
@@ -330,6 +328,16 @@ def cmd_start(args: argparse.Namespace) -> int:
                     unlocked,
                     cleared=bool(session.get("cleared")),
                 )
+        else:
+            session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=False)
+            unlocked = int(session["unlocked"])
+            work = ensure_work_copy(args.problem, row["id"], reset=False, level=unlocked)
+            refresh_workspace(
+                args.problem,
+                row["id"],
+                unlocked,
+                cleared=bool(session.get("cleared")),
+            )
         level = unlocked if args.level is None else args.level
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
@@ -339,6 +347,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     if level > unlocked:
         print(status_fail(f"LOCKED: LEVEL {level} (open through LEVEL {unlocked})"))
         print(work_line(work))
+        print("NEXT: omit --level, or submit after traces pass")
         return 1
     spec = problem_dir(args.problem) / "spec" / f"level{level}.md"
     if not spec.is_file():
@@ -352,7 +361,7 @@ def cmd_start(args: argparse.Namespace) -> int:
                 "start --reset is L1. start --back or console 3 drops a level."
             )
         )
-    note_clock_restarted(session)
+    note_clock_restarted(session, work_kept=not args.reset and not getattr(args, "back", False))
     print(work_line(work))
     side = work.parent / "spec.md"
     if side.is_file():
