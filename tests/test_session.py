@@ -1578,6 +1578,26 @@ def test_start_while_time_remains_keeps_started_at(monkeypatch, tmp_path: Path, 
     assert after["unlocked"] == 1
 
 
+def test_start_keeps_hour_on_clock_under_one_hour(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    capsys.readouterr()
+    clock["now"] = 1_700_000_000 + 40 * 60
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    level_line = next(line for line in out.splitlines() if "LEVEL" in line and "[" in line)
+    start = level_line.rfind("[")
+    end = level_line.rfind("]")
+    assert end > start
+    assert level_line[start + 1 : end] == "0:50:00"
+
+
 def _expired_session_with_edited_work(
     monkeypatch, tmp_path: Path, capsys, *, lang: str = "java"
 ) -> tuple[Path, int]:

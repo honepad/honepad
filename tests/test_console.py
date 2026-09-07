@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from honepad.cli import main
 from honepad.console import (
     _confirm_reset,
     _confirm_unlock,
+    _next_char,
     _read_choice,
     dispatch,
     loop_console,
@@ -238,6 +240,26 @@ def test_loop_console_reset_all_reprints_banner_after_time_up(monkeypatch, tmp_p
     assert clocks
     assert clocks[-1] not in {"00:00", "0:00:00"}
     assert out.rfind("TIME UP") < ok_idx
+    assert "OK: quit" in out
+
+
+def test_loop_console_corrupt_session_json_fails_closed(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    (tmp_path / "session.json").write_text("{", encoding="utf-8")
+    stdout = io.StringIO()
+    code = loop_console(
+        session,
+        stdin=io.StringIO("q\n"),
+        stdout=stdout,
+        live=False,
+    )
+    out = stdout.getvalue()
+    assert code == 0
+    assert "FAIL:" in out
+    assert "Traceback" not in out
     assert "OK: quit" in out
 
 
@@ -681,6 +703,28 @@ def _pipe_stdin(data: bytes) -> io.TextIOWrapper:
     os.write(write_fd, data)
     os.close(write_fd)
     return os.fdopen(read_fd, "r")
+
+
+def test_next_char_returns_cr_while_write_end_stays_open() -> None:
+    """stdin.read(1) blocks on a lone CR if the writer is still open.
+
+    TextIOWrapper waits to see whether \\r is followed by \\n. os.read
+    returns the byte. _pipe_stdin closes the writer, so both paths
+    return and the hang is hidden.
+    """
+    read_fd, write_fd = os.pipe()
+    stdin = os.fdopen(read_fd, "r")
+    box: list[str] = []
+    try:
+        os.write(write_fd, b"\r")
+        worker = threading.Thread(target=lambda: box.append(_next_char(stdin)), daemon=True)
+        worker.start()
+        worker.join(1.0)
+        assert not worker.is_alive()
+        assert box == ["\r"]
+    finally:
+        os.close(write_fd)
+        stdin.close()
 
 
 def test_live_menu_key_does_not_need_enter() -> None:
