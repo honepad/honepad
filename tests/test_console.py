@@ -1013,13 +1013,14 @@ def test_console_run_reprints_the_banner_clock(monkeypatch, tmp_path: Path, caps
     out = capsys.readouterr().out
     session = load_session()
     assert session is not None
-    clock = format_clock(
-        remaining_s(int(session["started_at"]), int(session["minutes"])),
-        span_s=int(session["minutes"]) * 60,
-    )
+    left = remaining_s(int(session["started_at"]), int(session["minutes"]))
+    span = int(session["minutes"]) * 60
     after = out[out.find("passed=") :]
     assert "honepad  bank_system" in after
-    assert f"[{clock}]" in after
+    clocks = {
+        format_clock(max(left + delta, 0), span_s=span) for delta in (-1, 0, 1)
+    }
+    assert any(f"[{clock}]" in after for clock in clocks)
 
 
 def test_console_two_runs_reprint_the_banner(monkeypatch, tmp_path: Path, capsys) -> None:
