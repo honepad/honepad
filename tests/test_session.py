@@ -2095,6 +2095,110 @@ def test_reset_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None
             solution.write_text(original, encoding="utf-8")
 
 
+def test_reset_keeps_session_when_work_is_symlink(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    work.write_text(solution.read_text(encoding="utf-8"), encoding="utf-8")
+    assert main(["submit", "bank_system", "--lang", "python3"]) == 0
+    capsys.readouterr()
+    before = load_session()
+    assert before is not None
+    assert before["unlocked"] == 2
+    started_at = int(before["started_at"])
+    assert started_at == 1_700_000_000
+    original = solution.read_text(encoding="utf-8")
+    work.unlink()
+    work.symlink_to(solution)
+    clock["now"] = started_at + 30
+    try:
+        code = main(["start", "bank_system", "python3", "--reset", "--no-console"])
+        captured = capsys.readouterr()
+        out = captured.out + captured.err
+        assert code == 1
+        assert "FAIL" in out
+        assert "Traceback" not in out
+        after = load_session()
+        assert after is not None
+        assert after["unlocked"] == 2
+        assert after["started_at"] == started_at
+        written = json.loads(session_file.read_text(encoding="utf-8"))
+        assert written["unlocked"] == 2
+        assert written["started_at"] == started_at
+        assert work.is_symlink()
+        assert solution.read_text(encoding="utf-8") == original
+    finally:
+        if solution.read_text(encoding="utf-8") != original:
+            solution.write_text(original, encoding="utf-8")
+
+
+def test_back_keeps_session_when_work_is_symlink(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    work.write_text(solution.read_text(encoding="utf-8"), encoding="utf-8")
+    assert main(["submit", "bank_system", "--lang", "python3"]) == 0
+    capsys.readouterr()
+    before = load_session()
+    assert before is not None
+    assert before["unlocked"] == 2
+    started_at = int(before["started_at"])
+    original = solution.read_text(encoding="utf-8")
+    work.unlink()
+    work.symlink_to(solution)
+    clock["now"] = started_at + 30
+    try:
+        code = main(["start", "bank_system", "python3", "--back", "--no-console"])
+        captured = capsys.readouterr()
+        out = captured.out + captured.err
+        assert code == 1
+        assert "FAIL" in out
+        assert "Traceback" not in out
+        after = load_session()
+        assert after is not None
+        assert after["unlocked"] == 2
+        assert after["started_at"] == started_at
+        written = json.loads(session_file.read_text(encoding="utf-8"))
+        assert written["unlocked"] == 2
+        assert written["started_at"] == started_at
+        assert work.is_symlink()
+        assert solution.read_text(encoding="utf-8") == original
+    finally:
+        if solution.read_text(encoding="utf-8") != original:
+            solution.write_text(original, encoding="utf-8")
+
+
+def test_start_back_after_expiry_does_not_claim_work_kept(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    work, now = _expired_session_with_edited_work(monkeypatch, tmp_path, capsys)
+    assert main(["start", "bank_system", "java", "--back", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    after = load_session()
+    assert after is not None
+    assert after["unlocked"] == 1
+    assert after["started_at"] == now
+    assert "keep-me" not in work.read_text(encoding="utf-8")
+    assert "Work file kept" not in out
+    assert "NOTE: previous clock was 0. New clock started." in out
+
+
 def test_reset_refuses_work_dir_symlink(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0

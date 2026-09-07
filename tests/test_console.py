@@ -1274,6 +1274,51 @@ def test_console_reset_all_starts_level1(monkeypatch, tmp_path: Path, capsys) ->
     assert "def top_spenders(" not in text
 
 
+def test_console_reset_all_keeps_session_when_work_is_symlink(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = _write_python_solution(tmp_path)
+    assert main(["submit", "bank_system", "--lang", "python3"]) == 0
+    capsys.readouterr()
+    before = load_session()
+    assert before is not None
+    assert before["unlocked"] == 2
+    started_at = int(before["started_at"])
+    solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    original = solution.read_text(encoding="utf-8")
+    work.unlink()
+    work.symlink_to(solution)
+    clock["now"] = started_at + 30
+    try:
+        buf = io.StringIO()
+        code = loop_console(before, stdin=io.StringIO("3\nall\nq\n"), stdout=buf, live=False)
+        out = buf.getvalue()
+        assert code == 0
+        assert "FAIL" in out
+        assert "OK: LEVEL 1" not in out
+        after = load_session()
+        assert after is not None
+        assert after["unlocked"] == 2
+        assert after["started_at"] == started_at
+        written = json.loads(session_file.read_text(encoding="utf-8"))
+        assert written["unlocked"] == 2
+        assert written["started_at"] == started_at
+        assert work.is_symlink()
+        assert solution.read_text(encoding="utf-8") == original
+    finally:
+        if solution.read_text(encoding="utf-8") != original:
+            solution.write_text(original, encoding="utf-8")
+
+
 def test_console_reset_back_at_level1_fails(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0

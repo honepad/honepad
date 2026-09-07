@@ -542,10 +542,10 @@ def _reset_back(session: dict[str, Any], stdout: TextIO) -> int:
 
 
 def _reset_all(session: dict[str, Any], stdout: TextIO) -> int:
+    work = ensure_work_copy(str(session["problem"]), str(session["lang"]), reset=True, level=1)
     nxt = restart_all(str(session["problem"]), str(session["lang"]), int(session["minutes"]))
     session.clear()
     session.update(nxt)
-    work = ensure_work_copy(str(session["problem"]), str(session["lang"]), reset=True, level=1)
     write_workspace(
         str(session["problem"]),
         str(session["lang"]),
