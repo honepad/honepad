@@ -339,6 +339,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     if level > unlocked:
         print(status_fail(f"LOCKED: LEVEL {level} (open through LEVEL {unlocked})"))
         print(work_line(work))
+        print("NEXT: omit --level, or submit after traces pass")
         return 1
     spec = problem_dir(args.problem) / "spec" / f"level{level}.md"
     if not spec.is_file():

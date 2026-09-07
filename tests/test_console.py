@@ -260,6 +260,8 @@ def test_loop_console_corrupt_session_json_fails_closed(monkeypatch, tmp_path: P
     assert code == 0
     assert "FAIL:" in out
     assert "Traceback" not in out
+    assert "NEXT:" in out
+    assert "start --reset" in out
     assert "OK: quit" in out
 
 
@@ -1280,7 +1282,10 @@ def test_console_reset_back_at_level1_fails(monkeypatch, tmp_path: Path, capsys)
     assert main(["console"]) == 0
     out = capsys.readouterr().out
     assert "already level 1" in out
-    assert "NEXT: already LEVEL 1" in out
+    assert "NEXT: already LEVEL 1" not in out
+    assert (
+        "NEXT: type yes to rewrite this level, or all to start over. 6 switches without deleting."
+    ) in out
     assert load_session()["unlocked"] == 1
 
 

@@ -39,6 +39,7 @@ from honepad.term import (
     render_help,
     render_keys,
     render_prompt,
+    session_fail_next,
     spec_line,
     status_fail,
     status_note,
@@ -149,6 +150,7 @@ def _reload_session(session: dict[str, Any], stdout: TextIO | None = None) -> di
     except ValueError as exc:
         if stdout is not None:
             stdout.write(status_fail(f"FAIL: {exc}") + "\n")
+            stdout.write(session_fail_next() + "\n")
             stdout.flush()
         return session
     if loaded is None:
@@ -525,7 +527,10 @@ def _reset_back(session: dict[str, Any], stdout: TextIO) -> int:
     unlocked = int(session["unlocked"])
     if unlocked <= 1:
         stdout.write(status_fail("FAIL: already level 1") + "\n")
-        stdout.write("NEXT: already LEVEL 1\n")
+        stdout.write(
+            "NEXT: type yes to rewrite this level, or all to start over. "
+            "6 switches without deleting.\n"
+        )
         stdout.flush()
         return 1
     nxt, work = drop_level(session, minutes=int(session["minutes"]))

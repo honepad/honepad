@@ -124,7 +124,10 @@ def test_start_locks_higher_level(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "[1:30:00]" in out
     assert "remaining_s" not in out
     assert main(["start", "bank_system", "python3", "--level", "2"]) == 1
-    assert "LOCKED: LEVEL 2" in capsys.readouterr().out
+    locked = capsys.readouterr().out
+    assert "LOCKED: LEVEL 2" in locked
+    assert "NEXT:" in locked
+    assert "omit --level" in locked
 
 
 def test_run_pass_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -927,6 +930,8 @@ def test_corrupt_session_run_prints_fail(monkeypatch, tmp_path: Path, capsys) ->
     assert "FAIL:" in out
     assert str(session_file) in out
     assert "Traceback" not in out
+    assert "NEXT:" in out
+    assert "start --reset" in out
 
 
 def test_start_javascript_work_hides_later_methods(monkeypatch, tmp_path: Path, capsys) -> None:
