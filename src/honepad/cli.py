@@ -367,7 +367,7 @@ def cmd_start(args: argparse.Namespace) -> int:
             "(run, submit, reset, spec, vscode, switch, help)."
         )
     )
-    print(status_ok(f"OK: LEVEL {unlocked}  [{format_clock(left)}]"))
+    print(status_ok(f"OK: LEVEL {unlocked}  [{format_clock(left, span_s=minutes * 60)}]"))
     print(paint_spec(spec.read_text(encoding="utf-8")))
     if not getattr(args, "no_console", False) and _can_prompt():
         return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
