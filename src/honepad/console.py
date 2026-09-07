@@ -509,6 +509,13 @@ def _reset_work(session: dict[str, Any], stdout: TextIO) -> int:
         reset=True,
         level=int(session["unlocked"]),
     )
+    if workspace_dir(str(session["problem"]), str(session["lang"])).exists():
+        write_workspace(
+            str(session["problem"]),
+            str(session["lang"]),
+            int(session["unlocked"]),
+            cleared=bool(session.get("cleared")),
+        )
     stdout.write(f"OK: reset\n{work_line(work)}\n")
     stdout.flush()
     return 0
