@@ -1017,9 +1017,7 @@ def test_console_run_reprints_the_banner_clock(monkeypatch, tmp_path: Path, caps
     span = int(session["minutes"]) * 60
     after = out[out.find("passed=") :]
     assert "honepad  bank_system" in after
-    clocks = {
-        format_clock(max(left + delta, 0), span_s=span) for delta in (-1, 0, 1)
-    }
+    clocks = {format_clock(max(left + delta, 0), span_s=span) for delta in (-1, 0, 1)}
     assert any(f"[{clock}]" in after for clock in clocks)
 
 
