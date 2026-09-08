@@ -342,6 +342,10 @@ def _switch_session(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> i
         stdout.write("OK: switch cancelled\n")
         stdout.flush()
         return 0
+    if problem == current_problem and lang == current:
+        unlocked = int(session["unlocked"])
+        stdout.write(status_unlock(f"OK: {problem} {lang} LEVEL {unlocked}") + "\n")
+        return 0
     note = toolchain_warning(lang)
     if note is not None:
         stdout.write(status_note(note) + "\n")

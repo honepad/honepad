@@ -2541,6 +2541,23 @@ def test_console_switch_enter_keeps_the_current_problem(
     assert (session["problem"], session["lang"]) == ("bank_system", "ruby")
 
 
+def test_console_switch_enter_enter_does_not_restart_a_dead_clock(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    session = _session_at(tmp_path, "bank_system", "python3")
+    session["started_at"] = 1_700_000_000
+    save_session(session)
+    started = int(session["started_at"])
+    stdout = io.StringIO()
+    assert dispatch("6", session, stdout, io.StringIO("\n\n")) == 0
+    assert session["started_at"] == started
+    assert (session["problem"], session["lang"]) == ("bank_system", "python3")
+    after = load_session()
+    assert after is not None
+    assert after["started_at"] == started
+
+
 def test_console_switch_can_change_language_too(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
