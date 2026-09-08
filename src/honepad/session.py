@@ -373,16 +373,16 @@ def drop_level(session: dict[str, Any], minutes: int | None = None) -> tuple[dic
     target = unlocked - 1
     work = slice_work_to_level(problem, lang_id, target)
     session = lock_to_level(session, target)
-    session = ensure_session(
-        problem,
-        lang_id,
-        minutes=int(session["minutes"]) if minutes is None else minutes,
-        reset=False,
-    )
+    if minutes is not None and int(session["minutes"]) != minutes:
+        session["minutes"] = require_minutes(minutes)
+        save_session(session)
     write_workspace(
         problem,
         lang_id,
         int(session["unlocked"]),
         cleared=bool(session.get("cleared")),
     )
-    return session, work
+    loaded = load_session()
+    if loaded is None:
+        raise ValueError("session missing after drop_level")
+    return loaded, work

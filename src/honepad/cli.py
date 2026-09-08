@@ -309,6 +309,7 @@ def cmd_start(args: argparse.Namespace) -> int:
                 print(f"NEXT: {invocation()} start")
                 return 1
             session, work = drop_level(session, minutes=args.minutes)
+            session = ensure_session(args.problem, row["id"], minutes=args.minutes)
             unlocked = int(session["unlocked"])
         elif args.reset:
             work = ensure_work_copy(args.problem, row["id"], reset=True, level=1)
