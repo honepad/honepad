@@ -1,6 +1,7 @@
 import importlib.util
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -62,8 +63,10 @@ def test_ci_does_not_rebuild_on_push_to_main() -> None:
 def test_dev_ruff_pin_matches_ci() -> None:
     ci = (ROOT / ".github/workflows/ci.yml").read_text()
     pyproject = (ROOT / "pyproject.toml").read_text()
-    assert "ruff==0.16.5" in ci
-    assert "ruff==0.16.5" in pyproject
+    match = re.search(r"ruff==([0-9]+\.[0-9]+\.[0-9]+)", pyproject)
+    assert match is not None
+    pin = f"ruff=={match.group(1)}"
+    assert pin in ci
     assert "ruff>=" not in pyproject
 
 
