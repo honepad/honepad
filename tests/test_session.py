@@ -22,7 +22,7 @@ from honepad.session import (
     save_session,
     work_src,
 )
-from honepad.workspace import write_workspace
+from honepad.workspace import workspace_dir, write_workspace
 from honepad.workstub import (
     _java_method,
     class_name_for,
@@ -177,6 +177,16 @@ def test_submit_pass_unlocks_next_level(monkeypatch, tmp_path: Path, capsys) -> 
     assert "LOCKED" not in start_out
 
 
+def test_submit_unlock_does_not_create_a_workspace(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    root = workspace_dir("bank_system", "python3")
+    assert not root.exists()
+    assert main(["submit", "bank_system", "--kind", "solution", "--confirm", "y"]) == 0
+    assert load_session()["unlocked"] == 2
+    assert not root.exists()
+
+
 def test_run_submit_flag_unlocks(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
@@ -200,7 +210,7 @@ def test_submit_unlocks_when_workspace_write_fails(monkeypatch, tmp_path: Path, 
     def boom(*_args: object, **_kwargs: object) -> None:
         raise OSError("workspace boom")
 
-    monkeypatch.setattr("honepad.cli.write_workspace", boom)
+    monkeypatch.setattr("honepad.cli.refresh_workspace", boom)
     code = main(["run", "bank_system", "--submit"])
     out = capsys.readouterr().out
     assert code == 0

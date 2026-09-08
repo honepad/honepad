@@ -558,12 +558,13 @@ def _reset_all(session: dict[str, Any], stdout: TextIO) -> int:
     nxt = restart_all(str(session["problem"]), str(session["lang"]), int(session["minutes"]))
     session.clear()
     session.update(nxt)
-    write_workspace(
-        str(session["problem"]),
-        str(session["lang"]),
-        1,
-        cleared=bool(session.get("cleared")),
-    )
+    if workspace_dir(str(session["problem"]), str(session["lang"])).exists():
+        write_workspace(
+            str(session["problem"]),
+            str(session["lang"]),
+            1,
+            cleared=bool(session.get("cleared")),
+        )
     stdout.write(f"OK: LEVEL {session['unlocked']}\n{work_line(work)}\n")
     stdout.flush()
     return _print_spec(str(session["problem"]), 1, stdout)

@@ -363,7 +363,7 @@ def slice_work_to_level(problem: str, lang_id: str, level: int) -> Path:
 
 
 def drop_level(session: dict[str, Any], minutes: int | None = None) -> tuple[dict[str, Any], Path]:
-    from honepad.workspace import write_workspace
+    from honepad.workspace import refresh_workspace
 
     unlocked = int(session["unlocked"])
     if unlocked <= 1:
@@ -376,7 +376,7 @@ def drop_level(session: dict[str, Any], minutes: int | None = None) -> tuple[dic
     if minutes is not None and int(session["minutes"]) != minutes:
         session["minutes"] = require_minutes(minutes)
         save_session(session)
-    write_workspace(
+    refresh_workspace(
         problem,
         lang_id,
         int(session["unlocked"]),
