@@ -57,5 +57,5 @@ class InMemoryDatabase:
         raise NotImplementedError
 
     def restore(self, timestamp, timestamp_to_restore):
-        """Load latest backup at or before timestamp_to_restore. Returns ""."""
+        """Copy latest backup at or before timestamp_to_restore. Returns ""."""
         raise NotImplementedError

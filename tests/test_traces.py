@@ -257,6 +257,9 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
                 'restore(10, 7) -> ""',
                 'scan_at("A", 15) -> "B(C), D(E)"',
                 'scan_at("A", 16) -> "D(E)"',
+                'restore(20, 3) -> ""',
+                'scan_at("A", 20) -> "B(C)"',
+                'scan_at("A", 28) -> ""',
             ),
         ),
         (
@@ -357,6 +360,42 @@ def test_db_l3_delete_at_covers_expired_and_missing() -> None:
     ]
     cases = load_cases("in_memory_database", 3)
     assert any(case["id"] == "db-l3-delete-at" and case["calls"] == wanted for case in cases)
+
+
+def test_db_restore_must_copy_backup() -> None:
+    official = _db_solution_class()
+
+    class Alias(official):
+        def restore(self, timestamp: int, timestamp_to_restore: int) -> str:
+            idx = -1
+            for i, ts in enumerate(self.backup_timestamps):
+                if ts <= timestamp_to_restore:
+                    idx = i
+            self.database = self.backup_states[idx]
+            for fields in self.database.values():
+                for field, (value, remaining) in list(fields.items()):
+                    expiry = None if remaining is None else remaining + timestamp
+                    fields[field] = (value, expiry)
+            return ""
+
+    failed = _replay_db_cases(Alias, 4)
+    assert failed
+    assert any(row.startswith("db-l4-restore-copy") for row in failed)
+
+
+def test_db_l4_restore_copy_covers_second_restore() -> None:
+    wanted = [
+        {"m": "set_at_with_ttl", "a": ["A", "B", "C", 1, 10], "e": ""},
+        {"m": "backup", "a": [3], "e": "1"},
+        {"m": "restore", "a": [10, 3], "e": ""},
+        {"m": "scan_at", "a": ["A", 15], "e": "B(C)"},
+        {"m": "set_at", "a": ["A", "D", "E", 16], "e": ""},
+        {"m": "restore", "a": [20, 3], "e": ""},
+        {"m": "scan_at", "a": ["A", 20], "e": "B(C)"},
+        {"m": "scan_at", "a": ["A", 28], "e": ""},
+    ]
+    cases = load_cases("in_memory_database", 4)
+    assert any(case["id"] == "db-l4-restore-copy" and case["calls"] == wanted for case in cases)
 
 
 def test_official_set_at_does_not_store_timestamp() -> None:
