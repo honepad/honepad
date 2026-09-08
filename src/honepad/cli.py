@@ -542,7 +542,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 return 1
             workspace_exc: BaseException | None = None
             try:
-                write_workspace(
+                refresh_workspace(
                     args.problem,
                     lang,
                     nxt,

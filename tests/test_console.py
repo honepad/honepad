@@ -56,7 +56,7 @@ from honepad.term import (
     term_width,
 )
 from honepad.traces import load_cases
-from honepad.workspace import _link_or_copy, open_vscode, write_workspace
+from honepad.workspace import _link_or_copy, open_vscode, workspace_dir, write_workspace
 
 
 def test_format_clock_pads_minutes() -> None:
@@ -1295,6 +1295,26 @@ def test_console_reset_back_does_not_restart_a_dead_clock(monkeypatch, tmp_path:
     assert after is not None
     assert after["started_at"] == started
     assert after["unlocked"] == 1
+
+
+def test_console_reset_back_does_not_create_a_workspace(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    session = _session_at(tmp_path, "bank_system", "python3", unlocked=2)
+    root = workspace_dir("bank_system", "python3")
+    assert not root.exists()
+    stdout = io.StringIO()
+    assert _apply_reset("back", session, stdout) == 0
+    assert not root.exists()
+
+
+def test_console_reset_all_does_not_create_a_workspace(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    session = _session_at(tmp_path, "bank_system", "python3", unlocked=2)
+    root = workspace_dir("bank_system", "python3")
+    assert not root.exists()
+    stdout = io.StringIO()
+    assert _apply_reset("all", session, stdout) == 0
+    assert not root.exists()
 
 
 def test_console_reset_all_starts_level1(monkeypatch, tmp_path: Path, capsys) -> None:
