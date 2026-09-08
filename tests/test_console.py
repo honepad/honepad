@@ -2526,6 +2526,21 @@ def test_console_switch_enter_keeps_the_current_language(
     assert (session["problem"], session["lang"]) == ("workers", "ruby")
 
 
+def test_console_switch_enter_keeps_the_current_problem(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("6\n\nruby\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "Enter keeps bank_system" in out
+    session = load_session()
+    assert session is not None
+    assert (session["problem"], session["lang"]) == ("bank_system", "ruby")
+
+
 def test_console_switch_can_change_language_too(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0

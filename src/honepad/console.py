@@ -322,8 +322,14 @@ def _switch_session(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> i
     from honepad.cli import toolchain_warning
 
     opts = problems()
+    current_problem = str(session["problem"])
     problem = _prompt_choice(
-        stdin, stdout, "problem", opts, [f"{name} ({max_level(name)} levels)" for name in opts]
+        stdin,
+        stdout,
+        f"problem (Enter keeps {current_problem})",
+        opts,
+        [f"{name} ({max_level(name)} levels)" for name in opts],
+        keep=current_problem,
     )
     if problem is None:
         stdout.write("OK: switch cancelled\n")
