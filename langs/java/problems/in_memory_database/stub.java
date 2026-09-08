@@ -88,8 +88,8 @@ public class InMemoryDatabase {
     }
 
     /**
-     * Load the latest backup at or before timestampToRestore. Returns
-     * {@code ""}.
+     * Load a copy of the latest backup at or before timestampToRestore.
+     * Remaining TTL restarts from timestamp. Returns {@code ""}.
      */
     public String restore(int timestamp, int timestampToRestore) {
         return "";

@@ -7,7 +7,8 @@ fully expired store returns `"0"`.
 
 `restore(timestamp, timestampToRestore)` loads the latest backup at or
 before `timestampToRestore`. Remaining TTLs restart from `timestamp`.
-Returns `""`.
+Copy the snapshot. Do not reuse the backup map or add `timestamp` onto
+the stored remaining in place. Returns `""`.
 
 ## Example
 
@@ -37,3 +38,20 @@ scan_at("B", 17) -> "C(D)"
 had remaining TTL 6, so after restore it lives until 16. `D` had no
 TTL. The delete at 8 is not in that backup. `scan_at("A", 16)` drops
 `B` because 16 is past the restarted window.
+
+```
+set_at_with_ttl("A", "B", "C", 1, 10) -> ""
+backup(3) -> "1"
+restore(10, 3) -> ""
+scan_at("A", 15) -> "B(C)"
+set_at("A", "D", "E", 16) -> ""
+restore(20, 3) -> ""
+scan_at("A", 20) -> "B(C)"
+scan_at("A", 28) -> ""
+```
+
+`backup(3)` stores remaining 8 for `B`. The second restore restarts
+that 8 from 20, so `B` dies at 28. `D` was written after the first
+restore and is not in the backup. A restore that points live state at
+the backup map, or adds `timestamp` onto the stored remaining, keeps
+`D` and expires `B` too late.

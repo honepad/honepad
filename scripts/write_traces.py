@@ -601,6 +601,20 @@ def db() -> list[dict]:
                 call("scan_at", "B", 17, e="C(D)"),
             ],
         ),
+        c(
+            "db-l4-restore-copy",
+            4,
+            [
+                call("set_at_with_ttl", "A", "B", "C", 1, 10, e=""),
+                call("backup", 3, e="1"),
+                call("restore", 10, 3, e=""),
+                call("scan_at", "A", 15, e="B(C)"),
+                call("set_at", "A", "D", "E", 16, e=""),
+                call("restore", 20, 3, e=""),
+                call("scan_at", "A", 20, e="B(C)"),
+                call("scan_at", "A", 28, e=""),
+            ],
+        ),
     ]
 
 
