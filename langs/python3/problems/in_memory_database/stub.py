@@ -29,7 +29,7 @@ class InMemoryDatabase:
         raise NotImplementedError
 
     def set_at(self, key, field, value, timestamp):
-        """Write with no expiry. Returns ""."""
+        """Write with no expiry. Timestamp is not stored. Returns ""."""
         raise NotImplementedError
 
     def set_at_with_ttl(self, key, field, value, timestamp, ttl):

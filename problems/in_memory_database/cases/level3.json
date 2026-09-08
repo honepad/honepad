@@ -333,6 +333,126 @@
           "user1"
         ],
         "e": "age(30), city(NY), name(Alice)"
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "name",
+          110
+        ],
+        "e": ""
+      },
+      {
+        "m": "get",
+        "a": [
+          "user1",
+          "name"
+        ],
+        "e": "Alice"
+      },
+      {
+        "m": "scan",
+        "a": [
+          "user1"
+        ],
+        "e": "age(30), city(NY), name(Alice)"
+      },
+      {
+        "m": "scan_by_prefix",
+        "a": [
+          "user1",
+          "n"
+        ],
+        "e": "name(Alice)"
+      },
+      {
+        "m": "delete",
+        "a": [
+          "user1",
+          "age"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "scan",
+        "a": [
+          "user1"
+        ],
+        "e": "city(NY), name(Alice)"
+      }
+    ]
+  },
+  {
+    "id": "db-l3-delete-at",
+    "level": 3,
+    "calls": [
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "name",
+          "Alice",
+          100,
+          10
+        ],
+        "e": ""
+      },
+      {
+        "m": "delete_at",
+        "a": [
+          "user1",
+          "name",
+          105
+        ],
+        "e": "true"
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "name",
+          106
+        ],
+        "e": ""
+      },
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "age",
+          "30",
+          107,
+          5
+        ],
+        "e": ""
+      },
+      {
+        "m": "delete_at",
+        "a": [
+          "user1",
+          "age",
+          112
+        ],
+        "e": "false"
+      },
+      {
+        "m": "delete_at",
+        "a": [
+          "user1",
+          "missing",
+          113
+        ],
+        "e": "false"
+      },
+      {
+        "m": "delete_at",
+        "a": [
+          "user2",
+          "name",
+          114
+        ],
+        "e": "false"
       }
     ]
   },
