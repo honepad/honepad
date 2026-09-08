@@ -2,8 +2,9 @@
 
 `backup(timestamp)` snapshots records that are still live at that
 time. Store remaining TTL, not the original expiry instant. Returns
-the number of keys as a string. Expired records are not stored, so a
-fully expired store returns `"0"`.
+the number of keys as a string, not the field count. Expired records
+are not stored, so a fully expired store returns `"0"`. A later write
+must not change an earlier snapshot.
 
 `restore(timestamp, timestampToRestore)` loads the latest backup at or
 before `timestampToRestore`. Remaining TTLs restart from `timestamp`.
@@ -55,3 +56,34 @@ that 8 from 20, so `B` dies at 28. `D` was written after the first
 restore and is not in the backup. A restore that points live state at
 the backup map, or adds `timestamp` onto the stored remaining, keeps
 `D` and expires `B` too late.
+
+```
+set_at("A", "f1", "v1", 1) -> ""
+set_at("A", "f2", "v2", 2) -> ""
+set_at("B", "f1", "v1", 3) -> ""
+backup(4) -> "2"
+```
+
+Two keys, three fields. The count is `"2"`.
+
+```
+set_at("A", "B", "C", 1) -> ""
+backup(2) -> "1"
+set_at("A", "B", "Z", 3) -> ""
+restore(4, 2) -> ""
+get_at("A", "B", 5) -> "C"
+```
+
+The live overwrite is not in the snapshot.
+
+```
+set_at_with_ttl("A", "B", "C", 1, 10) -> ""
+backup(3) -> "1"
+set_at("A", "D", "E", 4) -> ""
+backup(5) -> "1"
+restore(5, 5) -> ""
+scan_at("A", 10) -> "B(C), D(E)"
+scan_at("A", 11) -> "D(E)"
+```
+
+`restore(5, 5)` uses the backup taken at 5, not the earlier one.

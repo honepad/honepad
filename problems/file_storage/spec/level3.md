@@ -45,3 +45,22 @@ copy_file("/x.txt", "/z.txt") -> ""
 
 The first copy makes a new alice file and fills the 20 limit. The
 second copy would exceed it, so dest is not created.
+
+```
+add_user("alice", 20) -> "true"
+add_user("bob", 100) -> "true"
+add_file_by("alice", "/a.txt", 10) -> "10"
+add_file_by("bob", "/b.txt", 5) -> "95"
+copy_file("/a.txt", "/b.txt") -> "10"
+copy_file("/a.txt", "/c.txt") -> "10"
+copy_file("/a.txt", "/d.txt") -> ""
+```
+
+`/b.txt` already exists, so bob stays the owner. The new `/c.txt`
+belongs to alice and fills her limit. A fourth alice copy fails.
+
+```
+merge_user("alice", "alice") -> ""
+```
+
+The same id twice is `""`.

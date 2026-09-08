@@ -17,7 +17,7 @@ expired or missing field returns `"false"`.
 
 `set` / `get` / `delete` / `scan` / `scan_by_prefix` ignore expiry.
 They see the last written value even after the TTL window ends.
-`delete` still removes an expired field.
+`delete` still removes an expired field. `set` also clears any TTL.
 
 Scan format is the same as level 2: `field(value)` items, comma-space,
 sorted by field name.
@@ -59,3 +59,12 @@ delete_at("user1", "missing", 113) -> "false"
 
 `age` lives in `[107, 112)`. `delete_at` at 112 does not remove it.
 `delete("user1", "age")` would still return `"true"`.
+
+```
+set_at_with_ttl("user1", "name", "Alice", 100, 10) -> ""
+set("user1", "name", "Bob") -> ""
+get_at("user1", "name", 110) -> "Bob"
+get_at("user1", "name", 140) -> "Bob"
+```
+
+`set` writes with no expiry, so time 110 is still live.

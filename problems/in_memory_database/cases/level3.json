@@ -384,6 +384,50 @@
     ]
   },
   {
+    "id": "db-l3-set-clears-ttl",
+    "level": 3,
+    "calls": [
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "user1",
+          "name",
+          "Alice",
+          100,
+          10
+        ],
+        "e": ""
+      },
+      {
+        "m": "set",
+        "a": [
+          "user1",
+          "name",
+          "Bob"
+        ],
+        "e": ""
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "name",
+          110
+        ],
+        "e": "Bob"
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "user1",
+          "name",
+          140
+        ],
+        "e": "Bob"
+      }
+    ]
+  },
+  {
     "id": "db-l3-delete-at",
     "level": 3,
     "calls": [

@@ -31,5 +31,29 @@
       {"m": "copy_file", "a": ["/x.txt", "/x2.txt"], "e": "10"},
       {"m": "get_file_size", "a": ["/x2.txt"], "e": "10"}
     ]
+  },
+  {
+    "id": "fs-l3-copy-keeps-owner",
+    "level": 3,
+    "calls": [
+      {"m": "add_user", "a": ["alice", 20], "e": "true"},
+      {"m": "add_user", "a": ["bob", 100], "e": "true"},
+      {"m": "add_file_by", "a": ["alice", "/a.txt", 10], "e": "10"},
+      {"m": "add_file_by", "a": ["bob", "/b.txt", 5], "e": "95"},
+      {"m": "copy_file", "a": ["/a.txt", "/b.txt"], "e": "10"},
+      {"m": "copy_file", "a": ["/a.txt", "/c.txt"], "e": "10"},
+      {"m": "copy_file", "a": ["/a.txt", "/d.txt"], "e": ""},
+      {"m": "get_file_size", "a": ["/b.txt"], "e": "10"},
+      {"m": "get_file_size", "a": ["/c.txt"], "e": "10"},
+      {"m": "get_file_size", "a": ["/d.txt"], "e": ""}
+    ]
+  },
+  {
+    "id": "fs-l3-merge-same",
+    "level": 3,
+    "calls": [
+      {"m": "add_user", "a": ["alice", 20], "e": "true"},
+      {"m": "merge_user", "a": ["alice", "alice"], "e": ""}
+    ]
   }
 ]

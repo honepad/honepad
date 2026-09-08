@@ -10,7 +10,8 @@
       {"m": "get_n_largest", "a": ["/dir/file", 3], "e": "/dir/file2(20), /dir/file1.txt(5)"},
       {"m": "get_n_largest", "a": ["/another_dir", 3], "e": ""},
       {"m": "add_file", "a": ["/big_file.mp4", 20], "e": "true"},
-      {"m": "get_n_largest", "a": ["/", 2], "e": "/big_file.mp4(20), /dir/file2(20)"}
+      {"m": "get_n_largest", "a": ["/", 2], "e": "/big_file.mp4(20), /dir/file2(20)"},
+      {"m": "get_n_largest", "a": ["/", 0], "e": ""}
     ]
   }
 ]
