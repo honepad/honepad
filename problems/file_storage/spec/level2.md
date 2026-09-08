@@ -29,3 +29,9 @@ get_n_largest("/", 2) -> "/big_file.mp4(20), /dir/file2(20)"
 
 Both files are size 20. The name `/big_file.mp4` sorts before
 `/dir/file2`.
+
+```
+get_n_largest("/", 0) -> ""
+```
+
+`n` is 0, so the list is empty.

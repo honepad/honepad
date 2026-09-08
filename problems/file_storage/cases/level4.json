@@ -47,5 +47,32 @@
       {"m": "backup_user", "a": ["ghost"], "e": ""},
       {"m": "restore_user", "a": ["ghost"], "e": ""}
     ]
+  },
+  {
+    "id": "fs-l4-merge-drops-backup",
+    "level": 4,
+    "calls": [
+      {"m": "add_user", "a": ["alice", 100], "e": "true"},
+      {"m": "add_user", "a": ["bob", 50], "e": "true"},
+      {"m": "add_file_by", "a": ["bob", "/b.txt", 10], "e": "40"},
+      {"m": "backup_user", "a": ["bob"], "e": "1"},
+      {"m": "merge_user", "a": ["alice", "bob"], "e": "140"},
+      {"m": "restore_user", "a": ["alice"], "e": "0"},
+      {"m": "get_file_size", "a": ["/b.txt"], "e": ""},
+      {"m": "restore_user", "a": ["bob"], "e": ""}
+    ]
+  },
+  {
+    "id": "fs-l4-backup-mutate-size",
+    "level": 4,
+    "calls": [
+      {"m": "add_user", "a": ["user", 100], "e": "true"},
+      {"m": "add_file_by", "a": ["user", "/a.txt", 10], "e": "90"},
+      {"m": "backup_user", "a": ["user"], "e": "1"},
+      {"m": "delete_file", "a": ["/a.txt"], "e": "10"},
+      {"m": "add_file_by", "a": ["user", "/a.txt", 30], "e": "70"},
+      {"m": "restore_user", "a": ["user"], "e": "1"},
+      {"m": "get_file_size", "a": ["/a.txt"], "e": "10"}
+    ]
   }
 ]

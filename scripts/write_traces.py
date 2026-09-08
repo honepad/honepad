@@ -536,6 +536,16 @@ def db() -> list[dict]:
             ],
         ),
         c(
+            "db-l3-set-clears-ttl",
+            3,
+            [
+                call("set_at_with_ttl", "user1", "name", "Alice", 100, 10, e=""),
+                call("set", "user1", "name", "Bob", e=""),
+                call("get_at", "user1", "name", 110, e="Bob"),
+                call("get_at", "user1", "name", 140, e="Bob"),
+            ],
+        ),
+        c(
             "db-l3-delete-at",
             3,
             [
@@ -613,6 +623,40 @@ def db() -> list[dict]:
                 call("restore", 20, 3, e=""),
                 call("scan_at", "A", 20, e="B(C)"),
                 call("scan_at", "A", 28, e=""),
+            ],
+        ),
+        c(
+            "db-l4-backup-key-count",
+            4,
+            [
+                call("set_at", "A", "f1", "v1", 1, e=""),
+                call("set_at", "A", "f2", "v2", 2, e=""),
+                call("set_at", "B", "f1", "v1", 3, e=""),
+                call("backup", 4, e="2"),
+            ],
+        ),
+        c(
+            "db-l4-backup-then-mutate",
+            4,
+            [
+                call("set_at", "A", "B", "C", 1, e=""),
+                call("backup", 2, e="1"),
+                call("set_at", "A", "B", "Z", 3, e=""),
+                call("restore", 4, 2, e=""),
+                call("get_at", "A", "B", 5, e="C"),
+            ],
+        ),
+        c(
+            "db-l4-restore-exact",
+            4,
+            [
+                call("set_at_with_ttl", "A", "B", "C", 1, 10, e=""),
+                call("backup", 3, e="1"),
+                call("set_at", "A", "D", "E", 4, e=""),
+                call("backup", 5, e="1"),
+                call("restore", 5, 5, e=""),
+                call("scan_at", "A", 10, e="B(C), D(E)"),
+                call("scan_at", "A", 11, e="D(E)"),
             ],
         ),
     ]

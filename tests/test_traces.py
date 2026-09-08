@@ -202,6 +202,7 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
                 'get_n_largest("/dir/file", 3) -> "/dir/file2(20), /dir/file1.txt(5)"',
                 'get_n_largest("/another_dir", 3) -> ""',
                 'get_n_largest("/", 2) -> "/big_file.mp4(20), /dir/file2(20)"',
+                'get_n_largest("/", 0) -> ""',
             ),
         ),
         (
@@ -213,6 +214,8 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
                 'add_file_by("user1", "/file-small", 20) -> ""',
                 'merge_user("user1", "user2") -> "70"',
                 'copy_file("/x.txt", "/z.txt") -> ""',
+                'copy_file("/a.txt", "/d.txt") -> ""',
+                'merge_user("alice", "alice") -> ""',
             ),
         ),
         (
@@ -223,6 +226,8 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
                 'restore_user("user") -> "2"',
                 'restore_user("user") -> "0"',
                 'backup_user("ghost") -> ""',
+                'restore_user("alice") -> "0"',
+                'get_file_size("/a.txt") -> "10"',
             ),
         ),
         (
@@ -246,6 +251,8 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
                 'scan_at("user1", 117) -> ""',
                 'scan("user1") -> "age(30), city(NY), name(Alice)"',
                 'delete_at("user1", "age", 112) -> "false"',
+                'set("user1", "name", "Bob") -> ""',
+                'get_at("user1", "name", 140) -> "Bob"',
             ),
         ),
         (
@@ -260,6 +267,10 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
                 'restore(20, 3) -> ""',
                 'scan_at("A", 20) -> "B(C)"',
                 'scan_at("A", 28) -> ""',
+                'backup(4) -> "2"',
+                'get_at("A", "B", 5) -> "C"',
+                'restore(5, 5) -> ""',
+                'scan_at("A", 11) -> "D(E)"',
             ),
         ),
         (
@@ -396,6 +407,46 @@ def test_db_l4_restore_copy_covers_second_restore() -> None:
     ]
     cases = load_cases("in_memory_database", 4)
     assert any(case["id"] == "db-l4-restore-copy" and case["calls"] == wanted for case in cases)
+
+
+def test_db_l3_set_clears_ttl() -> None:
+    wanted = [
+        {"m": "set_at_with_ttl", "a": ["user1", "name", "Alice", 100, 10], "e": ""},
+        {"m": "set", "a": ["user1", "name", "Bob"], "e": ""},
+        {"m": "get_at", "a": ["user1", "name", 110], "e": "Bob"},
+        {"m": "get_at", "a": ["user1", "name", 140], "e": "Bob"},
+    ]
+    cases = load_cases("in_memory_database", 3)
+    assert any(case["id"] == "db-l3-set-clears-ttl" and case["calls"] == wanted for case in cases)
+
+
+def test_db_l4_new_backup_cases() -> None:
+    cases = load_cases("in_memory_database", 4)
+    by_id = {case["id"]: case["calls"] for case in cases}
+    assert by_id["db-l4-backup-key-count"][-1] == {"m": "backup", "a": [4], "e": "2"}
+    assert by_id["db-l4-backup-then-mutate"][-1] == {
+        "m": "get_at",
+        "a": ["A", "B", 5],
+        "e": "C",
+    }
+    assert by_id["db-l4-restore-exact"][-1] == {"m": "scan_at", "a": ["A", 11], "e": "D(E)"}
+
+
+def test_fs_new_corner_cases() -> None:
+    fs3 = {case["id"]: case["calls"] for case in load_cases("file_storage", 3)}
+    fs4 = {case["id"]: case["calls"] for case in load_cases("file_storage", 4)}
+    assert fs3["fs-l3-copy-keeps-owner"][-1]["e"] == ""
+    assert fs3["fs-l3-merge-same"][-1] == {"m": "merge_user", "a": ["alice", "alice"], "e": ""}
+    assert fs4["fs-l4-merge-drops-backup"][-2] == {
+        "m": "get_file_size",
+        "a": ["/b.txt"],
+        "e": "",
+    }
+    assert fs4["fs-l4-backup-mutate-size"][-1] == {
+        "m": "get_file_size",
+        "a": ["/a.txt"],
+        "e": "10",
+    }
 
 
 def test_official_set_at_does_not_store_timestamp() -> None:

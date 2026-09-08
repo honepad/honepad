@@ -51,3 +51,29 @@ count is `"0"`. The live file stays bob's size 15.
 backup_user("ghost") -> ""
 restore_user("ghost") -> ""
 ```
+
+```
+add_user("alice", 100) -> "true"
+add_user("bob", 50) -> "true"
+add_file_by("bob", "/b.txt", 10) -> "40"
+backup_user("bob") -> "1"
+merge_user("alice", "bob") -> "140"
+restore_user("alice") -> "0"
+get_file_size("/b.txt") -> ""
+restore_user("bob") -> ""
+```
+
+Merge deletes bob and bob's backup. alice has no backup, so restore
+clears her live files (including `/b.txt`) and returns `"0"`.
+
+```
+add_user("user", 100) -> "true"
+add_file_by("user", "/a.txt", 10) -> "90"
+backup_user("user") -> "1"
+delete_file("/a.txt") -> "10"
+add_file_by("user", "/a.txt", 30) -> "70"
+restore_user("user") -> "1"
+get_file_size("/a.txt") -> "10"
+```
+
+The snapshot keeps size 10. The live overwrite to 30 is dropped.
