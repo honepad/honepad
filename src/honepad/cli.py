@@ -601,14 +601,19 @@ def cmd_submit(args: argparse.Namespace) -> int:
         elif (
             not _unlocked_at_last_level(args.problem) and sys.stdin.isatty() and sys.stdout.isatty()
         ):
-            from honepad.console import _confirm_unlock, _use_live
+            session = load_session()
+            left = 1
+            if session is not None and session.get("problem") == args.problem:
+                left = remaining_s(int(session["started_at"]), int(session["minutes"]))
+            if left > 0:
+                from honepad.console import _confirm_unlock, _use_live
 
-            ok = _confirm_unlock(sys.stdin, sys.stdout, live=_use_live(sys.stdin, sys.stdout))
-            if ok is None:
-                return 1
-            if not ok:
-                print("OK: submit cancelled")
-                return 0
+                ok = _confirm_unlock(sys.stdin, sys.stdout, live=_use_live(sys.stdin, sys.stdout))
+                if ok is None:
+                    return 1
+                if not ok:
+                    print("OK: submit cancelled")
+                    return 0
     except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
         _print_fail(exc)
         return 1
