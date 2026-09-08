@@ -14,6 +14,7 @@ import pytest
 from honepad.catalog import problems, repo_root
 from honepad.cli import main
 from honepad.console import (
+    _apply_reset,
     _confirm_reset,
     _confirm_unlock,
     _next_char,
@@ -1278,6 +1279,22 @@ def test_console_reset_back_drops_one_level(monkeypatch, tmp_path: Path, capsys)
     text = work.read_text(encoding="utf-8")
     assert "def create_account(" in text
     assert "def top_spenders(" not in text
+
+
+def test_console_reset_back_does_not_restart_a_dead_clock(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    session = _session_at(tmp_path, "bank_system", "python3", unlocked=2)
+    session["started_at"] = 1_700_000_000
+    save_session(session)
+    started = int(session["started_at"])
+    stdout = io.StringIO()
+    assert _apply_reset("back", session, stdout) == 0
+    assert session["unlocked"] == 1
+    assert session["started_at"] == started
+    after = load_session()
+    assert after is not None
+    assert after["started_at"] == started
+    assert after["unlocked"] == 1
 
 
 def test_console_reset_all_starts_level1(monkeypatch, tmp_path: Path, capsys) -> None:
