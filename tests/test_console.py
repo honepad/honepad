@@ -176,6 +176,34 @@ def test_loop_console_reprints_time_up_when_clock_hits_zero(monkeypatch, tmp_pat
     assert "OK: quit" in out
 
 
+def test_loop_console_time_up_submit_skips_unlock_prompt(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    session = {
+        "problem": "bank_system",
+        "lang": "python3",
+        "started_at": 1_700_000_000,
+        "minutes": 90,
+        "unlocked": 1,
+    }
+
+    def fake_remaining(started_at: int, minutes: int, now: int | None = None) -> int:
+        return 0
+
+    monkeypatch.setattr("honepad.console.remaining_s", fake_remaining)
+    stdout = io.StringIO()
+    code = loop_console(
+        dict(session),
+        stdin=io.StringIO("2\nq\n"),
+        stdout=stdout,
+        live=False,
+    )
+    out = stdout.getvalue()
+    assert code == 0
+    assert "TIME UP" in out
+    assert "Unlock?" not in out
+    assert "OK: quit" in out
+
+
 def test_loop_console_time_up_again_after_clock_restarts(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     session = {
@@ -1225,8 +1253,8 @@ def test_console_reset_n_keeps_work_and_hints(monkeypatch, tmp_path: Path, capsy
     monkeypatch.setattr(sys, "stdin", io.StringIO("3\nn\nq\n"))
     assert main(["console"]) == 0
     out = capsys.readouterr().out
-    assert "OK: reset" not in out
-    assert "FAIL" in out
+    assert "OK: reset cancelled" in out
+    assert "FAIL" not in out
     assert "yes" in out.lower()
     assert "back" in out.lower()
     assert "all" in out.lower()
@@ -2457,7 +2485,8 @@ def test_reset_answers_still_work_after_the_rewording(monkeypatch, tmp_path: Pat
         assert _confirm_reset(session, io.StringIO(typed + "\n"), io.StringIO()) == expect
     stdout = io.StringIO()
     assert _confirm_reset(session, io.StringIO("maybe\n"), stdout) is False
-    assert "type yes, back, or all" in stdout.getvalue()
+    assert "OK: reset cancelled" in stdout.getvalue()
+    assert "type yes, back, or all" not in stdout.getvalue()
 
 
 def test_console_switch_changes_problem_and_keeps_every_work_file(
@@ -2596,7 +2625,8 @@ def test_a_bad_word_at_the_reset_prompt_keeps_the_console_open(
     monkeypatch.setattr(sys, "stdin", io.StringIO("3\nnope\n4\nq\n"))
     assert main(["console"]) == 0
     out = capsys.readouterr().out
-    assert "type yes, back, or all" in out
+    assert "OK: reset cancelled" in out
+    assert "type yes, back, or all" not in out
     assert "# Bank system level 1" in out
     assert work.read_text(encoding="utf-8") == "mine\n"
 

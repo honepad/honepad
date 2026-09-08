@@ -251,13 +251,15 @@ def loop_console(
                 continue
             if choice in {"2", "submit"}:
                 if int(session["unlocked"]) < max_level(str(session["problem"])):
-                    unlock = _confirm_unlock(stdin, stdout, live=use_live)
-                    if unlock is None:
-                        return last
-                    if not unlock:
-                        stdout.write("OK: submit cancelled\n")
-                        stdout.flush()
-                        continue
+                    left = remaining_s(int(session["started_at"]), int(session["minutes"]))
+                    if left > 0:
+                        unlock = _confirm_unlock(stdin, stdout, live=use_live)
+                        if unlock is None:
+                            return last
+                        if not unlock:
+                            stdout.write("OK: submit cancelled\n")
+                            stdout.flush()
+                            continue
             stdout.write("\n")
             last = dispatch(choice, session, stdout, stdin)
             session = _reload_session(session, stdout)
@@ -491,7 +493,7 @@ def _confirm_reset(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> st
         return "all"
     if confirm in {"q", "quit"}:
         return "quit"
-    stdout.write(status_fail("FAIL: type yes, back, or all") + "\n")
+    stdout.write("OK: reset cancelled\n")
     stdout.flush()
     return False
 
