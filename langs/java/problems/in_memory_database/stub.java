@@ -39,7 +39,7 @@ public class InMemoryDatabase {
     }
 
     /**
-     * Write with no expiry. Returns {@code ""}.
+     * Write with no expiry. Timestamp is not stored. Returns {@code ""}.
      */
     public String setAt(String key, String field, String value, int timestamp) {
         return "";

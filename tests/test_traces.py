@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import os
 import re
@@ -240,9 +241,11 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
             (
                 'get_at("user1", "name", 105) -> "Alice"',
                 'get_at("user1", "name", 110) -> ""',
+                'get("user1", "name") -> "Alice"',
                 'scan_at("user1", 105) -> "age(30), city(NY), name(Alice)"',
                 'scan_at("user1", 117) -> ""',
                 'scan("user1") -> "age(30), city(NY), name(Alice)"',
+                'delete_at("user1", "age", 112) -> "false"',
             ),
         ),
         (
@@ -297,6 +300,74 @@ def test_db_solution_all_levels() -> None:
     report = run_python("in_memory_database", 4, "solution")
     assert report.ok, report.failed
     assert report.passed == len(load_cases("in_memory_database", 4))
+
+
+def _db_solution_class():
+    path = repo_root() / "langs" / "python3" / "problems" / "in_memory_database" / "solution.py"
+    spec = importlib.util.spec_from_file_location("honepad_db_solution", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.InMemoryDatabase
+
+
+def _replay_db_cases(cls, level: int) -> list[str]:
+    failed: list[str] = []
+    for case in load_cases("in_memory_database", level):
+        db = cls()
+        for row in case["calls"]:
+            got = getattr(db, row["m"])(*row["a"])
+            if got != row["e"]:
+                failed.append(f"{case['id']} {row['m']} {row['a']}: {got!r} != {row['e']!r}")
+                break
+    return failed
+
+
+def test_db_set_at_may_delegate_to_set() -> None:
+    official = _db_solution_class()
+
+    class Delegate(official):
+        def set_at(self, key: str, field: str, value: str, timestamp: int) -> str:
+            return self.set(key, field, value)
+
+    assert _replay_db_cases(Delegate, 4) == []
+
+
+def test_db_delete_at_must_not_delegate_to_delete() -> None:
+    official = _db_solution_class()
+
+    class Naive(official):
+        def delete_at(self, key: str, field: str, timestamp: int) -> str:
+            return self.delete(key, field)
+
+    failed = _replay_db_cases(Naive, 3)
+    assert failed
+    assert any(row.startswith("db-l3-delete-at") for row in failed)
+
+
+def test_db_l3_delete_at_covers_expired_and_missing() -> None:
+    wanted = [
+        {"m": "set_at_with_ttl", "a": ["user1", "name", "Alice", 100, 10], "e": ""},
+        {"m": "delete_at", "a": ["user1", "name", 105], "e": "true"},
+        {"m": "get_at", "a": ["user1", "name", 106], "e": ""},
+        {"m": "set_at_with_ttl", "a": ["user1", "age", "30", 107, 5], "e": ""},
+        {"m": "delete_at", "a": ["user1", "age", 112], "e": "false"},
+        {"m": "delete_at", "a": ["user1", "missing", 113], "e": "false"},
+        {"m": "delete_at", "a": ["user2", "name", 114], "e": "false"},
+    ]
+    cases = load_cases("in_memory_database", 3)
+    assert any(case["id"] == "db-l3-delete-at" and case["calls"] == wanted for case in cases)
+
+
+def test_official_set_at_does_not_store_timestamp() -> None:
+    py = (
+        repo_root() / "langs" / "python3" / "problems" / "in_memory_database" / "solution.py"
+    ).read_text(encoding="utf-8")
+    java = (
+        repo_root() / "langs" / "java" / "problems" / "in_memory_database" / "solution.java"
+    ).read_text(encoding="utf-8")
+    assert "del timestamp" in py
+    assert "return setInternal(key, field, value, null);" in java
 
 
 def test_stub_fails() -> None:
