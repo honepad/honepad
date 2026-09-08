@@ -1,5 +1,8 @@
 # Agents
 
+> **Human contributors:** This file is for AI coding assistants.
+> You can safely ignore it. See CONTRIBUTING.md instead.
+
 Python 3.10+. Local gate before every commit is `make check`:
 
 ```bash
