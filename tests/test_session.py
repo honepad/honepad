@@ -1228,6 +1228,34 @@ def test_submit_last_level_skips_unlock_confirm_on_tty(monkeypatch, tmp_path: Pa
     assert "still complete" in again
 
 
+def test_submit_time_up_skips_unlock_confirm_on_tty(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    fake_in = io.StringIO("")
+    monkeypatch.setattr(fake_in, "isatty", lambda: True)
+    monkeypatch.setattr(sys, "stdin", fake_in)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr("honepad.console._use_live", lambda *_a, **_k: False)
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "Unlock?" not in out
+    assert "cancelled" not in out.lower()
+    assert "TIME UP" in out
+
+
 def test_submit_last_workers_level_prints_done(monkeypatch, tmp_path: Path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
