@@ -8,6 +8,7 @@ from honepad.catalog import (
     problems,
     repo_root,
     required_ids,
+    resolve_language_token,
     suggest_language,
 )
 from honepad.runner import _RUNNERS
@@ -70,6 +71,11 @@ def test_catalog_python_id_is_python3_only() -> None:
 def test_suggest_language_python_is_python3() -> None:
     assert suggest_language("python") == "python3"
     assert suggest_language("python", prefer=list(_RUNNERS)) == "python3"
+
+
+def test_resolve_language_token_unique_prefix_and_ambiguous() -> None:
+    assert resolve_language_token("python") == "python3"
+    assert resolve_language_token("j") is None
 
 
 def test_unknown_language_raises_value_error() -> None:

@@ -34,6 +34,16 @@ def language(lang_id: str) -> dict[str, Any]:
     raise ValueError(f"unknown language: {lang_id}")
 
 
+def resolve_language_token(token: str) -> str | None:
+    ids = language_ids()
+    if token in ids:
+        return token
+    hits = [item for item in ids if item.startswith(token)]
+    if len(hits) == 1:
+        return hits[0]
+    return None
+
+
 def suggest_language(lang_id: str, *, prefer: list[str] | None = None) -> str | None:
     pool = prefer if prefer is not None else language_ids()
     match = _close_language(lang_id, pool)

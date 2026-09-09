@@ -8,7 +8,13 @@ import sys
 import time
 from typing import Any
 
-from honepad.catalog import language, language_ids, languages, problems, suggest_choice
+from honepad.catalog import (
+    language,
+    languages,
+    problems,
+    resolve_language_token,
+    suggest_choice,
+)
 from honepad.console import cmd_console, cmd_vscode, loop_console
 from honepad.packspec import missing_tools, on_missing_tools
 from honepad.runner import _RUNNERS, run
@@ -202,9 +208,7 @@ def _require_problem(problem: str) -> None:
 
 
 def _resolve_lang_token(name: str) -> str | None:
-    if name in language_ids() or name in _RUNNERS:
-        return name
-    return _prefix_match(name, language_ids())
+    return resolve_language_token(name)
 
 
 def _is_lang_token(name: str) -> bool:
@@ -406,7 +410,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     lang: str | None = None
     try:
         _require_problem(args.problem)
-        session = load_session(replace_lang=args.lang)
+        session = load_session()
         lang = args.lang or (
             str(session["lang"])
             if session is not None and session.get("problem") == args.problem

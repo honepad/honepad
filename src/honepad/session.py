@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from honepad.catalog import language, problems, repo_root
+from honepad.catalog import language, problems, repo_root, resolve_language_token
 from honepad.traces import problem_dir
 from honepad.workstub import (
     class_name_for,
@@ -221,10 +221,9 @@ def load_session(
         language(lang)
     except (KeyError, ValueError) as exc:
         if replace_lang is not None:
-            try:
-                language(replace_lang)
-            except (KeyError, ValueError):
-                raise ValueError(f"unknown language: {lang}") from exc
+            resolved = resolve_language_token(replace_lang)
+            if resolved is None:
+                raise ValueError(f"unknown language: {replace_lang}") from exc
             return None
         raise ValueError(f"unknown language: {lang}") from exc
     top = max_level(problem)

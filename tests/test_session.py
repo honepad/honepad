@@ -1829,6 +1829,42 @@ def test_start_replaces_unknown_session_lang_when_caller_gives_python3(
     assert session["problem"] == "bank_system"
 
 
+def test_run_does_not_treat_unknown_session_lang_as_no_session(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = _write_python_lang_session(tmp_path)
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    code = main(["run", "bank_system", "--lang", "python3"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "unknown language: python" in out
+    assert "\nOK\n" not in out
+    assert not out.strip().endswith("OK")
+    assert "through LEVEL 4" not in out
+    assert "UNLOCKED" not in out
+    leftover = json.loads(session_file.read_text(encoding="utf-8"))
+    assert leftover["lang"] == "python"
+
+
+def test_start_replace_lang_reports_caller_token_when_invalid(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = _write_python_lang_session(tmp_path)
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    with pytest.raises(ValueError, match="unknown language: notalang"):
+        load_session(replace_lang="notalang")
+    code = main(["start", "bank_system", "notalang", "--no-console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "unknown language: notalang" in out
+    assert "unknown language: python" not in out
+    leftover = json.loads(session_file.read_text(encoding="utf-8"))
+    assert leftover["lang"] == "python"
+
+
 def test_default_unknown_lang_python_suggests_python3(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(_write_python_lang_session(tmp_path)))
     code = main([])
