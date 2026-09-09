@@ -548,6 +548,7 @@ def test_start_picker_lists_problem_level_counts(monkeypatch, tmp_path, capsys) 
     assert "inventory (4 levels)" in out
     assert "rate_limiter (4 levels)" in out
     assert "gpu_scheduler (4 levels)" in out
+    assert "load_balancer (4 levels)" in out
 
 
 def test_start_picker_problem_typo_does_not_suggest_language(monkeypatch, tmp_path, capsys) -> None:

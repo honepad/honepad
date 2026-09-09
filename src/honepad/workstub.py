@@ -19,6 +19,7 @@ _CLASS = {
     "inventory": "Simulation",
     "rate_limiter": "Simulation",
     "gpu_scheduler": "Simulation",
+    "load_balancer": "Simulation",
 }
 
 

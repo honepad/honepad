@@ -1,0 +1,20 @@
+[
+  {
+    "id": "lb-l2-spec",
+    "level": 2,
+    "calls": [
+      {"m": "add_backend", "a": ["a"], "e": "true"},
+      {"m": "add_backend", "a": ["b"], "e": "true"},
+      {"m": "set_health", "a": ["b", 0], "e": "true"},
+      {"m": "route", "a": [], "e": "a"},
+      {"m": "route", "a": [], "e": "a"},
+      {"m": "set_health", "a": ["b", 1], "e": "true"},
+      {"m": "set_weight", "a": ["a", 2], "e": "true"},
+      {"m": "route", "a": [], "e": "a"},
+      {"m": "route", "a": [], "e": "a"},
+      {"m": "route", "a": [], "e": "b"},
+      {"m": "set_health", "a": ["z", 1], "e": "invalid_request"},
+      {"m": "set_weight", "a": ["a", 0], "e": "invalid_request"}
+    ]
+  }
+]

@@ -1,0 +1,16 @@
+[
+  {
+    "id": "lb-l1-spec",
+    "level": 1,
+    "calls": [
+      {"m": "route", "a": [], "e": ""},
+      {"m": "add_backend", "a": ["a"], "e": "true"},
+      {"m": "add_backend", "a": ["b"], "e": "true"},
+      {"m": "add_backend", "a": ["a"], "e": "false"},
+      {"m": "route", "a": [], "e": "a"},
+      {"m": "route", "a": [], "e": "b"},
+      {"m": "route", "a": [], "e": "a"},
+      {"m": "route", "a": [], "e": "b"}
+    ]
+  }
+]
