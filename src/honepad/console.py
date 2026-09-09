@@ -17,6 +17,7 @@ from honepad.session import (
     ensure_session,
     ensure_work_copy,
     extra_work_note,
+    format_debrief,
     load_session,
     max_level,
     note_clock_restarted,
@@ -87,6 +88,7 @@ def render_banner(session: dict[str, Any], now: int | None = None) -> str:
         lines.append(
             status_note("NOTE: a new clock is quit then start (keeps work). 3 deletes the file.")
         )
+        lines.append(format_debrief(session, now=now))
     return "\n".join(lines)
 
 

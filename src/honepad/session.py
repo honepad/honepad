@@ -233,7 +233,7 @@ def load_session(
     top = max_level(problem)
     if unlocked < 1 or unlocked > top:
         raise ValueError(f"{target} unlocked must be 1..{top}")
-    return {
+    loaded: dict[str, Any] = {
         "problem": problem,
         "lang": lang,
         "started_at": started_at,
@@ -241,6 +241,54 @@ def load_session(
         "unlocked": unlocked,
         "cleared": bool(payload.get("cleared")),
     }
+    last_run = _parse_last_run(payload.get("last_run"))
+    if last_run is not None:
+        loaded["last_run"] = last_run
+    return loaded
+
+
+def _parse_last_run(raw: Any) -> dict[str, int] | None:
+    if not isinstance(raw, dict):
+        return None
+    try:
+        return {
+            "level": int(raw["level"]),
+            "passed": int(raw["passed"]),
+            "failed": int(raw["failed"]),
+        }
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return None
+
+
+def record_last_run(session: dict[str, Any], *, level: int, passed: int, failed: int) -> None:
+    session["last_run"] = {
+        "level": int(level),
+        "passed": int(passed),
+        "failed": int(failed),
+    }
+    save_session(session)
+
+
+def format_debrief(session: dict[str, Any], now: int | None = None) -> str:
+    problem = str(session["problem"])
+    lang = str(session["lang"])
+    unlocked = int(session["unlocked"])
+    top = max_level(problem)
+    minutes = int(session["minutes"])
+    left = remaining_s(int(session["started_at"]), minutes, now=now)
+    used = minutes * 60 - left
+    lines = [
+        f"DEBRIEF: {problem} {lang} LEVEL {unlocked}/{top}",
+        f"used {used // 60}m left {left // 60}m",
+    ]
+    last = session.get("last_run")
+    if isinstance(last, dict) and {"level", "passed", "failed"} <= last.keys():
+        lines.append(
+            f"last through LEVEL {last['level']} passed={last['passed']} failed={last['failed']}"
+        )
+    else:
+        lines.append("last run: none")
+    return "\n".join(lines)
 
 
 def _single_segment(name: str) -> bool:
@@ -263,6 +311,9 @@ def save_session(session: dict[str, Any], path: Path | None = None) -> Path:
     }
     if session.get("cleared"):
         payload["cleared"] = True
+    last_run = _parse_last_run(session.get("last_run"))
+    if last_run is not None:
+        payload["last_run"] = last_run
     fd, tmp_name = tempfile.mkstemp(prefix=".session.", suffix=".tmp", dir=str(target.parent))
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
