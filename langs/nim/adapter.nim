@@ -165,6 +165,11 @@ proc dispatch(obj: var Target; methodName: string; args: JsonNode): JsonNode =
       )
     else:
       missing(methodName)
+  of "set_double_pay":
+    when compiles(obj.setDoublePay("", 0'i64, 0'i64)):
+      result = toNode(obj.setDoublePay(argStr(args, 0), argInt(args, 1), argInt(args, 2)))
+    else:
+      missing(methodName)
   of "calc_salary":
     when compiles(obj.calcSalary("", 0'i64, 0'i64)):
       result = toNode(obj.calcSalary(argStr(args, 0), argInt(args, 1), argInt(args, 2)))

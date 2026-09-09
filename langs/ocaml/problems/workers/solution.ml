@@ -10,6 +10,7 @@ type worker = {
   mutable entered_at : int64 option;
   mutable finished : (int64 * int64 * int64 * string) list;
   mutable pending : (string * int64 * int64) option;
+  mutable double_pay : (int64 * int64) list;
 }
 
 type t = { workers : (string, worker) Hashtbl.t }
@@ -53,6 +54,7 @@ let add_worker sim worker_id position compensation =
         entered_at = None;
         finished = [];
         pending = None;
+        double_pay = [];
       };
     "true")
 
@@ -106,6 +108,36 @@ let promote sim worker_id new_position new_compensation start_timestamp =
       worker.pending <- Some (new_position, new_compensation, start_timestamp);
       "success"
 
+let bonus_overlap lo hi windows =
+  let segs =
+    List.fold_left
+      (fun acc (begin_ts, end_ts) ->
+        let start = max lo begin_ts in
+        let stop = min hi end_ts in
+        if stop > start then (start, stop) :: acc else acc)
+      [] windows
+  in
+  let ordered = List.sort (fun (a, _) (b, _) -> compare a b) segs in
+  let rec merge acc = function
+    | [] -> List.rev acc
+    | (start, stop) :: rest -> (
+        match acc with
+        | (m_start, m_end) :: acc_rest when start < m_end ->
+            merge ((m_start, max m_end stop) :: acc_rest) rest
+        | _ -> merge ((start, stop) :: acc) rest)
+  in
+  List.fold_left
+    (fun acc (start, stop) -> Int64.add acc (Int64.sub stop start))
+    0L (merge [] ordered)
+
+let set_double_pay sim worker_id interval_begin interval_end =
+  match Hashtbl.find_opt sim.workers worker_id with
+  | None -> "invalid_request"
+  | Some _ when interval_end <= interval_begin -> "invalid_request"
+  | Some worker ->
+      worker.double_pay <- worker.double_pay @ [ (interval_begin, interval_end) ];
+      "true"
+
 let calc_salary sim worker_id start_timestamp end_timestamp =
   match Hashtbl.find_opt sim.workers worker_id with
   | None -> ""
@@ -115,7 +147,12 @@ let calc_salary sim worker_id start_timestamp end_timestamp =
           (fun acc (session_start, session_end, rate, _) ->
             let lo = max session_start start_timestamp in
             let hi = min session_end end_timestamp in
-            if hi > lo then Int64.add acc (Int64.mul (Int64.sub hi lo) rate)
+            if hi > lo then
+              let bonus = bonus_overlap lo hi worker.double_pay in
+              Int64.add acc
+                (Int64.add
+                   (Int64.mul (Int64.sub (Int64.sub hi lo) bonus) rate)
+                   (Int64.mul (Int64.mul bonus rate) 2L))
             else acc)
           0L worker.finished
       in
@@ -131,6 +168,8 @@ let call t meth args =
   | "promote" ->
       JStr
         (promote t (arg_str args 0) (arg_str args 1) (arg_int args 2) (arg_int args 3))
+  | "set_double_pay" ->
+      JStr (set_double_pay t (arg_str args 0) (arg_int args 1) (arg_int args 2))
   | "calc_salary" ->
       JStr (calc_salary t (arg_str args 0) (arg_int args 1) (arg_int args 2))
   | _ -> failwith ("missing method " ^ meth)

@@ -21,6 +21,7 @@ final class Worker {
   var enteredAt: Int64?
   var finished: [WorkSession] = []
   var pendingPromo: Promo?
+  var doublePay: [(Int64, Int64)] = []
 
   init(workerId: String, position: String, compensation: Int64) {
     self.workerId = workerId
@@ -127,6 +128,16 @@ final class Simulation: Harness {
     return "success"
   }
 
+  private func setDoublePay(_ workerId: String, _ intervalBegin: Int64, _ intervalEnd: Int64)
+    -> String
+  {
+    guard let worker = workers[workerId], intervalEnd > intervalBegin else {
+      return "invalid_request"
+    }
+    worker.doublePay.append((intervalBegin, intervalEnd))
+    return "true"
+  }
+
   private func calcSalary(_ workerId: String, _ startTimestamp: Int64, _ endTimestamp: Int64)
     -> String
   {
@@ -138,10 +149,32 @@ final class Simulation: Harness {
       let lo = max(session.start, startTimestamp)
       let hi = min(session.end, endTimestamp)
       if hi > lo {
-        total += (hi - lo) * session.rate
+        let bonus = bonusOverlap(lo, hi, worker.doublePay)
+        total += (hi - lo - bonus) * session.rate + bonus * session.rate * 2
       }
     }
     return String(total)
+  }
+
+  private func bonusOverlap(_ lo: Int64, _ hi: Int64, _ windows: [(Int64, Int64)]) -> Int64 {
+    var segs: [(Int64, Int64)] = []
+    for (begin, end) in windows {
+      let start = max(lo, begin)
+      let stop = min(hi, end)
+      if stop > start {
+        segs.append((start, stop))
+      }
+    }
+    segs.sort { $0.0 < $1.0 }
+    var merged: [(Int64, Int64)] = []
+    for (start, stop) in segs {
+      if merged.isEmpty || start >= merged[merged.count - 1].1 {
+        merged.append((start, stop))
+      } else {
+        merged[merged.count - 1].1 = max(merged[merged.count - 1].1, stop)
+      }
+    }
+    return merged.reduce(0) { $0 + ($1.1 - $1.0) }
   }
 
   func call(_ method: String, _ args: [Any]) throws -> Any {
@@ -157,6 +190,8 @@ final class Simulation: Harness {
       text = try topNWorkers(argI64(args, 0), argStr(args, 1))
     case "promote":
       text = try promote(argStr(args, 0), argStr(args, 1), argI64(args, 2), argI64(args, 3))
+    case "setDoublePay":
+      text = try setDoublePay(argStr(args, 0), argI64(args, 1), argI64(args, 2))
     case "calcSalary":
       text = try calcSalary(argStr(args, 0), argI64(args, 1), argI64(args, 2))
     default:

@@ -5,3 +5,4 @@
 -- top_n_workers(n, position)
 -- promote(worker_id, new_position, new_compensation, start_timestamp)
 -- calc_salary(worker_id, start_timestamp, end_timestamp)
+-- set_double_pay(worker_id, interval_begin, interval_end)

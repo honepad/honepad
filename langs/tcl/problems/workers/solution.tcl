@@ -15,7 +15,8 @@ oo::class create Simulation {
             in_office 0 \
             entered_at "" \
             finished {} \
-            pending_promo ""]
+            pending_promo "" \
+            double_pay {}]
         return [json::str true]
     }
 
@@ -119,12 +120,65 @@ oo::class create Simulation {
         return [json::str success]
     }
 
+    method set_double_pay {worker_id interval_begin interval_end} {
+        if {![dict exists $workers $worker_id] || $interval_end <= $interval_begin} {
+            return [json::str invalid_request]
+        }
+        set worker [dict get $workers $worker_id]
+        dict lappend worker double_pay [list $interval_begin $interval_end]
+        dict set workers $worker_id $worker
+        return [json::str true]
+    }
+
+    method bonus_overlap {lo hi windows} {
+        set segs {}
+        foreach win $windows {
+            lassign $win begin end
+            set start $lo
+            if {$begin > $start} {
+                set start $begin
+            }
+            set stop $hi
+            if {$end < $stop} {
+                set stop $end
+            }
+            if {$stop > $start} {
+                lappend segs [list $start $stop]
+            }
+        }
+        set segs [lsort -integer -index 0 $segs]
+        set merged {}
+        foreach seg $segs {
+            lassign $seg start stop
+            if {[llength $merged] == 0} {
+                lappend merged [list $start $stop]
+            } else {
+                set last [lindex $merged end]
+                lassign $last last_start last_stop
+                if {$start >= $last_stop} {
+                    lappend merged [list $start $stop]
+                } else {
+                    if {$stop > $last_stop} {
+                        set last_stop $stop
+                    }
+                    lset merged end [list $last_start $last_stop]
+                }
+            }
+        }
+        set sum 0
+        foreach seg $merged {
+            incr sum [expr {[lindex $seg 1] - [lindex $seg 0]}]
+        }
+        return $sum
+    }
+
     method calc_salary {worker_id start_timestamp end_timestamp} {
         if {![dict exists $workers $worker_id]} {
             return [json::str ""]
         }
+        set worker [dict get $workers $worker_id]
         set total 0
-        foreach row [dict get [dict get $workers $worker_id] finished] {
+        foreach row [dict get $worker finished] {
             lassign $row session_start session_end rate
             set lo $session_start
             if {$start_timestamp > $lo} {
@@ -135,7 +189,8 @@ oo::class create Simulation {
                 set hi $end_timestamp
             }
             if {$hi > $lo} {
-                incr total [expr {($hi - $lo) * $rate}]
+                set bonus [my bonus_overlap $lo $hi [dict get $worker double_pay]]
+                incr total [expr {($hi - $lo - $bonus) * $rate + $bonus * $rate * 2}]
             }
         }
         return [json::str $total]

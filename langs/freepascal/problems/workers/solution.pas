@@ -22,6 +22,11 @@ type
     StartTimestamp: Int64;
   end;
 
+  TPayWindow = record
+    IntervalBegin: Int64;
+    IntervalEnd: Int64;
+  end;
+
   TWorker = class
   public
     WorkerId: string;
@@ -32,6 +37,7 @@ type
     Finished: array of TWorkSession;
     HasPromo: Boolean;
     Promo: TPromo;
+    DoublePay: array of TPayWindow;
     constructor Create(const AId, APosition: string; ACompensation: Int64);
     function TotalTime: Int64;
     function PositionTime(const Pos: string): Int64;
@@ -53,6 +59,7 @@ type
     function Promote(const WorkerId, NewPosition: string; NewCompensation,
       StartTimestamp: Int64): TJsonVal;
     function CalcSalary(const WorkerId: string; StartTimestamp, EndTimestamp: Int64): TJsonVal;
+    function SetDoublePay(const WorkerId: string; IntervalBegin, IntervalEnd: Int64): TJsonVal;
   end;
 
 function NewTarget: TObject;
@@ -232,11 +239,72 @@ begin
   Result := JsonStr('success');
 end;
 
+function BonusOverlap(Lo, Hi: Int64; const Windows: array of TPayWindow): Int64;
+var
+  Segs: array of TPayWindow;
+  Merged: array of TPayWindow;
+  I, J, N: Integer;
+  StartTs, StopTs: Int64;
+  Tmp: TPayWindow;
+begin
+  SetLength(Segs, 0);
+  for I := 0 to High(Windows) do
+  begin
+    StartTs := Windows[I].IntervalBegin;
+    if Lo > StartTs then
+      StartTs := Lo;
+    StopTs := Windows[I].IntervalEnd;
+    if Hi < StopTs then
+      StopTs := Hi;
+    if StopTs > StartTs then
+    begin
+      SetLength(Segs, Length(Segs) + 1);
+      Segs[High(Segs)].IntervalBegin := StartTs;
+      Segs[High(Segs)].IntervalEnd := StopTs;
+    end;
+  end;
+  for I := 0 to High(Segs) - 1 do
+    for J := I + 1 to High(Segs) do
+      if Segs[J].IntervalBegin < Segs[I].IntervalBegin then
+      begin
+        Tmp := Segs[I];
+        Segs[I] := Segs[J];
+        Segs[J] := Tmp;
+      end;
+  SetLength(Merged, 0);
+  for I := 0 to High(Segs) do
+  begin
+    if (Length(Merged) = 0) or (Segs[I].IntervalBegin >= Merged[High(Merged)].IntervalEnd) then
+    begin
+      SetLength(Merged, Length(Merged) + 1);
+      Merged[High(Merged)] := Segs[I];
+    end
+    else if Segs[I].IntervalEnd > Merged[High(Merged)].IntervalEnd then
+      Merged[High(Merged)].IntervalEnd := Segs[I].IntervalEnd;
+  end;
+  Result := 0;
+  for N := 0 to High(Merged) do
+    Result := Result + (Merged[N].IntervalEnd - Merged[N].IntervalBegin);
+end;
+
+function Simulation.SetDoublePay(const WorkerId: string; IntervalBegin, IntervalEnd: Int64): TJsonVal;
+var
+  Worker: TWorker;
+begin
+  Worker := FindWorker(WorkerId);
+  if (Worker = nil) or (IntervalEnd <= IntervalBegin) then
+    Exit(JsonStr('invalid_request'));
+  SetLength(Worker.DoublePay, Length(Worker.DoublePay) + 1);
+  Worker.DoublePay[High(Worker.DoublePay)].IntervalBegin := IntervalBegin;
+  Worker.DoublePay[High(Worker.DoublePay)].IntervalEnd := IntervalEnd;
+  Result := JsonStr('true');
+end;
+
 function Simulation.CalcSalary(const WorkerId: string; StartTimestamp, EndTimestamp: Int64): TJsonVal;
 var
   Worker: TWorker;
   N: Integer;
-  Lo, Hi, Total: Int64;
+  Lo, Hi, Total, Bonus: Int64;
 begin
   Worker := FindWorker(WorkerId);
   if Worker = nil then
@@ -251,7 +319,10 @@ begin
     if EndTimestamp < Hi then
       Hi := EndTimestamp;
     if Hi > Lo then
-      Total := Total + (Hi - Lo) * Worker.Finished[N].Rate;
+    begin
+      Bonus := BonusOverlap(Lo, Hi, Worker.DoublePay);
+      Total := Total + (Hi - Lo - Bonus) * Worker.Finished[N].Rate + Bonus * Worker.Finished[N].Rate * 2;
+    end;
   end;
   Result := JsonStr(IntToStr(Total));
 end;

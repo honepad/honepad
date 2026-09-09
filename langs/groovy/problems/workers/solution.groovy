@@ -60,6 +60,15 @@ class Simulation {
         return 'success'
     }
 
+    String setDoublePay(String workerId, long intervalBegin, long intervalEnd) {
+        Worker worker = workers[workerId]
+        if (worker == null || intervalEnd <= intervalBegin) {
+            return 'invalid_request'
+        }
+        worker.doublePay.add([intervalBegin, intervalEnd] as long[])
+        return 'true'
+    }
+
     String calcSalary(String workerId, long startTimestamp, long endTimestamp) {
         Worker worker = workers[workerId]
         if (worker == null) {
@@ -70,10 +79,36 @@ class Simulation {
             long lo = Math.max(session.start, startTimestamp)
             long hi = Math.min(session.end, endTimestamp)
             if (hi > lo) {
-                total += (hi - lo) * session.rate
+                long bonus = bonusOverlap(lo, hi, worker.doublePay)
+                total += (hi - lo - bonus) * session.rate + bonus * session.rate * 2
             }
         }
         return String.valueOf(total)
+    }
+
+    static long bonusOverlap(long lo, long hi, List<long[]> windows) {
+        List<long[]> segs = []
+        windows.each { win ->
+            long start = Math.max(lo, win[0])
+            long stop = Math.min(hi, win[1])
+            if (stop > start) {
+                segs.add([start, stop] as long[])
+            }
+        }
+        segs.sort { a, b -> Long.compare(a[0], b[0]) }
+        List<long[]> merged = []
+        segs.each { seg ->
+            if (merged.isEmpty() || seg[0] >= merged[-1][1]) {
+                merged.add([seg[0], seg[1]] as long[])
+            } else {
+                merged[-1][1] = Math.max(merged[-1][1], seg[1])
+            }
+        }
+        long sum = 0
+        merged.each { seg ->
+            sum += seg[1] - seg[0]
+        }
+        return sum
     }
 }
 
@@ -111,6 +146,7 @@ class Worker {
     Long enteredAt = null
     List<WorkSession> finished = []
     Promo pendingPromo = null
+    List<long[]> doublePay = []
 
     Worker(String workerId, String position, long compensation) {
         this.workerId = workerId

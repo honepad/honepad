@@ -161,6 +161,11 @@ begin
     M := Bind(Obj, 'Promote', Method);
     Exit(TFnSSII(M)(ArgStr(Args, 0), ArgStr(Args, 1), ArgInt(Args, 2), ArgInt(Args, 3)));
   end;
+  if Method = 'set_double_pay' then
+  begin
+    M := Bind(Obj, 'SetDoublePay', Method);
+    Exit(TFnSII(M)(ArgStr(Args, 0), ArgInt(Args, 1), ArgInt(Args, 2)));
+  end;
   if Method = 'calc_salary' then
   begin
     M := Bind(Obj, 'CalcSalary', Method);

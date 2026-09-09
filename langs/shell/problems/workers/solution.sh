@@ -2,14 +2,15 @@
 # Reference workers register. Shared public traces.
 
 new() {
-  unset POSITION COMP IN_OFFICE ENTERED FINISHED PENDING
-  declare -gA POSITION COMP IN_OFFICE ENTERED FINISHED PENDING
+  unset POSITION COMP IN_OFFICE ENTERED FINISHED PENDING DOUBLE_PAY
+  declare -gA POSITION COMP IN_OFFICE ENTERED FINISHED PENDING DOUBLE_PAY
   POSITION=()
   COMP=()
   IN_OFFICE=()
   ENTERED=()
   FINISHED=()
   PENDING=()
+  DOUBLE_PAY=()
 }
 
 add_worker() {
@@ -24,6 +25,7 @@ add_worker() {
   ENTERED[$worker_id]=""
   FINISHED[$worker_id]=""
   PENDING[$worker_id]=""
+  DOUBLE_PAY[$worker_id]=""
   hp_str "true"
 }
 
@@ -145,13 +147,75 @@ promote() {
   hp_str "success"
 }
 
+set_double_pay() {
+  local worker_id=$1 interval_begin=$2 interval_end=$3
+  if [[ -z "${POSITION[$worker_id]+x}" ]] || ((interval_end <= interval_begin)); then
+    hp_str "invalid_request"
+    return 0
+  fi
+  DOUBLE_PAY[$worker_id]+="${interval_begin} ${interval_end}"$'\n'
+  hp_str "true"
+}
+
+_bonus_overlap() {
+  local lo=$1 hi=$2
+  local windows=$3
+  local line begin end start stop
+  local -a segs=()
+  while IFS= read -r line; do
+    if [[ -z "$line" ]]; then
+      continue
+    fi
+    begin=${line%% *}
+    end=${line#* }
+    if ((begin > lo)); then
+      start=$begin
+    else
+      start=$lo
+    fi
+    if ((end < hi)); then
+      stop=$end
+    else
+      stop=$hi
+    fi
+    if ((stop > start)); then
+      segs+=("$start $stop")
+    fi
+  done <<<"$windows"
+  local bonus=0 last_start last_stop merged=0
+  if ((${#segs[@]} > 0)); then
+    while IFS= read -r line; do
+      if [[ -z "$line" ]]; then
+        continue
+      fi
+      start=${line%% *}
+      stop=${line#* }
+      if ((merged == 0)); then
+        last_start=$start
+        last_stop=$stop
+        merged=1
+      elif ((start >= last_stop)); then
+        bonus=$((bonus + last_stop - last_start))
+        last_start=$start
+        last_stop=$stop
+      elif ((stop > last_stop)); then
+        last_stop=$stop
+      fi
+    done < <(printf '%s\n' "${segs[@]}" | sort -k1,1n)
+    if ((merged == 1)); then
+      bonus=$((bonus + last_stop - last_start))
+    fi
+  fi
+  printf '%s\n' "$bonus"
+}
+
 calc_salary() {
   local worker_id=$1 start_timestamp=$2 end_timestamp=$3
   if [[ -z "${POSITION[$worker_id]+x}" ]]; then
     hp_str ""
     return 0
   fi
-  local total=0 line session_start session_end rate lo hi
+  local total=0 line session_start session_end rate lo hi bonus
   while IFS= read -r line; do
     if [[ -z "$line" ]]; then
       continue
@@ -172,7 +236,8 @@ calc_salary() {
       hi=$end_timestamp
     fi
     if ((hi > lo)); then
-      total=$((total + (hi - lo) * rate))
+      bonus=$(_bonus_overlap "$lo" "$hi" "${DOUBLE_PAY[$worker_id]}")
+      total=$((total + (hi - lo - bonus) * rate + bonus * rate * 2))
     fi
   done <<<"${FINISHED[$worker_id]}"
   hp_str "$total"

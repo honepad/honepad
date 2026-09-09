@@ -25,6 +25,7 @@ class Worker {
   int? enteredAt;
   final List<WorkSession> finished = [];
   Promo? pendingPromo;
+  final List<List<int>> doublePay = [];
 
   int totalTime() {
     var sum = 0;
@@ -128,6 +129,15 @@ class Simulation {
     return 'success';
   }
 
+  String setDoublePay(String workerId, int intervalBegin, int intervalEnd) {
+    final worker = workers[workerId];
+    if (worker == null || intervalEnd <= intervalBegin) {
+      return 'invalid_request';
+    }
+    worker.doublePay.add([intervalBegin, intervalEnd]);
+    return 'true';
+  }
+
   String calcSalary(String workerId, int startTimestamp, int endTimestamp) {
     final worker = workers[workerId];
     if (worker == null) {
@@ -139,9 +149,35 @@ class Simulation {
           session.start > startTimestamp ? session.start : startTimestamp;
       final hi = session.end < endTimestamp ? session.end : endTimestamp;
       if (hi > lo) {
-        total += (hi - lo) * session.rate;
+        final bonus = bonusOverlap(lo, hi, worker.doublePay);
+        total += (hi - lo - bonus) * session.rate + bonus * session.rate * 2;
       }
     }
     return '$total';
   }
+}
+
+int bonusOverlap(int lo, int hi, List<List<int>> windows) {
+  final segs = <List<int>>[];
+  for (final win in windows) {
+    final start = lo > win[0] ? lo : win[0];
+    final stop = hi < win[1] ? hi : win[1];
+    if (stop > start) {
+      segs.add([start, stop]);
+    }
+  }
+  segs.sort((a, b) => a[0].compareTo(b[0]));
+  final merged = <List<int>>[];
+  for (final seg in segs) {
+    if (merged.isEmpty || seg[0] >= merged.last[1]) {
+      merged.add([seg[0], seg[1]]);
+    } else {
+      merged.last[1] = merged.last[1] > seg[1] ? merged.last[1] : seg[1];
+    }
+  }
+  var sum = 0;
+  for (final seg in merged) {
+    sum += seg[1] - seg[0];
+  }
+  return sum;
 }

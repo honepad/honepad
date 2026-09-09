@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class Worker
-  attr_accessor :worker_id, :position, :compensation, :in_office, :entered_at, :finished, :pending_promo
+  attr_accessor :worker_id, :position, :compensation, :in_office, :entered_at, :finished, :pending_promo, :double_pay
 
   def initialize(worker_id, position, compensation)
     @worker_id = worker_id
@@ -11,6 +11,7 @@ class Worker
     @entered_at = nil
     @finished = []
     @pending_promo = nil
+    @double_pay = []
   end
 
   def total_time
@@ -84,6 +85,14 @@ class Simulation
     'success'
   end
 
+  def set_double_pay(worker_id, interval_begin, interval_end)
+    worker = @workers[worker_id]
+    return 'invalid_request' if worker.nil? || interval_end <= interval_begin
+
+    worker.double_pay << [interval_begin, interval_end]
+    'true'
+  end
+
   def calc_salary(worker_id, start_timestamp, end_timestamp)
     worker = @workers[worker_id]
     return '' if worker.nil?
@@ -92,8 +101,30 @@ class Simulation
     worker.finished.each do |session_start, session_end, rate, _pos|
       lo = [session_start, start_timestamp].max
       hi = [session_end, end_timestamp].min
-      total += (hi - lo) * rate if hi > lo
+      next unless hi > lo
+
+      bonus = bonus_overlap(lo, hi, worker.double_pay)
+      total += (hi - lo - bonus) * rate + bonus * rate * 2
     end
     total.to_s
   end
+end
+
+def bonus_overlap(lo, hi, windows)
+  segs = []
+  windows.each do |begin_ts, end_ts|
+    start_ts = [lo, begin_ts].max
+    stop_ts = [hi, end_ts].min
+    segs << [start_ts, stop_ts] if stop_ts > start_ts
+  end
+  segs.sort!
+  merged = []
+  segs.each do |start_ts, stop_ts|
+    if merged.empty? || start_ts >= merged[-1][1]
+      merged << [start_ts, stop_ts]
+    else
+      merged[-1][1] = [merged[-1][1], stop_ts].max
+    end
+  end
+  merged.sum { |start_ts, stop_ts| stop_ts - start_ts }
 end

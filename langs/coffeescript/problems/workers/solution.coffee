@@ -7,6 +7,7 @@ class Worker
     @enteredAt = null
     @finished = []
     @pendingPromo = null
+    @doublePay = []
 
   totalTime: ->
     @finished.reduce (sum, [start, end]) ->
@@ -76,6 +77,12 @@ class Simulation
     worker.pendingPromo = [newPosition, newCompensation, startTimestamp]
     "success"
 
+  setDoublePay: (workerId, intervalBegin, intervalEnd) ->
+    worker = @workers[workerId]
+    return "invalid_request" if not worker or intervalEnd <= intervalBegin
+    worker.doublePay.push [intervalBegin, intervalEnd]
+    "true"
+
   calcSalary: (workerId, startTimestamp, endTimestamp) ->
     worker = @workers[workerId]
     return "" unless worker
@@ -83,7 +90,27 @@ class Simulation
     for [sessionStart, sessionEnd, rate] in worker.finished
       lo = Math.max sessionStart, startTimestamp
       hi = Math.min sessionEnd, endTimestamp
-      total += (hi - lo) * rate if hi > lo
+      if hi > lo
+        bonus = bonusOverlap lo, hi, worker.doublePay
+        total += (hi - lo - bonus) * rate + bonus * rate * 2
     String total
+
+bonusOverlap = (lo, hi, windows) ->
+  segs = []
+  for [begin, end] in windows
+    start = Math.max lo, begin
+    stop = Math.min hi, end
+    segs.push [start, stop] if stop > start
+  segs.sort (a, b) -> a[0] - b[0]
+  merged = []
+  for [start, stop] in segs
+    if not merged.length or start >= merged[merged.length - 1][1]
+      merged.push [start, stop]
+    else
+      last = merged[merged.length - 1]
+      last[1] = Math.max last[1], stop
+  merged.reduce (sum, [start, stop]) ->
+    sum + (stop - start)
+  , 0
 
 module.exports = { Simulation }

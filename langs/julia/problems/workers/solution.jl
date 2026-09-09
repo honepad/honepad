@@ -8,6 +8,7 @@ mutable struct Worker
     entered_at::Union{Int,Nothing}
     finished::Vector{Tuple{Int,Int,Int,String}}
     pending_promo::Union{Tuple{String,Int,Int},Nothing}
+    double_pay::Vector{Tuple{Int,Int}}
 end
 
 function Worker(worker_id::AbstractString, position::AbstractString, compensation::Integer)
@@ -19,6 +20,7 @@ function Worker(worker_id::AbstractString, position::AbstractString, compensatio
         nothing,
         Tuple{Int,Int,Int,String}[],
         nothing,
+        Tuple{Int,Int}[],
     )
 end
 
@@ -107,6 +109,17 @@ function promote(sim::Simulation, worker_id, new_position, new_compensation, sta
     return "success"
 end
 
+function set_double_pay(sim::Simulation, worker_id, interval_begin, interval_end)
+    worker = get(sim.workers, string(worker_id), nothing)
+    interval_begin = Int(interval_begin)
+    interval_end = Int(interval_end)
+    if worker === nothing || interval_end <= interval_begin
+        return "invalid_request"
+    end
+    push!(worker.double_pay, (interval_begin, interval_end))
+    return "true"
+end
+
 function calc_salary(sim::Simulation, worker_id, start_timestamp, end_timestamp)
     worker = get(sim.workers, string(worker_id), nothing)
     worker === nothing && return ""
@@ -117,8 +130,31 @@ function calc_salary(sim::Simulation, worker_id, start_timestamp, end_timestamp)
         lo = max(session_start, start_timestamp)
         hi = min(session_end, end_timestamp)
         if hi > lo
-            total += (hi - lo) * rate
+            bonus = bonus_overlap(lo, hi, worker.double_pay)
+            total += (hi - lo - bonus) * rate + bonus * rate * 2
         end
     end
     return string(total)
+end
+
+function bonus_overlap(lo::Int, hi::Int, windows)
+    segs = Tuple{Int,Int}[]
+    for (begin_ts, end_ts) in windows
+        start_ts = max(lo, begin_ts)
+        stop_ts = min(hi, end_ts)
+        if stop_ts > start_ts
+            push!(segs, (start_ts, stop_ts))
+        end
+    end
+    sort!(segs)
+    merged = Tuple{Int,Int}[]
+    for (start_ts, stop_ts) in segs
+        if isempty(merged) || start_ts >= merged[end][2]
+            push!(merged, (start_ts, stop_ts))
+        else
+            prev_start, prev_end = merged[end]
+            merged[end] = (prev_start, max(prev_end, stop_ts))
+        end
+    end
+    return sum(stop_ts - start_ts for (start_ts, stop_ts) in merged; init = 0)
 end

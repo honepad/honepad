@@ -6,5 +6,6 @@ class Simulation {
   topNWorkers(n, position) { throw new Error('not implemented'); }
   promote(worker_id, new_position, new_compensation, start_timestamp) { throw new Error('not implemented'); }
   calcSalary(worker_id, start_timestamp, end_timestamp) { throw new Error('not implemented'); }
+  setDoublePay(worker_id, interval_begin, interval_end) { throw new Error('not implemented'); }
 }
 module.exports = { Simulation };

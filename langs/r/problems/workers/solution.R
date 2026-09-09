@@ -11,6 +11,7 @@ new_worker <- function(worker_id, position, compensation) {
   worker$entered_at <- NULL
   worker$finished <- list()
   worker$pending_promo <- NULL
+  worker$double_pay <- list()
   worker
 }
 
@@ -120,6 +121,15 @@ Simulation <- function() {
     "success"
   }
 
+  self$set_double_pay <- function(worker_id, interval_begin, interval_end) {
+    worker <- self$workers[[worker_id]]
+    if (is.null(worker) || interval_end <= interval_begin) {
+      return("invalid_request")
+    }
+    worker$double_pay[[length(worker$double_pay) + 1]] <- list(interval_begin, interval_end)
+    "true"
+  }
+
   self$calc_salary <- function(worker_id, start_timestamp, end_timestamp) {
     worker <- self$workers[[worker_id]]
     if (is.null(worker)) {
@@ -133,11 +143,45 @@ Simulation <- function() {
       lo <- max(session_start, start_timestamp)
       hi <- min(session_end, end_timestamp)
       if (hi > lo) {
-        total <- total + (hi - lo) * rate
+        bonus <- bonus_overlap(lo, hi, worker$double_pay)
+        total <- total + (hi - lo - bonus) * rate + bonus * rate * 2
       }
     }
     fmt_int(total)
   }
 
   self
+}
+
+bonus_overlap <- function(lo, hi, windows) {
+  segs <- list()
+  for (win in windows) {
+    start <- max(lo, win[[1]])
+    stop <- min(hi, win[[2]])
+    if (stop > start) {
+      segs[[length(segs) + 1]] <- c(start, stop)
+    }
+  }
+  if (length(segs) == 0) {
+    return(0)
+  }
+  starts <- vapply(segs, function(seg) seg[[1]], numeric(1))
+  segs <- segs[order(starts)]
+  merged <- list(segs[[1]])
+  if (length(segs) > 1) {
+    for (i in 2:length(segs)) {
+      last <- merged[[length(merged)]]
+      if (segs[[i]][[1]] >= last[[2]]) {
+        merged[[length(merged) + 1]] <- segs[[i]]
+      } else {
+        last[[2]] <- max(last[[2]], segs[[i]][[2]])
+        merged[[length(merged)]] <- last
+      }
+    }
+  }
+  total <- 0
+  for (seg in merged) {
+    total <- total + (seg[[2]] - seg[[1]])
+  }
+  total
 }

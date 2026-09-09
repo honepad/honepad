@@ -11,6 +11,11 @@ module solution
     character(len=:), allocatable :: position
   end type
 
+  type :: window_t
+    integer(int64) :: first = 0
+    integer(int64) :: last = 0
+  end type
+
   type :: worker_t
     character(len=:), allocatable :: worker_id
     character(len=:), allocatable :: position
@@ -23,6 +28,8 @@ module solution
     character(len=:), allocatable :: promo_position
     integer(int64) :: promo_compensation = 0
     integer(int64) :: promo_start = 0
+    type(window_t), allocatable :: double_pay(:)
+    integer :: dp_n = 0
   end type
 
   type :: sim_t
@@ -58,6 +65,8 @@ contains
       text = top_n_workers(arg_i64(args, 0), arg_str(args, 1))
     else if (method == "promote") then
       text = promote(arg_str(args, 0), arg_str(args, 1), arg_i64(args, 2), arg_i64(args, 3))
+    else if (method == "set_double_pay") then
+      text = set_double_pay(arg_str(args, 0), arg_i64(args, 1), arg_i64(args, 2))
     else if (method == "calc_salary") then
       text = calc_salary(arg_str(args, 0), arg_i64(args, 1), arg_i64(args, 2))
     else
@@ -108,6 +117,21 @@ contains
     allocate (tmp(cap))
     tmp(1:worker%fin_n) = worker%finished(1:worker%fin_n)
     call move_alloc(tmp, worker%finished)
+  end subroutine
+
+  subroutine grow_double_pay(worker)
+    type(worker_t), intent(inout) :: worker
+    type(window_t), allocatable :: tmp(:)
+    integer :: cap
+    if (.not. allocated(worker%double_pay)) then
+      allocate (worker%double_pay(4))
+      return
+    end if
+    if (worker%dp_n < size(worker%double_pay)) return
+    cap = size(worker%double_pay) * 2
+    allocate (tmp(cap))
+    tmp(1:worker%dp_n) = worker%double_pay(1:worker%dp_n)
+    call move_alloc(tmp, worker%double_pay)
   end subroutine
 
   integer(int64) function total_time(worker) result(total)
@@ -161,7 +185,9 @@ contains
     sim%workers(idx)%entered_at = 0
     sim%workers(idx)%fin_n = 0
     sim%workers(idx)%has_promo = .false.
+    sim%workers(idx)%dp_n = 0
     if (allocated(sim%workers(idx)%finished)) deallocate (sim%workers(idx)%finished)
+    if (allocated(sim%workers(idx)%double_pay)) deallocate (sim%workers(idx)%double_pay)
     out = "true"
   end function
 
@@ -265,12 +291,73 @@ contains
     out = "success"
   end function
 
+  integer(int64) function bonus_overlap(lo, hi, worker) result(total)
+    integer(int64), intent(in) :: lo, hi
+    type(worker_t), intent(in) :: worker
+    type(window_t), allocatable :: segs(:), merged(:)
+    integer :: i, n, m
+    integer(int64) :: start, stop
+    n = 0
+    allocate (segs(max(worker%dp_n, 1)))
+    do i = 1, worker%dp_n
+      start = max(lo, worker%double_pay(i)%first)
+      stop = min(hi, worker%double_pay(i)%last)
+      if (stop > start) then
+        n = n + 1
+        segs(n)%first = start
+        segs(n)%last = stop
+      end if
+    end do
+    do i = 1, n - 1
+      do m = i + 1, n
+        if (segs(m)%first < segs(i)%first) then
+          start = segs(i)%first
+          stop = segs(i)%last
+          segs(i) = segs(m)
+          segs(m)%first = start
+          segs(m)%last = stop
+        end if
+      end do
+    end do
+    m = 0
+    allocate (merged(max(n, 1)))
+    do i = 1, n
+      if (m == 0 .or. segs(i)%first >= merged(m)%last) then
+        m = m + 1
+        merged(m) = segs(i)
+      else
+        merged(m)%last = max(merged(m)%last, segs(i)%last)
+      end if
+    end do
+    total = 0
+    do i = 1, m
+      total = total + merged(i)%last - merged(i)%first
+    end do
+  end function
+
+  function set_double_pay(worker_id, interval_begin, interval_end) result(out)
+    character(len=*), intent(in) :: worker_id
+    integer(int64), intent(in) :: interval_begin, interval_end
+    character(len=:), allocatable :: out
+    integer :: idx
+    idx = find_worker(worker_id)
+    if (idx == 0 .or. interval_end <= interval_begin) then
+      out = "invalid_request"
+      return
+    end if
+    call grow_double_pay(sim%workers(idx))
+    sim%workers(idx)%dp_n = sim%workers(idx)%dp_n + 1
+    sim%workers(idx)%double_pay(sim%workers(idx)%dp_n)%first = interval_begin
+    sim%workers(idx)%double_pay(sim%workers(idx)%dp_n)%last = interval_end
+    out = "true"
+  end function
+
   function calc_salary(worker_id, start_timestamp, end_timestamp) result(out)
     character(len=*), intent(in) :: worker_id
     integer(int64), intent(in) :: start_timestamp, end_timestamp
     character(len=:), allocatable :: out
     integer :: idx, i
-    integer(int64) :: total, lo, hi
+    integer(int64) :: total, lo, hi, bonus
     character(len=32) :: buf
     idx = find_worker(worker_id)
     if (idx == 0) then
@@ -281,7 +368,11 @@ contains
     do i = 1, sim%workers(idx)%fin_n
       lo = max(sim%workers(idx)%finished(i)%start, start_timestamp)
       hi = min(sim%workers(idx)%finished(i)%end, end_timestamp)
-      if (hi > lo) total = total + (hi - lo) * sim%workers(idx)%finished(i)%rate
+      if (hi > lo) then
+        bonus = bonus_overlap(lo, hi, sim%workers(idx))
+        total = total + (hi - lo - bonus) * sim%workers(idx)%finished(i)%rate + bonus * &
+          sim%workers(idx)%finished(i)%rate * 2
+      end if
     end do
     write (buf, '(i0)') total
     out = trim(buf)

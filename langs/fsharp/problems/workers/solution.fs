@@ -23,6 +23,7 @@ type Worker(workerId: string, position: string, compensation: int) =
     member val EnteredAt = Nullable() with get, set
     member val Finished = ResizeArray<WorkSession>() with get
     member val PendingPromo: Promo = null with get, set
+    member val DoublePay = ResizeArray<int * int>() with get
 
     member this.TotalTime() =
         let mutable sum = 0
@@ -46,6 +47,37 @@ type Worker(workerId: string, position: string, compensation: int) =
             this.Position <- this.PendingPromo.Position
             this.Compensation <- this.PendingPromo.Compensation
             this.PendingPromo <- null
+
+let private bonusOverlap (lo: int) (hi: int) (windows: ResizeArray<int * int>) : int =
+    let segs = ResizeArray<int * int>()
+
+    for beginTs, endTs in windows do
+        let start = Math.Max(lo, beginTs)
+        let stop = Math.Min(hi, endTs)
+
+        if stop > start then
+            segs.Add((start, stop))
+
+    segs.Sort(fun (a, _) (b, _) -> a.CompareTo(b))
+    let merged = ResizeArray<int * int>()
+
+    for start, stop in segs do
+        if merged.Count = 0 then
+            merged.Add((start, stop))
+        else
+            let lastStart, lastStop = merged[merged.Count - 1]
+
+            if start >= lastStop then
+                merged.Add((start, stop))
+            else
+                merged[merged.Count - 1] <- (lastStart, Math.Max(lastStop, stop))
+
+    let mutable sum = 0
+
+    for start, stop in merged do
+        sum <- sum + (stop - start)
+
+    sum
 
 type Simulation() =
     let workers = Dictionary<string, Worker>()
@@ -107,6 +139,14 @@ type Simulation() =
             worker.PendingPromo <- Promo(newPosition, newCompensation, startTimestamp)
             "success"
 
+    member this.setDoublePay(workerId: string, intervalBegin: int, intervalEnd: int) : string =
+        match workers.TryGetValue(workerId) with
+        | false, _ -> "invalid_request"
+        | true, _ when intervalEnd <= intervalBegin -> "invalid_request"
+        | true, worker ->
+            worker.DoublePay.Add((intervalBegin, intervalEnd))
+            "true"
+
     member this.calcSalary(workerId: string, startTimestamp: int, endTimestamp: int) : string =
         match workers.TryGetValue(workerId) with
         | false, _ -> ""
@@ -118,6 +158,10 @@ type Simulation() =
                 let hi = Math.Min(session.End, endTimestamp)
 
                 if hi > lo then
-                    total <- total + int64 (hi - lo) * int64 session.Rate
+                    let bonus = bonusOverlap lo hi worker.DoublePay
+                    total <-
+                        total
+                        + int64 (hi - lo - bonus) * int64 session.Rate
+                        + int64 bonus * int64 session.Rate * 2L
 
             string total

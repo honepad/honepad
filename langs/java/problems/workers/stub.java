@@ -47,4 +47,12 @@ public class Simulation {
     public String calcSalary(String workerId, int startTimestamp, int endTimestamp) {
         return "";
     }
+
+    /**
+     * Record {@code [begin, end)} as 2x pay. {@code "true"} or
+     * {@code "invalid_request"}.
+     */
+    public String setDoublePay(String workerId, int intervalBegin, int intervalEnd) {
+        return "";
+    }
 }

@@ -7,7 +7,8 @@
    (in-office :initform nil :accessor worker-in-office)
    (entered-at :initform nil :accessor worker-entered-at)
    (finished :initform nil :accessor worker-finished)
-   (pending-promo :initform nil :accessor worker-pending-promo)))
+   (pending-promo :initform nil :accessor worker-pending-promo)
+   (double-pay :initform nil :accessor worker-double-pay)))
 
 (defun make-worker (worker-id position compensation)
   (make-instance 'worker
@@ -99,6 +100,32 @@
           (list new_position new_compensation start_timestamp))
     "success"))
 
+(defmethod set_double_pay ((sim simulation) worker_id interval_begin interval_end)
+  (let ((worker (gethash worker_id (sim-workers sim))))
+    (when (or (null worker) (<= interval_end interval_begin))
+      (return-from set_double_pay "invalid_request"))
+    (setf (worker-double-pay worker)
+          (append (worker-double-pay worker)
+                  (list (list interval_begin interval_end))))
+    "true"))
+
+(defun bonus-overlap (lo hi windows)
+  (let ((segs nil))
+    (dolist (win windows)
+      (let ((start (max lo (first win)))
+            (stop (min hi (second win))))
+        (when (> stop start)
+          (push (list start stop) segs))))
+    (setf segs (sort segs #'< :key #'first))
+    (let ((merged nil))
+      (dolist (seg segs)
+        (if (or (null merged) (>= (first seg) (second (car (last merged)))))
+            (setf merged (append merged (list (copy-list seg))))
+            (setf (second (car (last merged)))
+                  (max (second (car (last merged))) (second seg)))))
+      (loop for (start stop) in merged
+            sum (- stop start)))))
+
 (defmethod calc_salary ((sim simulation) worker_id start_timestamp end_timestamp)
   (let ((worker (gethash worker_id (sim-workers sim))))
     (unless worker
@@ -109,5 +136,6 @@
               (hi (min (second session) end_timestamp))
               (rate (third session)))
           (when (> hi lo)
-            (incf total (* (- hi lo) rate)))))
+            (let ((bonus (bonus-overlap lo hi (worker-double-pay worker))))
+              (incf total (+ (* (- hi lo bonus) rate) (* bonus rate 2)))))))
       (princ-to-string total))))

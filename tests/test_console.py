@@ -472,7 +472,7 @@ def test_banner_shows_level_out_of_total(monkeypatch) -> None:
         "unlocked": 2,
     }
     text = render_banner(session, now=100)
-    assert "LEVEL 2/3" in text
+    assert "LEVEL 2/4" in text
 
 
 def test_banner_dots_only_when_color_is_on(monkeypatch) -> None:

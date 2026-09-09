@@ -27,6 +27,7 @@ type Worker struct {
 	enteredAt    *int
 	finished     []session
 	pendingPromo *promo
+	doublePay    [][2]int
 }
 
 func (w *Worker) totalTime() int {
@@ -147,6 +148,15 @@ func (s *Simulation) Promote(workerID, newPosition string, newCompensation, star
 	return "success"
 }
 
+func (s *Simulation) SetDoublePay(workerID string, intervalBegin, intervalEnd int) any {
+	worker, ok := s.workers[workerID]
+	if !ok || intervalEnd <= intervalBegin {
+		return "invalid_request"
+	}
+	worker.doublePay = append(worker.doublePay, [2]int{intervalBegin, intervalEnd})
+	return "true"
+}
+
 func (s *Simulation) CalcSalary(workerID string, startTimestamp, endTimestamp int) any {
 	worker, ok := s.workers[workerID]
 	if !ok {
@@ -163,8 +173,42 @@ func (s *Simulation) CalcSalary(workerID string, startTimestamp, endTimestamp in
 			hi = endTimestamp
 		}
 		if hi > lo {
-			total += (hi - lo) * item.rate
+			bonus := bonusOverlap(lo, hi, worker.doublePay)
+			total += (hi-lo-bonus)*item.rate + bonus*item.rate*2
 		}
 	}
 	return strconv.Itoa(total)
+}
+
+func bonusOverlap(lo, hi int, windows [][2]int) int {
+	type seg struct{ start, stop int }
+	segs := make([]seg, 0, len(windows))
+	for _, window := range windows {
+		start, stop := window[0], window[1]
+		if lo > start {
+			start = lo
+		}
+		if hi < stop {
+			stop = hi
+		}
+		if stop > start {
+			segs = append(segs, seg{start, stop})
+		}
+	}
+	sort.Slice(segs, func(i, j int) bool { return segs[i].start < segs[j].start })
+	merged := make([]seg, 0, len(segs))
+	for _, item := range segs {
+		if len(merged) == 0 || item.start >= merged[len(merged)-1].stop {
+			merged = append(merged, item)
+			continue
+		}
+		if item.stop > merged[len(merged)-1].stop {
+			merged[len(merged)-1].stop = item.stop
+		}
+	}
+	sum := 0
+	for _, item := range merged {
+		sum += item.stop - item.start
+	}
+	return sum
 }
