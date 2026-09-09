@@ -37,6 +37,7 @@ class Worker {
     Integer enteredAt = null;
     List<WorkSession> finished = new ArrayList<>();
     Promo pendingPromo = null;
+    List<int[]> doublePay = new ArrayList<>();
 
     Worker(String workerId, String position, int compensation) {
         this.workerId = workerId;
@@ -144,6 +145,15 @@ public class Simulation {
         return "success";
     }
 
+    public String setDoublePay(String workerId, int intervalBegin, int intervalEnd) {
+        Worker worker = workers.get(workerId);
+        if (worker == null || intervalEnd <= intervalBegin) {
+            return "invalid_request";
+        }
+        worker.doublePay.add(new int[] {intervalBegin, intervalEnd});
+        return "true";
+    }
+
     public String calcSalary(String workerId, int startTimestamp, int endTimestamp) {
         Worker worker = workers.get(workerId);
         if (worker == null) {
@@ -154,9 +164,36 @@ public class Simulation {
             int lo = Math.max(session.start, startTimestamp);
             int hi = Math.min(session.end, endTimestamp);
             if (hi > lo) {
-                total += (long) (hi - lo) * session.rate;
+                int bonus = bonusOverlap(lo, hi, worker.doublePay);
+                total += (long) (hi - lo - bonus) * session.rate + (long) bonus * session.rate * 2;
             }
         }
         return String.valueOf(total);
+    }
+
+    static int bonusOverlap(int lo, int hi, List<int[]> windows) {
+        List<int[]> segs = new ArrayList<>();
+        for (int[] window : windows) {
+            int start = Math.max(lo, window[0]);
+            int stop = Math.min(hi, window[1]);
+            if (stop > start) {
+                segs.add(new int[] {start, stop});
+            }
+        }
+        segs.sort((a, b) -> Integer.compare(a[0], b[0]));
+        List<int[]> merged = new ArrayList<>();
+        for (int[] seg : segs) {
+            if (merged.isEmpty() || seg[0] >= merged.get(merged.size() - 1)[1]) {
+                merged.add(new int[] {seg[0], seg[1]});
+            } else {
+                int[] last = merged.get(merged.size() - 1);
+                last[1] = Math.max(last[1], seg[1]);
+            }
+        }
+        int sum = 0;
+        for (int[] seg : merged) {
+            sum += seg[1] - seg[0];
+        }
+        return sum;
     }
 }

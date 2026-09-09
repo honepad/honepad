@@ -12,6 +12,7 @@ sub new {
         entered_at    => undef,
         finished      => [],
         pending_promo => undef,
+        double_pay    => [],
     }, $class;
 }
 
@@ -105,6 +106,14 @@ sub promote {
     return 'success';
 }
 
+sub set_double_pay {
+    my ( $self, $worker_id, $interval_begin, $interval_end ) = @_;
+    my $worker = $self->{workers}{$worker_id};
+    return 'invalid_request' if !$worker || $interval_end <= $interval_begin;
+    push @{ $worker->{double_pay} }, [ $interval_begin, $interval_end ];
+    return 'true';
+}
+
 sub calc_salary {
     my ( $self, $worker_id, $start_timestamp, $end_timestamp ) = @_;
     my $worker = $self->{workers}{$worker_id};
@@ -114,9 +123,35 @@ sub calc_salary {
         my ( $session_start, $session_end, $rate ) = @$row;
         my $lo = $session_start > $start_timestamp ? $session_start : $start_timestamp;
         my $hi = $session_end < $end_timestamp     ? $session_end   : $end_timestamp;
-        $total += ( $hi - $lo ) * $rate if $hi > $lo;
+        if ( $hi > $lo ) {
+            my $bonus = bonus_overlap( $lo, $hi, $worker->{double_pay} );
+            $total += ( $hi - $lo - $bonus ) * $rate + $bonus * $rate * 2;
+        }
     }
     return '' . $total;
+}
+
+sub bonus_overlap {
+    my ( $lo, $hi, $windows ) = @_;
+    my @segs;
+    for my $win (@$windows) {
+        my $start = $lo > $win->[0] ? $lo : $win->[0];
+        my $stop  = $hi < $win->[1] ? $hi : $win->[1];
+        push @segs, [ $start, $stop ] if $stop > $start;
+    }
+    @segs = sort { $a->[0] <=> $b->[0] } @segs;
+    my @merged;
+    for my $seg (@segs) {
+        if ( !@merged || $seg->[0] >= $merged[-1][1] ) {
+            push @merged, [ $seg->[0], $seg->[1] ];
+        }
+        else {
+            $merged[-1][1] = $merged[-1][1] > $seg->[1] ? $merged[-1][1] : $seg->[1];
+        }
+    }
+    my $sum = 0;
+    $sum += $_->[1] - $_->[0] for @merged;
+    return $sum;
 }
 
 1;

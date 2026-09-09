@@ -9,6 +9,7 @@ class Worker
     public ?int $enteredAt = null;
     public array $finished = [];
     public ?array $pendingPromo = null;
+    public array $doublePay = [];
 
     public function __construct(string $workerId, string $position, int $compensation)
     {
@@ -129,19 +130,57 @@ class Simulation
         return 'success';
     }
 
+    public function setDoublePay(string $workerId, int $intervalBegin, int $intervalEnd): string
+    {
+        if (!array_key_exists($workerId, $this->workers) || $intervalEnd <= $intervalBegin) {
+            return 'invalid_request';
+        }
+        $this->workers[$workerId]->doublePay[] = [$intervalBegin, $intervalEnd];
+        return 'true';
+    }
+
     public function calcSalary(string $workerId, int $startTimestamp, int $endTimestamp): string
     {
         if (!array_key_exists($workerId, $this->workers)) {
             return '';
         }
         $total = 0;
-        foreach ($this->workers[$workerId]->finished as [$sessionStart, $sessionEnd, $rate]) {
+        $worker = $this->workers[$workerId];
+        foreach ($worker->finished as [$sessionStart, $sessionEnd, $rate]) {
             $lo = max($sessionStart, $startTimestamp);
             $hi = min($sessionEnd, $endTimestamp);
             if ($hi > $lo) {
-                $total += ($hi - $lo) * $rate;
+                $bonus = bonusOverlap($lo, $hi, $worker->doublePay);
+                $total += ($hi - $lo - $bonus) * $rate + $bonus * $rate * 2;
             }
         }
         return (string) $total;
     }
+}
+
+function bonusOverlap(int $lo, int $hi, array $windows): int
+{
+    $segs = [];
+    foreach ($windows as [$begin, $end]) {
+        $start = max($lo, $begin);
+        $stop = min($hi, $end);
+        if ($stop > $start) {
+            $segs[] = [$start, $stop];
+        }
+    }
+    usort($segs, fn ($a, $b) => $a[0] <=> $b[0]);
+    $merged = [];
+    foreach ($segs as [$start, $stop]) {
+        if ($merged === [] || $start >= $merged[array_key_last($merged)][1]) {
+            $merged[] = [$start, $stop];
+        } else {
+            $last = array_key_last($merged);
+            $merged[$last][1] = max($merged[$last][1], $stop);
+        }
+    }
+    $sum = 0;
+    foreach ($merged as [$start, $stop]) {
+        $sum += $stop - $start;
+    }
+    return $sum;
 }

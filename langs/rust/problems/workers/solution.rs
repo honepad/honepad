@@ -23,6 +23,7 @@ struct Worker {
     entered_at: Option<i64>,
     finished: Vec<Session>,
     pending_promo: Option<Promo>,
+    double_pay: Vec<(i64, i64)>,
 }
 
 impl Worker {
@@ -75,6 +76,7 @@ impl Simulation {
                 entered_at: None,
                 finished: Vec::new(),
                 pending_promo: None,
+                double_pay: Vec::new(),
             },
         );
         "true".to_string()
@@ -148,6 +150,17 @@ impl Simulation {
         "success".to_string()
     }
 
+    fn set_double_pay(&mut self, worker_id: &str, interval_begin: i64, interval_end: i64) -> String {
+        let Some(worker) = self.workers.get_mut(worker_id) else {
+            return "invalid_request".to_string();
+        };
+        if interval_end <= interval_begin {
+            return "invalid_request".to_string();
+        }
+        worker.double_pay.push((interval_begin, interval_end));
+        "true".to_string()
+    }
+
     fn calc_salary(&self, worker_id: &str, start_timestamp: i64, end_timestamp: i64) -> String {
         let Some(worker) = self.workers.get(worker_id) else {
             return String::new();
@@ -157,11 +170,36 @@ impl Simulation {
             let lo = item.start.max(start_timestamp);
             let hi = item.end.min(end_timestamp);
             if hi > lo {
-                total += (hi - lo) * item.rate;
+                let bonus = bonus_overlap(lo, hi, &worker.double_pay);
+                total += (hi - lo - bonus) * item.rate + bonus * item.rate * 2;
             }
         }
         total.to_string()
     }
+}
+
+fn bonus_overlap(lo: i64, hi: i64, windows: &[(i64, i64)]) -> i64 {
+    let mut segs: Vec<(i64, i64)> = Vec::new();
+    for &(begin, end) in windows {
+        let start = lo.max(begin);
+        let stop = hi.min(end);
+        if stop > start {
+            segs.push((start, stop));
+        }
+    }
+    segs.sort_by_key(|item| item.0);
+    let mut merged: Vec<(i64, i64)> = Vec::new();
+    for (start, stop) in segs {
+        match merged.last_mut() {
+            Some((_, last_stop)) if start < *last_stop => {
+                if stop > *last_stop {
+                    *last_stop = stop;
+                }
+            }
+            _ => merged.push((start, stop)),
+        }
+    }
+    merged.iter().map(|(start, stop)| stop - start).sum()
 }
 
 impl Harness for Simulation {
@@ -179,6 +217,9 @@ impl Harness for Simulation {
                 arg_i64(args, 2)?,
                 arg_i64(args, 3)?,
             ),
+            "set_double_pay" => {
+                self.set_double_pay(&arg_str(args, 0)?, arg_i64(args, 1)?, arg_i64(args, 2)?)
+            }
             "calc_salary" => {
                 self.calc_salary(&arg_str(args, 0)?, arg_i64(args, 1)?, arg_i64(args, 2)?)
             }

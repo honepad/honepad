@@ -7,6 +7,7 @@ class Worker(val workerId: String, var position: String, var compensation: Int) 
     var enteredAt: Int? = null
     val finished = ArrayList<WorkSession>()
     var pendingPromo: Promo? = null
+    val doublePay = ArrayList<IntArray>()
 
     fun totalTime(): Int {
         var sum = 0
@@ -101,6 +102,15 @@ class Simulation {
         return "success"
     }
 
+    fun setDoublePay(workerId: String, intervalBegin: Int, intervalEnd: Int): String {
+        val worker = workers[workerId]
+        if (worker == null || intervalEnd <= intervalBegin) {
+            return "invalid_request"
+        }
+        worker.doublePay.add(intArrayOf(intervalBegin, intervalEnd))
+        return "true"
+    }
+
     fun calcSalary(workerId: String, startTimestamp: Int, endTimestamp: Int): String {
         val worker = workers[workerId] ?: return ""
         var total = 0L
@@ -108,9 +118,35 @@ class Simulation {
             val lo = maxOf(session.start, startTimestamp)
             val hi = minOf(session.end, endTimestamp)
             if (hi > lo) {
-                total += (hi - lo).toLong() * session.rate
+                val bonus = bonusOverlap(lo, hi, worker.doublePay)
+                total += (hi - lo - bonus).toLong() * session.rate + bonus.toLong() * session.rate * 2
             }
         }
         return total.toString()
     }
+}
+
+fun bonusOverlap(lo: Int, hi: Int, windows: List<IntArray>): Int {
+    val segs = ArrayList<IntArray>()
+    for (window in windows) {
+        val start = maxOf(lo, window[0])
+        val stop = minOf(hi, window[1])
+        if (stop > start) {
+            segs.add(intArrayOf(start, stop))
+        }
+    }
+    segs.sortBy { it[0] }
+    val merged = ArrayList<IntArray>()
+    for (seg in segs) {
+        if (merged.isEmpty() || seg[0] >= merged[merged.lastIndex][1]) {
+            merged.add(intArrayOf(seg[0], seg[1]))
+        } else {
+            merged[merged.lastIndex][1] = maxOf(merged[merged.lastIndex][1], seg[1])
+        }
+    }
+    var sum = 0
+    for (seg in merged) {
+        sum += seg[1] - seg[0]
+    }
+    return sum
 }

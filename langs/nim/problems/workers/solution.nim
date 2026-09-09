@@ -9,6 +9,7 @@ type
     enteredAt: Option[int64]
     finished: seq[(int64, int64, int64, string)]
     pendingPromo: Option[(string, int64, int64)]
+    doublePay: seq[(int64, int64)]
 
   Simulation = ref object
     workers: Table[string, Worker]
@@ -46,6 +47,7 @@ proc addWorker(
     enteredAt: none(int64),
     finished: @[],
     pendingPromo: none((string, int64, int64)),
+    doublePay: @[],
   )
   result = "true"
 
@@ -102,6 +104,32 @@ proc promote(
   worker.pendingPromo = some((newPosition, newCompensation, startTimestamp))
   result = "success"
 
+proc bonusOverlap(lo, hi: int64; windows: seq[(int64, int64)]): int64 =
+  var segs: seq[(int64, int64)] = @[]
+  for (beginTs, endTs) in windows:
+    let start = max(lo, beginTs)
+    let stop = min(hi, endTs)
+    if stop > start:
+      segs.add((start, stop))
+  segs.sort(proc (a, b: (int64, int64)): int = cmp(a[0], b[0]))
+  var merged: seq[(int64, int64)] = @[]
+  for (start, stop) in segs:
+    if merged.len == 0 or start >= merged[^1][1]:
+      merged.add((start, stop))
+    else:
+      merged[^1][1] = max(merged[^1][1], stop)
+  result = 0
+  for (start, stop) in merged:
+    result += stop - start
+
+proc setDoublePay(
+    self: Simulation; workerId: string; intervalBegin, intervalEnd: int64
+): string =
+  if workerId notin self.workers or intervalEnd <= intervalBegin:
+    return "invalid_request"
+  self.workers[workerId].doublePay.add((intervalBegin, intervalEnd))
+  result = "true"
+
 proc calcSalary(
     self: Simulation; workerId: string; startTimestamp, endTimestamp: int64
 ): string =
@@ -112,5 +140,6 @@ proc calcSalary(
     let lo = max(sessionStart, startTimestamp)
     let hi = min(sessionEnd, endTimestamp)
     if hi > lo:
-      total += (hi - lo) * rate
+      let bonus = bonusOverlap(lo, hi, self.workers[workerId].doublePay)
+      total += (hi - lo - bonus) * rate + bonus * rate * 2
   result = $total

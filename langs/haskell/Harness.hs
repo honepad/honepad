@@ -60,6 +60,8 @@ class Target a where
   promote _ _ _ _ _ = missing "promote"
   calcSalary :: a -> String -> Int64 -> Int64 -> (String, a)
   calcSalary _ _ _ _ = missing "calc_salary"
+  setDoublePay :: a -> String -> Int64 -> Int64 -> (String, a)
+  setDoublePay _ _ _ _ = missing "set_double_pay"
   set :: a -> String -> String -> String -> (String, a)
   set _ _ _ _ = missing "set"
   get2 :: a -> String -> String -> (String, a)
@@ -143,6 +145,8 @@ dispatch obj method args =
     "promote" ->
       wrapStr (promote obj (argStr args 0) (argStr args 1) (argInt args 2) (argInt args 3))
     "calc_salary" -> wrapStr (calcSalary obj (argStr args 0) (argInt args 1) (argInt args 2))
+    "set_double_pay" ->
+      wrapStr (setDoublePay obj (argStr args 0) (argInt args 1) (argInt args 2))
     "set" -> wrapStr (set obj (argStr args 0) (argStr args 1) (argStr args 2))
     "delete" -> wrapStr (delete obj (argStr args 0) (argStr args 1))
     "scan" -> wrapStr (scan obj (argStr args 0))

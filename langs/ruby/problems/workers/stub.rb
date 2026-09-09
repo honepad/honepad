@@ -19,4 +19,7 @@ class Simulation
   def calc_salary(worker_id, start_timestamp, end_timestamp)
     raise 'not implemented'
   end
+  def set_double_pay(worker_id, interval_begin, interval_end)
+    raise 'not implemented'
+  end
 end

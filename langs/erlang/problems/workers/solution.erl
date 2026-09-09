@@ -7,6 +7,7 @@
     get/2,
     top_n_workers/3,
     promote/5,
+    set_double_pay/4,
     calc_salary/4
 ]).
 
@@ -88,18 +89,33 @@ promote(Sim, WorkerId, NewPosition, NewCompensation, StartTimestamp) ->
             {<<"success">>, put_worker(Sim, WorkerId, Worker1)}
     end.
 
+set_double_pay(Sim, WorkerId, IntervalBegin, IntervalEnd) ->
+    case maps:find(WorkerId, maps:get(workers, Sim)) of
+        error ->
+            {<<"invalid_request">>, Sim};
+        {ok, _Worker} when IntervalEnd =< IntervalBegin ->
+            {<<"invalid_request">>, Sim};
+        {ok, Worker} ->
+            Windows = maps:get(double_pay, Worker) ++ [{IntervalBegin, IntervalEnd}],
+            {<<"true">>, put_worker(Sim, WorkerId, Worker#{double_pay := Windows})}
+    end.
+
 calc_salary(Sim, WorkerId, StartTimestamp, EndTimestamp) ->
     case maps:find(WorkerId, maps:get(workers, Sim)) of
         error ->
             {<<>>, Sim};
         {ok, Worker} ->
+            Windows = maps:get(double_pay, Worker),
             Total = lists:foldl(
                 fun({SessionStart, SessionEnd, Rate, _Pos}, Acc) ->
                     Lo = max(SessionStart, StartTimestamp),
                     Hi = min(SessionEnd, EndTimestamp),
                     case Hi > Lo of
-                        true -> Acc + (Hi - Lo) * Rate;
-                        false -> Acc
+                        true ->
+                            Bonus = bonus_overlap(Lo, Hi, Windows),
+                            Acc + (Hi - Lo - Bonus) * Rate + Bonus * Rate * 2;
+                        false ->
+                            Acc
                     end
                 end,
                 0,
@@ -116,7 +132,8 @@ new_worker(WorkerId, Position, Compensation) ->
         in_office => false,
         entered_at => null,
         finished => [],
-        pending_promo => null
+        pending_promo => null,
+        double_pay => []
     }.
 
 put_worker(Sim, WorkerId, Worker) ->
@@ -149,3 +166,27 @@ apply_promo_on_enter(#{pending_promo := {NewPos, NewComp, StartTs}} = Worker, Ti
     Worker#{position := NewPos, compensation := NewComp, pending_promo := null};
 apply_promo_on_enter(Worker, _Timestamp) ->
     Worker.
+
+bonus_overlap(Lo, Hi, Windows) ->
+    Segs = lists:sort(
+        [
+            {Start, Stop}
+         || {Begin, End} <- Windows,
+            Start <- [max(Lo, Begin)],
+            Stop <- [min(Hi, End)],
+            Stop > Start
+        ]
+    ),
+    Merged = lists:foldl(fun merge_seg/2, [], Segs),
+    lists:foldl(fun({Start, Stop}, Acc) -> Acc + (Stop - Start) end, 0, Merged).
+
+merge_seg({Start, Stop}, []) ->
+    [{Start, Stop}];
+merge_seg({Start, Stop}, Acc) ->
+    {PrevStart, PrevEnd} = lists:last(Acc),
+    case Start >= PrevEnd of
+        true ->
+            Acc ++ [{Start, Stop}];
+        false ->
+            lists:droplast(Acc) ++ [{PrevStart, max(PrevEnd, Stop)}]
+    end.

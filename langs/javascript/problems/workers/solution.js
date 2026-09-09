@@ -7,6 +7,7 @@ class Worker {
     this.enteredAt = null;
     this.finished = [];
     this.pendingPromo = null;
+    this.doublePay = [];
   }
 
   totalTime() {
@@ -87,6 +88,13 @@ class Simulation {
     return "success";
   }
 
+  setDoublePay(workerId, intervalBegin, intervalEnd) {
+    const worker = this.workers[workerId];
+    if (!worker || intervalEnd <= intervalBegin) return "invalid_request";
+    worker.doublePay.push([intervalBegin, intervalEnd]);
+    return "true";
+  }
+
   calcSalary(workerId, startTimestamp, endTimestamp) {
     const worker = this.workers[workerId];
     if (!worker) return "";
@@ -94,10 +102,32 @@ class Simulation {
     for (const [sessionStart, sessionEnd, rate] of worker.finished) {
       const lo = Math.max(sessionStart, startTimestamp);
       const hi = Math.min(sessionEnd, endTimestamp);
-      if (hi > lo) total += (hi - lo) * rate;
+      if (hi > lo) {
+        const bonus = bonusOverlap(lo, hi, worker.doublePay);
+        total += (hi - lo - bonus) * rate + bonus * rate * 2;
+      }
     }
     return String(total);
   }
+}
+
+function bonusOverlap(lo, hi, windows) {
+  const segs = [];
+  for (const [begin, end] of windows) {
+    const start = Math.max(lo, begin);
+    const stop = Math.min(hi, end);
+    if (stop > start) segs.push([start, stop]);
+  }
+  segs.sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const [start, stop] of segs) {
+    if (!merged.length || start >= merged[merged.length - 1][1]) {
+      merged.push([start, stop]);
+    } else {
+      merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], stop);
+    }
+  }
+  return merged.reduce((sum, [start, stop]) => sum + (stop - start), 0);
 }
 
 module.exports = { Simulation };

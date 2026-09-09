@@ -69,6 +69,20 @@ defmodule Simulation do
     end
   end
 
+  def set_double_pay(sim, worker_id, interval_begin, interval_end) do
+    case Map.get(sim.workers, worker_id) do
+      nil ->
+        {"invalid_request", sim}
+
+      _worker when interval_end <= interval_begin ->
+        {"invalid_request", sim}
+
+      worker ->
+        worker = %{worker | double_pay: worker.double_pay ++ [{interval_begin, interval_end}]}
+        {"true", put_worker(sim, worker_id, worker)}
+    end
+  end
+
   def calc_salary(sim, worker_id, start_timestamp, end_timestamp) do
     case Map.get(sim.workers, worker_id) do
       nil ->
@@ -79,7 +93,13 @@ defmodule Simulation do
           Enum.reduce(worker.finished, 0, fn {session_start, session_end, rate, _pos}, acc ->
             lo = max(session_start, start_timestamp)
             hi = min(session_end, end_timestamp)
-            if hi > lo, do: acc + (hi - lo) * rate, else: acc
+
+            if hi > lo do
+              bonus = bonus_overlap(lo, hi, worker.double_pay)
+              acc + (hi - lo - bonus) * rate + bonus * rate * 2
+            else
+              acc
+            end
           end)
 
         {Integer.to_string(total), sim}
@@ -94,7 +114,8 @@ defmodule Simulation do
       in_office: false,
       entered_at: nil,
       finished: [],
-      pending_promo: nil
+      pending_promo: nil,
+      double_pay: []
     }
   end
 
@@ -123,4 +144,31 @@ defmodule Simulation do
   end
 
   defp apply_promo_on_enter(worker, _timestamp), do: worker
+
+  defp bonus_overlap(lo, hi, windows) do
+    segs =
+      windows
+      |> Enum.map(fn {begin_ts, end_ts} -> {max(lo, begin_ts), min(hi, end_ts)} end)
+      |> Enum.filter(fn {start_ts, stop_ts} -> stop_ts > start_ts end)
+      |> Enum.sort()
+
+    merged =
+      Enum.reduce(segs, [], fn {start_ts, stop_ts}, acc ->
+        case acc do
+          [] ->
+            [{start_ts, stop_ts}]
+
+          _ ->
+            {prev_start, prev_end} = List.last(acc)
+
+            if start_ts >= prev_end do
+              acc ++ [{start_ts, stop_ts}]
+            else
+              List.replace_at(acc, -1, {prev_start, max(prev_end, stop_ts)})
+            end
+        end
+      end)
+
+    Enum.reduce(merged, 0, fn {start_ts, stop_ts}, acc -> acc + (stop_ts - start_ts) end)
+  end
 end

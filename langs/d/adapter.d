@@ -210,6 +210,11 @@ JSONValue dispatch(Target obj, string methodName, JSONValue args)
             );
         missing(methodName);
         break;
+    case "set_double_pay":
+        static if (__traits(hasMember, Target, "setDoublePay"))
+            return toNode(obj.setDoublePay(argStr(args, 0), argLong(args, 1), argLong(args, 2)));
+        missing(methodName);
+        break;
     case "calc_salary":
         static if (__traits(hasMember, Target, "calcSalary"))
             return toNode(obj.calcSalary(argStr(args, 0), argLong(args, 1), argLong(args, 2)));

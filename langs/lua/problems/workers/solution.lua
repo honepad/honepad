@@ -10,6 +10,7 @@ function Worker.new(worker_id, position, compensation)
   self.entered_at = nil
   self.finished = {}
   self.pending_promo = nil
+  self.double_pay = {}
   return self
 end
 
@@ -127,6 +128,15 @@ function Simulation:promote(worker_id, new_position, new_compensation, start_tim
   return "success"
 end
 
+function Simulation:set_double_pay(worker_id, interval_begin, interval_end)
+  local worker = self.workers[worker_id]
+  if not worker or interval_end <= interval_begin then
+    return "invalid_request"
+  end
+  worker.double_pay[#worker.double_pay + 1] = { interval_begin, interval_end }
+  return "true"
+end
+
 function Simulation:calc_salary(worker_id, start_timestamp, end_timestamp)
   local worker = self.workers[worker_id]
   if not worker then
@@ -138,8 +148,39 @@ function Simulation:calc_salary(worker_id, start_timestamp, end_timestamp)
     local lo = session_start > start_timestamp and session_start or start_timestamp
     local hi = session_end < end_timestamp and session_end or end_timestamp
     if hi > lo then
-      total = total + (hi - lo) * rate
+      local bonus = bonus_overlap(lo, hi, worker.double_pay)
+      total = total + (hi - lo - bonus) * rate + bonus * rate * 2
     end
   end
   return tostring(total)
+end
+
+function bonus_overlap(lo, hi, windows)
+  local segs = {}
+  for _, win in ipairs(windows) do
+    local start_ts = lo > win[1] and lo or win[1]
+    local stop_ts = hi < win[2] and hi or win[2]
+    if stop_ts > start_ts then
+      segs[#segs + 1] = { start_ts, stop_ts }
+    end
+  end
+  table.sort(segs, function(a, b)
+    return a[1] < b[1]
+  end)
+  local merged = {}
+  for _, seg in ipairs(segs) do
+    if #merged == 0 or seg[1] >= merged[#merged][2] then
+      merged[#merged + 1] = { seg[1], seg[2] }
+    else
+      local last = merged[#merged]
+      if seg[2] > last[2] then
+        last[2] = seg[2]
+      end
+    end
+  end
+  local sum = 0
+  for _, seg in ipairs(merged) do
+    sum = sum + (seg[2] - seg[1])
+  end
+  return sum
 end

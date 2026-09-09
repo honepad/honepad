@@ -544,7 +544,7 @@ def test_start_picker_lists_problem_level_counts(monkeypatch, tmp_path, capsys) 
     assert main(["start", "--no-console"]) == 0
     out = capsys.readouterr().out
     assert "bank_system (4 levels)" in out
-    assert "workers (3 levels)" in out
+    assert "workers (4 levels)" in out
 
 
 def test_start_picker_problem_typo_does_not_suggest_language(monkeypatch, tmp_path, capsys) -> None:
@@ -564,8 +564,8 @@ def test_run_workers_without_session_defaults_to_max_level(monkeypatch, tmp_path
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
     assert main(["run", "workers", "--lang", "python3", "--kind", "solution"]) == 0
     out = capsys.readouterr().out
-    assert "through LEVEL 3" in out
-    assert "through LEVEL 4" not in out
+    assert "through LEVEL 4" in out
+    assert "through LEVEL 5" not in out
     assert load_session() is None
 
 
@@ -576,14 +576,14 @@ def test_cases_workers_defaults_to_max_level(capsys) -> None:
     assert args.level is None
     assert main(["cases", "workers"]) == 0
     out = capsys.readouterr().out
-    n = len(load_cases("workers", 3))
+    n = len(load_cases("workers", 4))
     assert '"problem": "workers"' in out
     assert f'"count": {n}' in out
     assert n == len(load_cases("workers"))
 
 
 def test_cases_rejects_level_outside_problem_range(capsys) -> None:
-    for problem, level in (("workers", 4), ("workers", 0), ("bank_system", 0)):
+    for problem, level in (("workers", 5), ("workers", 0), ("bank_system", 0)):
         code = main(["cases", problem, "--level", str(level)])
         out = capsys.readouterr().out
         assert code == 1, (problem, level, out)
@@ -593,7 +593,7 @@ def test_cases_rejects_level_outside_problem_range(capsys) -> None:
 
 def test_run_rejects_level_outside_problem_range(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
-    for problem, level in (("bank_system", 0), ("workers", 4), ("workers", 99)):
+    for problem, level in (("bank_system", 0), ("workers", 5), ("workers", 99)):
         code = main(
             ["run", problem, "--level", str(level), "--lang", "python3", "--kind", "solution"]
         )
@@ -607,7 +607,7 @@ def test_run_rejects_level_outside_problem_range(monkeypatch, tmp_path, capsys) 
 
 def test_start_rejects_level_above_problem_max(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
-    code = main(["start", "workers", "python3", "--level", "4", "--no-console"])
+    code = main(["start", "workers", "python3", "--level", "5", "--no-console"])
     out = capsys.readouterr().out
     assert code == 1
     assert "FAIL:" in out

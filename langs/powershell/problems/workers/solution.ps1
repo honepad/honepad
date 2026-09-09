@@ -6,6 +6,7 @@ class Worker {
     $EnteredAt
     [System.Collections.Generic.List[object]] $Finished
     $PendingPromo
+    [System.Collections.Generic.List[object]] $DoublePay
 
     Worker([string] $WorkerId, [string] $Position, [long] $Compensation) {
         $this.WorkerId = $WorkerId
@@ -15,6 +16,7 @@ class Worker {
         $this.EnteredAt = $null
         $this.Finished = [System.Collections.Generic.List[object]]::new()
         $this.PendingPromo = $null
+        $this.DoublePay = [System.Collections.Generic.List[object]]::new()
     }
 
     [long] TotalTime() {
@@ -117,6 +119,14 @@ class Simulation {
         return 'success'
     }
 
+    [object] setDoublePay([string] $WorkerId, [long] $IntervalBegin, [long] $IntervalEnd) {
+        if (-not $this.Workers.ContainsKey($WorkerId) -or $IntervalEnd -le $IntervalBegin) {
+            return 'invalid_request'
+        }
+        $this.Workers[$WorkerId].DoublePay.Add(@($IntervalBegin, $IntervalEnd))
+        return 'true'
+    }
+
     [object] calcSalary([string] $WorkerId, [long] $StartTimestamp, [long] $EndTimestamp) {
         if (-not $this.Workers.ContainsKey($WorkerId)) {
             return ''
@@ -127,9 +137,38 @@ class Simulation {
             $lo = [Math]::Max([long]$row[0], $StartTimestamp)
             $hi = [Math]::Min([long]$row[1], $EndTimestamp)
             if ($hi -gt $lo) {
-                $total += ($hi - $lo) * [long]$row[2]
+                $bonus = [Simulation]::BonusOverlap($lo, $hi, $worker.DoublePay)
+                $total += ($hi - $lo - $bonus) * [long]$row[2] + $bonus * [long]$row[2] * 2
             }
         }
         return [string]$total
+    }
+
+    static [long] BonusOverlap([long] $Lo, [long] $Hi, $Windows) {
+        $segs = [System.Collections.Generic.List[object]]::new()
+        foreach ($win in $Windows) {
+            $start = [Math]::Max($Lo, [long]$win[0])
+            $stop = [Math]::Min($Hi, [long]$win[1])
+            if ($stop -gt $start) {
+                $segs.Add(@($start, $stop))
+            }
+        }
+        $ordered = @($segs | Sort-Object { $_[0] })
+        $merged = [System.Collections.Generic.List[object]]::new()
+        foreach ($seg in $ordered) {
+            if ($merged.Count -eq 0 -or $seg[0] -ge $merged[$merged.Count - 1][1]) {
+                $merged.Add(@([long]$seg[0], [long]$seg[1]))
+            } else {
+                $last = $merged[$merged.Count - 1]
+                if ([long]$seg[1] -gt [long]$last[1]) {
+                    $last[1] = [long]$seg[1]
+                }
+            }
+        }
+        $sum = [long]0
+        foreach ($seg in $merged) {
+            $sum += [long]$seg[1] - [long]$seg[0]
+        }
+        return $sum
     }
 }

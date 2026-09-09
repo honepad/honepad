@@ -1,5 +1,5 @@
 Object subclass: Worker [
-    | workerId position compensation inOffice enteredAt finished pendingPromo |
+    | workerId position compensation inOffice enteredAt finished pendingPromo doublePay |
 
     Worker class >> id: anId position: aPos compensation: aComp [
         ^(self new)
@@ -14,7 +14,8 @@ Object subclass: Worker [
         inOffice := false.
         enteredAt := nil.
         finished := OrderedCollection new.
-        pendingPromo := nil
+        pendingPromo := nil.
+        doublePay := OrderedCollection new
     ]
 
     workerId [ ^workerId ]
@@ -65,14 +66,50 @@ Object subclass: Worker [
         enteredAt := timestamp
     ]
 
+    addDoublePayFrom: begin to: end [
+        doublePay add: {begin. end}
+    ]
+
+    bonusOverlapFrom: lo to: hi [
+        | segs merged sum |
+        segs := OrderedCollection new.
+        doublePay do: [:win |
+            | start stop |
+            start := lo max: (win at: 1).
+            stop := hi min: (win at: 2).
+            stop > start ifTrue: [segs add: {start. stop}]
+        ].
+        segs := segs asSortedCollection: [:a :b | (a at: 1) <= (b at: 1)].
+        merged := OrderedCollection new.
+        segs do: [:seg |
+            merged isEmpty
+                ifTrue: [merged add: {(seg at: 1). (seg at: 2)}]
+                ifFalse: [
+                    | last |
+                    last := merged last.
+                    (seg at: 1) >= (last at: 2)
+                        ifTrue: [merged add: {(seg at: 1). (seg at: 2)}]
+                        ifFalse: [
+                            (seg at: 2) > (last at: 2) ifTrue: [last at: 2 put: (seg at: 2)]
+                        ]
+                ]
+        ].
+        sum := 0.
+        merged do: [:seg | sum := sum + ((seg at: 2) - (seg at: 1))].
+        ^sum
+    ]
+
     calcSalaryFrom: startTs to: endTs [
         | total |
         total := 0.
         finished do: [:row |
-            | lo hi |
+            | lo hi bonus |
             lo := (row at: 1) max: startTs.
             hi := (row at: 2) min: endTs.
-            hi > lo ifTrue: [total := total + ((hi - lo) * (row at: 3))]
+            hi > lo ifTrue: [
+                bonus := self bonusOverlapFrom: lo to: hi.
+                total := total + ((hi - lo - bonus) * (row at: 3)) + (bonus * (row at: 3) * 2)
+            ]
         ].
         ^total
     ]
@@ -148,6 +185,14 @@ Object subclass: Simulation [
         worker pendingPromo isNil ifFalse: [^'invalid_request'].
         worker pendingPromo: {newPosition. newCompensation. startTimestamp}.
         ^'success'
+    ]
+
+    setDoublePay: workerId with: intervalBegin with: intervalEnd [
+        | worker |
+        worker := workers at: workerId ifAbsent: [^'invalid_request'].
+        intervalEnd <= intervalBegin ifTrue: [^'invalid_request'].
+        worker addDoublePayFrom: intervalBegin to: intervalEnd.
+        ^'true'
     ]
 
     calcSalary: workerId with: startTimestamp with: endTimestamp [

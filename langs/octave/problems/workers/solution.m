@@ -7,6 +7,7 @@ function obj = Simulation()
   obj.top_n_workers = @top_n_workers;
   obj.promote = @promote;
   obj.calc_salary = @calc_salary;
+  obj.set_double_pay = @set_double_pay;
 
   function worker = new_worker(worker_id, position, compensation)
     worker.worker_id = worker_id;
@@ -16,6 +17,7 @@ function obj = Simulation()
     worker.entered_at = [];
     worker.finished = {};
     worker.pending_promo = {};
+    worker.double_pay = {};
   endfunction
 
   function total = worker_total_time(worker)
@@ -155,6 +157,53 @@ function obj = Simulation()
     result = "success";
   endfunction
 
+  function result = set_double_pay(worker_id, interval_begin, interval_end)
+    if (!workers.isKey(worker_id) || interval_end <= interval_begin)
+      result = "invalid_request";
+      return;
+    endif
+    worker = workers(worker_id);
+    worker.double_pay{end + 1} = {interval_begin, interval_end};
+    workers(worker_id) = worker;
+    result = "true";
+  endfunction
+
+  function bonus = bonus_overlap(lo, hi, windows)
+    segs = {};
+    for i = 1:numel(windows)
+      win = windows{i};
+      start_ts = max(lo, win{1});
+      stop_ts = min(hi, win{2});
+      if (stop_ts > start_ts)
+        segs{end + 1} = [start_ts, stop_ts];
+      endif
+    endfor
+    if (isempty(segs))
+      bonus = 0;
+      return;
+    endif
+    starts = zeros(1, numel(segs));
+    for i = 1:numel(segs)
+      starts(i) = segs{i}(1);
+    endfor
+    [~, order] = sort(starts);
+    segs = segs(order);
+    merged = {segs{1}};
+    for i = 2:numel(segs)
+      last = merged{end};
+      if (segs{i}(1) >= last(2))
+        merged{end + 1} = segs{i};
+      else
+        last(2) = max(last(2), segs{i}(2));
+        merged{end} = last;
+      endif
+    endfor
+    bonus = 0;
+    for i = 1:numel(merged)
+      bonus += merged{i}(2) - merged{i}(1);
+    endfor
+  endfunction
+
   function result = calc_salary(worker_id, start_timestamp, end_timestamp)
     if (!workers.isKey(worker_id))
       result = "";
@@ -170,7 +219,8 @@ function obj = Simulation()
       lo = max(session_start, start_timestamp);
       hi = min(session_end, end_timestamp);
       if (hi > lo)
-        total += (hi - lo) * rate;
+        bonus = bonus_overlap(lo, hi, worker.double_pay);
+        total += (hi - lo - bonus) * rate + bonus * rate * 2;
       endif
     endfor
     result = sprintf("%d", total);

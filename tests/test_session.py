@@ -1277,7 +1277,7 @@ def test_submit_last_workers_level_prints_done(monkeypatch, tmp_path: Path, caps
                 "lang": "python3",
                 "started_at": 1_700_000_000,
                 "minutes": 90,
-                "unlocked": 3,
+                "unlocked": 4,
             }
         )
         + "\n",
@@ -1286,10 +1286,10 @@ def test_submit_last_workers_level_prints_done(monkeypatch, tmp_path: Path, caps
     assert main(["submit", "workers", "--kind", "solution", "--confirm", "y"]) == 0
     out = capsys.readouterr().out
     assert "DONE: workers python3" in out
-    assert "all 3 levels" in out
+    assert "all 4 levels" in out
     assert "UNLOCKED" not in out
     assert "NEXT:" not in out
-    assert load_session()["unlocked"] == 3
+    assert load_session()["unlocked"] == 4
     assert load_session()["cleared"] is True
 
 

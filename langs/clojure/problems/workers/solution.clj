@@ -5,7 +5,8 @@
    :in-office false
    :entered-at nil
    :finished []
-   :pending-promo nil})
+   :pending-promo nil
+   :double-pay []})
 
 (defn Simulation []
   (atom {:workers {}}))
@@ -87,6 +88,32 @@
                [new_position new_compensation start_timestamp])
         "success"))))
 
+(defn- bonus-overlap [lo hi windows]
+  (let [segs (->> windows
+                  (keep (fn [[begin end]]
+                          (let [start (max lo begin)
+                                stop (min hi end)]
+                            (when (> stop start)
+                              [start stop]))))
+                  (sort-by first))
+        merged (reduce (fn [acc [start stop]]
+                         (if (or (empty? acc) (>= start (second (peek acc))))
+                           (conj acc [start stop])
+                           (conj (pop acc) [(first (peek acc))
+                                            (max (second (peek acc)) stop)])))
+                       []
+                       segs)]
+    (reduce (fn [acc [start stop]] (+ acc (- stop start))) 0 merged)))
+
+(defn set_double_pay [sim worker_id interval_begin interval_end]
+  (let [worker (get-in @sim [:workers worker_id])]
+    (if (or (nil? worker) (<= interval_end interval_begin))
+      "invalid_request"
+      (do
+        (swap! sim update-in [:workers worker_id :double-pay]
+               (fnil conj []) [interval_begin interval_end])
+        "true"))))
+
 (defn calc_salary [sim worker_id start_timestamp end_timestamp]
   (if-let [worker (get-in @sim [:workers worker_id])]
     (str
@@ -94,7 +121,8 @@
                (let [lo (max session-start start_timestamp)
                      hi (min session-end end_timestamp)]
                  (if (> hi lo)
-                   (+ acc (* (- hi lo) rate))
+                   (let [bonus (bonus-overlap lo hi (:double-pay worker))]
+                     (+ acc (* (- hi lo bonus) rate) (* bonus rate 2)))
                    acc)))
              0
              (:finished worker)))

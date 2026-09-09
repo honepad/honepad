@@ -19,6 +19,11 @@ typedef struct {
 } Promo;
 
 typedef struct {
+  int64_t begin;
+  int64_t end;
+} PayWindow;
+
+typedef struct {
   char *worker_id;
   char *position;
   int64_t compensation;
@@ -30,6 +35,9 @@ typedef struct {
   size_t fin_cap;
   int has_promo;
   Promo promo;
+  PayWindow *double_pay;
+  size_t dp_len;
+  size_t dp_cap;
 } Worker;
 
 typedef struct {
@@ -198,6 +206,67 @@ static char *promote(
 static int64_t max64(int64_t a, int64_t b) { return a > b ? a : b; }
 static int64_t min64(int64_t a, int64_t b) { return a < b ? a : b; }
 
+static int cmp_seg(const void *a, const void *b) {
+  const PayWindow *x = a;
+  const PayWindow *y = b;
+  if (x->begin != y->begin) {
+    return x->begin < y->begin ? -1 : 1;
+  }
+  return 0;
+}
+
+static int64_t bonus_overlap(int64_t lo, int64_t hi, const Worker *worker) {
+  PayWindow *segs = malloc(worker->dp_len * sizeof(PayWindow));
+  if (worker->dp_len > 0 && segs == NULL) {
+    honepad_throw("oom");
+  }
+  size_t n = 0;
+  for (size_t i = 0; i < worker->dp_len; i++) {
+    int64_t start = max64(lo, worker->double_pay[i].begin);
+    int64_t stop = min64(hi, worker->double_pay[i].end);
+    if (stop > start) {
+      segs[n].begin = start;
+      segs[n].end = stop;
+      n++;
+    }
+  }
+  qsort(segs, n, sizeof(*segs), cmp_seg);
+  int64_t sum = 0;
+  int has = 0;
+  int64_t mstart = 0;
+  int64_t mend = 0;
+  for (size_t i = 0; i < n; i++) {
+    if (!has || segs[i].begin >= mend) {
+      if (has) {
+        sum += mend - mstart;
+      }
+      mstart = segs[i].begin;
+      mend = segs[i].end;
+      has = 1;
+    } else if (segs[i].end > mend) {
+      mend = segs[i].end;
+    }
+  }
+  if (has) {
+    sum += mend - mstart;
+  }
+  free(segs);
+  return sum;
+}
+
+static char *set_double_pay(
+    Simulation *sim, const char *worker_id, int64_t interval_begin, int64_t interval_end) {
+  Worker *worker = find_worker(sim, worker_id);
+  if (worker == NULL || interval_end <= interval_begin) {
+    return hp_strdup("invalid_request");
+  }
+  HP_GROW(worker->double_pay, worker->dp_len, worker->dp_cap, PayWindow);
+  worker->double_pay[worker->dp_len].begin = interval_begin;
+  worker->double_pay[worker->dp_len].end = interval_end;
+  worker->dp_len++;
+  return hp_strdup("true");
+}
+
 static char *calc_salary(Simulation *sim, const char *worker_id, int64_t start_timestamp, int64_t end_timestamp) {
   Worker *worker = find_worker(sim, worker_id);
   if (worker == NULL) {
@@ -208,7 +277,8 @@ static char *calc_salary(Simulation *sim, const char *worker_id, int64_t start_t
     int64_t lo = max64(worker->finished[i].start, start_timestamp);
     int64_t hi = min64(worker->finished[i].end, end_timestamp);
     if (hi > lo) {
-      total += (hi - lo) * worker->finished[i].rate;
+      int64_t bonus = bonus_overlap(lo, hi, worker);
+      total += (hi - lo - bonus) * worker->finished[i].rate + bonus * worker->finished[i].rate * 2;
     }
   }
   char buf[32];
@@ -229,6 +299,8 @@ static JsonVal *simulation_call(HonepadTarget *self, const char *method, const J
     text = top_n_workers(sim, arg_i64(args, 0), arg_str(args, 1));
   } else if (strcmp(method, "promote") == 0) {
     text = promote(sim, arg_str(args, 0), arg_str(args, 1), arg_i64(args, 2), arg_i64(args, 3));
+  } else if (strcmp(method, "set_double_pay") == 0) {
+    text = set_double_pay(sim, arg_str(args, 0), arg_i64(args, 1), arg_i64(args, 2));
   } else if (strcmp(method, "calc_salary") == 0) {
     text = calc_salary(sim, arg_str(args, 0), arg_i64(args, 1), arg_i64(args, 2));
   } else {
@@ -249,6 +321,7 @@ static void worker_free(Worker *worker) {
   }
   free(worker->finished);
   free(worker->promo.position);
+  free(worker->double_pay);
 }
 
 static void simulation_free(HonepadTarget *self) {

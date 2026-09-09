@@ -12,6 +12,7 @@ class Worker:
         self.entered_at: int | None = None
         self.finished: list[tuple[int, int, int, str]] = []
         self.pending_promo: tuple[str, int, int] | None = None
+        self.double_pay: list[tuple[int, int]] = []
 
     def total_time(self) -> int:
         return sum(end - start for start, end, _rate, _pos in self.finished)
@@ -80,6 +81,15 @@ class Simulation:
         worker.pending_promo = (new_position, new_compensation, start_timestamp)
         return "success"
 
+    def set_double_pay(
+        self, worker_id: str, interval_begin: int, interval_end: int
+    ) -> str:
+        worker = self.workers.get(worker_id)
+        if worker is None or interval_end <= interval_begin:
+            return "invalid_request"
+        worker.double_pay.append((interval_begin, interval_end))
+        return "true"
+
     def calc_salary(self, worker_id: str, start_timestamp: int, end_timestamp: int) -> str:
         worker = self.workers.get(worker_id)
         if worker is None:
@@ -89,5 +99,22 @@ class Simulation:
             lo = max(session_start, start_timestamp)
             hi = min(session_end, end_timestamp)
             if hi > lo:
-                total += (hi - lo) * rate
+                bonus = _bonus_overlap(lo, hi, worker.double_pay)
+                total += (hi - lo - bonus) * rate + bonus * rate * 2
         return str(total)
+
+
+def _bonus_overlap(lo: int, hi: int, windows: list[tuple[int, int]]) -> int:
+    segs: list[list[int]] = []
+    for begin, end in windows:
+        start, stop = max(lo, begin), min(hi, end)
+        if stop > start:
+            segs.append([start, stop])
+    segs.sort()
+    merged: list[list[int]] = []
+    for start, stop in segs:
+        if not merged or start >= merged[-1][1]:
+            merged.append([start, stop])
+        else:
+            merged[-1][1] = max(merged[-1][1], stop)
+    return sum(stop - start for start, stop in merged)

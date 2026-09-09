@@ -27,6 +27,7 @@ class Worker
     Nullable!long enteredAt;
     WorkSession[] finished;
     Nullable!Promo pendingPromo;
+    long[2][] doublePay;
 
     this(string workerId, string position, long compensation)
     {
@@ -165,6 +166,19 @@ class Simulation
         return "success";
     }
 
+    string setDoublePay(string workerId, long intervalBegin, long intervalEnd)
+    {
+        if (workerId !in workers || intervalEnd <= intervalBegin)
+        {
+            return "invalid_request";
+        }
+        long[2] window;
+        window[0] = intervalBegin;
+        window[1] = intervalEnd;
+        workers[workerId].doublePay ~= window;
+        return "true";
+    }
+
     string calcSalary(string workerId, long startTimestamp, long endTimestamp)
     {
         if (workerId !in workers)
@@ -178,9 +192,50 @@ class Simulation
             auto hi = session.end < endTimestamp ? session.end : endTimestamp;
             if (hi > lo)
             {
-                total += (hi - lo) * session.rate;
+                auto bonus = bonusOverlap(lo, hi, workers[workerId].doublePay);
+                total += (hi - lo - bonus) * session.rate + bonus * session.rate * 2;
             }
         }
         return total.to!string;
     }
+}
+
+long bonusOverlap(long lo, long hi, long[2][] windows)
+{
+    long[2][] segs;
+    foreach (window; windows)
+    {
+        auto start = window[0] > lo ? window[0] : lo;
+        auto stop = window[1] < hi ? window[1] : hi;
+        if (stop > start)
+        {
+            long[2] seg;
+            seg[0] = start;
+            seg[1] = stop;
+            segs ~= seg;
+        }
+    }
+    segs.sort!((a, b) => a[0] < b[0]);
+    long[2][] merged;
+    foreach (seg; segs)
+    {
+        if (merged.length == 0 || seg[0] >= merged[$ - 1][1])
+        {
+            merged ~= seg;
+        }
+        else
+        {
+            auto last = merged[$ - 1][1];
+            if (seg[1] > last)
+            {
+                merged[$ - 1][1] = seg[1];
+            }
+        }
+    }
+    long sum = 0;
+    foreach (seg; merged)
+    {
+        sum += seg[1] - seg[0];
+    }
+    return sum;
 }

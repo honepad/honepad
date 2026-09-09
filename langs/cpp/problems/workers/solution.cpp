@@ -24,6 +24,12 @@ class Promo {
   int64_t start_timestamp = 0;
 };
 
+class PayWindow {
+ public:
+  int64_t begin = 0;
+  int64_t end = 0;
+};
+
 class Worker {
  public:
   std::string worker_id;
@@ -33,6 +39,7 @@ class Worker {
   std::optional<int64_t> entered_at;
   std::vector<WorkSession> finished;
   std::optional<Promo> pending_promo;
+  std::vector<PayWindow> double_pay;
 
   int64_t total_time() const {
     int64_t sum = 0;
@@ -156,6 +163,49 @@ class Simulation : public Harness {
     return "success";
   }
 
+  static int64_t bonus_overlap(int64_t lo, int64_t hi, const std::vector<PayWindow>& windows) {
+    std::vector<PayWindow> segs;
+    for (const auto& window : windows) {
+      int64_t start = std::max(lo, window.begin);
+      int64_t stop = std::min(hi, window.end);
+      if (stop > start) {
+        PayWindow seg;
+        seg.begin = start;
+        seg.end = stop;
+        segs.push_back(seg);
+      }
+    }
+    std::sort(segs.begin(), segs.end(), [](const PayWindow& a, const PayWindow& b) {
+      return a.begin < b.begin;
+    });
+    std::vector<PayWindow> merged;
+    for (const auto& seg : segs) {
+      if (merged.empty() || seg.begin >= merged.back().end) {
+        merged.push_back(seg);
+      } else {
+        merged.back().end = std::max(merged.back().end, seg.end);
+      }
+    }
+    int64_t sum = 0;
+    for (const auto& seg : merged) {
+      sum += seg.end - seg.begin;
+    }
+    return sum;
+  }
+
+  std::string set_double_pay(
+      const std::string& worker_id, int64_t interval_begin, int64_t interval_end) {
+    auto it = workers.find(worker_id);
+    if (it == workers.end() || interval_end <= interval_begin) {
+      return "invalid_request";
+    }
+    PayWindow window;
+    window.begin = interval_begin;
+    window.end = interval_end;
+    it->second.double_pay.push_back(window);
+    return "true";
+  }
+
   std::string calc_salary(
       const std::string& worker_id, int64_t start_timestamp, int64_t end_timestamp) const {
     auto it = workers.find(worker_id);
@@ -167,7 +217,8 @@ class Simulation : public Harness {
       int64_t lo = std::max(session.start, start_timestamp);
       int64_t hi = std::min(session.end, end_timestamp);
       if (hi > lo) {
-        total += (hi - lo) * session.rate;
+        int64_t bonus = bonus_overlap(lo, hi, it->second.double_pay);
+        total += (hi - lo - bonus) * session.rate + bonus * session.rate * 2;
       }
     }
     return std::to_string(total);
@@ -186,6 +237,8 @@ class Simulation : public Harness {
       text = top_n_workers(arg_i64(args, 0), arg_str(args, 1));
     } else if (method == "promote") {
       text = promote(arg_str(args, 0), arg_str(args, 1), arg_i64(args, 2), arg_i64(args, 3));
+    } else if (method == "setDoublePay") {
+      text = set_double_pay(arg_str(args, 0), arg_i64(args, 1), arg_i64(args, 2));
     } else if (method == "calcSalary") {
       text = calc_salary(arg_str(args, 0), arg_i64(args, 1), arg_i64(args, 2));
     } else {

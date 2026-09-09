@@ -31,3 +31,7 @@ class Simulation:
     def calc_salary(self, worker_id, start_timestamp, end_timestamp):
         """Pay for finished sessions overlapping the window, or ""."""
         raise NotImplementedError
+
+    def set_double_pay(self, worker_id, interval_begin, interval_end):
+        """Record [begin, end) as 2x pay. "true" or "invalid_request"."""
+        raise NotImplementedError
