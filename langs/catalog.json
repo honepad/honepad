@@ -33,7 +33,6 @@
     "octave",
     "perl",
     "php",
-    "python2",
     "python3",
     "r",
     "ruby",
@@ -362,18 +361,6 @@
       ],
       "ci": true,
       "adapter": "php"
-    },
-    {
-      "id": "python2",
-      "name": "Python 2",
-      "ext": "py",
-      "naming": "snake",
-      "suites": [
-        "gca",
-        "ml"
-      ],
-      "ci": false,
-      "adapter": "stub"
     },
     {
       "id": "python3",

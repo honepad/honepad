@@ -61,6 +61,11 @@ def test_gca_and_ica_present() -> None:
         assert lang in ids
 
 
+def test_catalog_python_id_is_python3_only() -> None:
+    ids = [row["id"] for row in languages() if row["id"].startswith("python")]
+    assert ids == ["python3"]
+
+
 def test_unknown_language_raises_value_error() -> None:
     try:
         language("python")
