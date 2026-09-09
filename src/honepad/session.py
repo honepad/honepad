@@ -229,7 +229,7 @@ def load_session(
                 raise ValueError(f"unknown language: {replace_lang}") from exc
             return None
         else:
-            raise ValueError(f"unknown language: {lang}") from exc
+            raise ValueError(f"{target}: unknown language: {lang}") from exc
     top = max_level(problem)
     if unlocked < 1 or unlocked > top:
         raise ValueError(f"{target} unlocked must be 1..{top}")

@@ -1875,6 +1875,9 @@ def test_run_does_not_treat_unknown_session_lang_as_no_session(
     assert code == 1
     assert "FAIL" in out
     assert "unknown language: gone" in out
+    assert str(session_file) in out
+    assert "start --reset" in out
+    assert "NEXT:" in out and " langs" not in out.split("NEXT:", 1)[1]
     assert "\nOK\n" not in out
     assert not out.strip().endswith("OK")
     assert "through LEVEL 4" not in out
