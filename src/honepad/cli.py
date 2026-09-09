@@ -201,8 +201,22 @@ def _require_problem(problem: str) -> None:
         raise ValueError(f"invalid problem: {problem}")
 
 
+def _resolve_lang_token(name: str) -> str | None:
+    if name in language_ids() or name in _RUNNERS:
+        return name
+    return _prefix_match(name, language_ids())
+
+
 def _is_lang_token(name: str) -> bool:
-    return name in _RUNNERS or name in language_ids()
+    return _resolve_lang_token(name) is not None
+
+
+def _bind_resolved_lang(args: argparse.Namespace) -> None:
+    if not args.lang:
+        return
+    resolved = _resolve_lang_token(args.lang)
+    if resolved is not None:
+        args.lang = resolved
 
 
 def require_tools(lang_id: str) -> None:
@@ -244,6 +258,7 @@ def _swap_start_lang_problem(args: argparse.Namespace) -> None:
         return
     if _is_lang_token(args.problem) and args.lang in problems() and not _is_lang_token(args.lang):
         args.problem, args.lang = args.lang, args.problem
+        _bind_resolved_lang(args)
 
 
 def cmd_start(args: argparse.Namespace) -> int:
@@ -255,6 +270,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     ):
         args.lang = args.problem
         args.problem = None
+        _bind_resolved_lang(args)
     _swap_start_lang_problem(args)
     if not args.problem or not args.lang:
         if not (_can_prompt() and _fill_start_args(args)):
@@ -277,6 +293,7 @@ def cmd_start(args: argparse.Namespace) -> int:
                 and not _is_lang_token(args.lang)
             ):
                 args.problem, args.lang = args.lang, args.problem
+                _bind_resolved_lang(args)
                 row = language(args.lang)
             else:
                 raise
@@ -389,7 +406,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     lang: str | None = None
     try:
         _require_problem(args.problem)
-        session = load_session()
+        session = load_session(replace_lang=args.lang)
         lang = args.lang or (
             str(session["lang"])
             if session is not None and session.get("problem") == args.problem

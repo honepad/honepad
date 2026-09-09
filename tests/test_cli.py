@@ -403,6 +403,30 @@ def test_start_python3_bank_system_swaps_lang_and_problem(monkeypatch, tmp_path)
     assert session["problem"] == "bank_system"
 
 
+def test_start_python_bank_system_resolves_to_python3(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "python", "bank_system", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
+
+
+def test_start_python_alone_is_language_not_problem(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["start", "python", "--no-console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "needs a problem" in out
+    assert "and a language" not in out
+    assert "start bank_system python3" in out
+    assert "invalid problem" not in out
+    assert "NEXT:" in out
+    assert "Traceback" not in out
+    assert load_session() is None
+
+
 def test_start_java_python3_does_not_swap_two_langs(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     code = main(["start", "java", "python3", "--no-console"])

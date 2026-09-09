@@ -1818,6 +1818,17 @@ def _write_python_lang_session(tmp_path: Path) -> Path:
     return session_file
 
 
+def test_start_replaces_unknown_session_lang_when_caller_gives_python3(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(_write_python_lang_session(tmp_path)))
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
+
+
 def test_default_unknown_lang_python_suggests_python3(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(_write_python_lang_session(tmp_path)))
     code = main([])
