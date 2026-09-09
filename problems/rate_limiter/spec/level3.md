@@ -15,6 +15,7 @@ allow("api", 1) -> "true"
 allow("api", 2) -> "true"
 remaining("api", 3) -> "0"
 remaining("api", 10) -> "3"
+allow("api", 5) -> "false"
 configure("slow", 5, 20) -> "true"
 remaining("slow", 0) -> "5"
 ```

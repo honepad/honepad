@@ -30,4 +30,5 @@ def test_rate_limiter_l1_work_hides_later_methods(monkeypatch, tmp_path) -> None
     text = work.read_text(encoding="utf-8")
     assert "def allow" in text
     assert "def configure" not in text
+    assert "def remaining" not in text
     assert "def allow_weighted" not in text

@@ -175,6 +175,26 @@ proc dispatch(obj: var Target; methodName: string; args: JsonNode): JsonNode =
       result = toNode(obj.createItem(argStr(args, 0), argStr(args, 1)))
     else:
       missing(methodName)
+  of "allow":
+    when compiles(obj.allow("", 0'i64)):
+      result = toNode(obj.allow(argStr(args, 0), argInt(args, 1)))
+    else:
+      missing(methodName)
+  of "configure":
+    when compiles(obj.configure("", 0'i64, 0'i64)):
+      result = toNode(obj.configure(argStr(args, 0), argInt(args, 1), argInt(args, 2)))
+    else:
+      missing(methodName)
+  of "remaining":
+    when compiles(obj.remaining("", 0'i64)):
+      result = toNode(obj.remaining(argStr(args, 0), argInt(args, 1)))
+    else:
+      missing(methodName)
+  of "allow_weighted":
+    when compiles(obj.allowWeighted("", 0'i64, 0'i64)):
+      result = toNode(obj.allowWeighted(argStr(args, 0), argInt(args, 1), argInt(args, 2)))
+    else:
+      missing(methodName)
   of "stock":
     when compiles(obj.stock("", 0'i64)):
       result = toNode(obj.stock(argStr(args, 0), argInt(args, 1)))

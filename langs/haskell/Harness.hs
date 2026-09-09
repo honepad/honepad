@@ -76,6 +76,14 @@ class Target a where
   release _ _ _ = missing "release"
   ship :: a -> String -> Int64 -> (String, a)
   ship _ _ _ = missing "ship"
+  allow :: a -> String -> Int64 -> (String, a)
+  allow _ _ _ = missing "allow"
+  configure :: a -> String -> Int64 -> Int64 -> (String, a)
+  configure _ _ _ _ = missing "configure"
+  remaining :: a -> String -> Int64 -> (String, a)
+  remaining _ _ _ = missing "remaining"
+  allowWeighted :: a -> String -> Int64 -> Int64 -> (String, a)
+  allowWeighted _ _ _ _ = missing "allow_weighted"
   set :: a -> String -> String -> String -> (String, a)
   set _ _ _ _ = missing "set"
   get2 :: a -> String -> String -> (String, a)
@@ -168,6 +176,12 @@ dispatch obj method args =
     "reserve" -> wrapStr (reserve obj (argStr args 0) (argInt args 1))
     "release" -> wrapStr (release obj (argStr args 0) (argInt args 1))
     "ship" -> wrapStr (ship obj (argStr args 0) (argInt args 1))
+    "allow" -> wrapStr (allow obj (argStr args 0) (argInt args 1))
+    "configure" ->
+      wrapStr (configure obj (argStr args 0) (argInt args 1) (argInt args 2))
+    "remaining" -> wrapStr (remaining obj (argStr args 0) (argInt args 1))
+    "allow_weighted" ->
+      wrapStr (allowWeighted obj (argStr args 0) (argInt args 1) (argInt args 2))
     "set" -> wrapStr (set obj (argStr args 0) (argStr args 1) (argStr args 2))
     "delete" -> wrapStr (delete obj (argStr args 0) (argStr args 1))
     "scan" -> wrapStr (scan obj (argStr args 0))

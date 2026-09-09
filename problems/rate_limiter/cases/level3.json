@@ -10,6 +10,7 @@
       {"m": "allow", "a": ["api", 2], "e": "true"},
       {"m": "remaining", "a": ["api", 3], "e": "0"},
       {"m": "remaining", "a": ["api", 10], "e": "3"},
+      {"m": "allow", "a": ["api", 5], "e": "false"},
       {"m": "configure", "a": ["slow", 5, 20], "e": "true"},
       {"m": "remaining", "a": ["slow", 0], "e": "5"}
     ]

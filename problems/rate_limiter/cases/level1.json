@@ -8,7 +8,13 @@
       {"m": "allow", "a": ["api", 2], "e": "true"},
       {"m": "allow", "a": ["api", 3], "e": "false"},
       {"m": "allow", "a": ["other", 3], "e": "true"},
-      {"m": "allow", "a": ["api", 10], "e": "true"}
+      {"m": "allow", "a": ["api", 10], "e": "true"},
+      {"m": "allow", "a": ["late", 8], "e": "true"},
+      {"m": "allow", "a": ["late", 9], "e": "true"},
+      {"m": "allow", "a": ["late", 10], "e": "true"},
+      {"m": "allow", "a": ["late", 11], "e": "true"},
+      {"m": "allow", "a": ["late", 12], "e": "true"},
+      {"m": "allow", "a": ["late", 13], "e": "false"}
     ]
   }
 ]
