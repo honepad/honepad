@@ -21,6 +21,7 @@ type
   TFnSII = function(const A: string; B, C: Int64): TJsonVal of object;
   TFnSSS = function(const A, B, C: string): TJsonVal of object;
   TFnSSII = function(const A, B: string; C, D: Int64): TJsonVal of object;
+  TFnNone = function: TJsonVal of object;
 
 function Bind(Obj: TObject; const Name, Method: string): TMethod;
 begin
@@ -286,6 +287,41 @@ begin
   begin
     M := Bind(Obj, 'Restore', Method);
     Exit(TFnII(M)(ArgInt(Args, 0), ArgInt(Args, 1)));
+  end;
+  if Method = 'add_gpu' then
+  begin
+    M := Bind(Obj, 'AddGpu', Method);
+    Exit(TFnSI(M)(ArgStr(Args, 0), ArgInt(Args, 1)));
+  end;
+  if Method = 'submit_job' then
+  begin
+    M := Bind(Obj, 'SubmitJob', Method);
+    Exit(TFnSI(M)(ArgStr(Args, 0), ArgInt(Args, 1)));
+  end;
+  if Method = 'status' then
+  begin
+    M := Bind(Obj, 'Status', Method);
+    Exit(TFnS(M)(ArgStr(Args, 0)));
+  end;
+  if Method = 'assign' then
+  begin
+    M := Bind(Obj, 'Assign', Method);
+    Exit(TFnNone(M)());
+  end;
+  if Method = 'complete' then
+  begin
+    M := Bind(Obj, 'Complete', Method);
+    Exit(TFnS(M)(ArgStr(Args, 0)));
+  end;
+  if Method = 'cancel' then
+  begin
+    M := Bind(Obj, 'Cancel', Method);
+    Exit(TFnS(M)(ArgStr(Args, 0)));
+  end;
+  if Method = 'set_priority' then
+  begin
+    M := Bind(Obj, 'SetPriority', Method);
+    Exit(TFnSI(M)(ArgStr(Args, 0), ArgInt(Args, 1)));
   end;
   raise Exception.Create('unknown method ' + Method);
 end;

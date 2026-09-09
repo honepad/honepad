@@ -298,6 +298,41 @@ proc dispatch(obj: var Target; methodName: string; args: JsonNode): JsonNode =
       result = toNode(obj.restore(argInt(args, 0), argInt(args, 1)))
     else:
       missing(methodName)
+  of "add_gpu":
+    when compiles(obj.addGpu("", 0'i64)):
+      result = toNode(obj.addGpu(argStr(args, 0), argInt(args, 1)))
+    else:
+      missing(methodName)
+  of "submit_job":
+    when compiles(obj.submitJob("", 0'i64)):
+      result = toNode(obj.submitJob(argStr(args, 0), argInt(args, 1)))
+    else:
+      missing(methodName)
+  of "status":
+    when compiles(obj.status("")):
+      result = toNode(obj.status(argStr(args, 0)))
+    else:
+      missing(methodName)
+  of "assign":
+    when compiles(obj.assign()):
+      result = toNode(obj.assign())
+    else:
+      missing(methodName)
+  of "complete":
+    when compiles(obj.complete("")):
+      result = toNode(obj.complete(argStr(args, 0)))
+    else:
+      missing(methodName)
+  of "cancel":
+    when compiles(obj.cancel("")):
+      result = toNode(obj.cancel(argStr(args, 0)))
+    else:
+      missing(methodName)
+  of "set_priority":
+    when compiles(obj.setPriority("", 0'i64)):
+      result = toNode(obj.setPriority(argStr(args, 0), argInt(args, 1)))
+    else:
+      missing(methodName)
   else:
     raise newException(ValueError, "unknown method " & methodName)
 

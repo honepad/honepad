@@ -110,6 +110,20 @@ class Target a where
   backup _ _ = missing "backup"
   restore :: a -> Int64 -> Int64 -> (String, a)
   restore _ _ _ = missing "restore"
+  addGpu :: a -> String -> Int64 -> (String, a)
+  addGpu _ _ _ = missing "add_gpu"
+  submitJob :: a -> String -> Int64 -> (String, a)
+  submitJob _ _ _ = missing "submit_job"
+  status :: a -> String -> (String, a)
+  status _ _ = missing "status"
+  assign :: a -> (String, a)
+  assign _ = missing "assign"
+  complete :: a -> String -> (String, a)
+  complete _ _ = missing "complete"
+  cancel :: a -> String -> (String, a)
+  cancel _ _ = missing "cancel"
+  setPriority :: a -> String -> Int64 -> (String, a)
+  setPriority _ _ _ = missing "set_priority"
 
 maybeInt :: Maybe Int64 -> Value
 maybeInt Nothing = JNull
@@ -205,6 +219,13 @@ dispatch obj method args =
       wrapStr (scanByPrefixAt obj (argStr args 0) (argStr args 1) (argInt args 2))
     "backup" -> wrapStr (backup obj (argInt args 0))
     "restore" -> wrapStr (restore obj (argInt args 0) (argInt args 1))
+    "add_gpu" -> wrapStr (addGpu obj (argStr args 0) (argInt args 1))
+    "submit_job" -> wrapStr (submitJob obj (argStr args 0) (argInt args 1))
+    "status" -> wrapStr (status obj (argStr args 0))
+    "assign" -> wrapStr (assign obj)
+    "complete" -> wrapStr (complete obj (argStr args 0))
+    "cancel" -> wrapStr (cancel obj (argStr args 0))
+    "set_priority" -> wrapStr (setPriority obj (argStr args 0) (argInt args 1))
     _ -> missing method
   where
     wrapStr (r, obj') = (JStr r, obj')

@@ -347,6 +347,41 @@ JSONValue dispatch(Target obj, string methodName, JSONValue args)
             return toNode(obj.restore(argLong(args, 0), argLong(args, 1)));
         missing(methodName);
         break;
+    case "add_gpu":
+        static if (__traits(hasMember, Target, "addGpu"))
+            return toNode(obj.addGpu(argStr(args, 0), argLong(args, 1)));
+        missing(methodName);
+        break;
+    case "submit_job":
+        static if (__traits(hasMember, Target, "submitJob"))
+            return toNode(obj.submitJob(argStr(args, 0), argLong(args, 1)));
+        missing(methodName);
+        break;
+    case "status":
+        static if (__traits(hasMember, Target, "status"))
+            return toNode(obj.status(argStr(args, 0)));
+        missing(methodName);
+        break;
+    case "assign":
+        static if (__traits(hasMember, Target, "assign") && __traits(compiles, obj.assign()))
+            return toNode(obj.assign());
+        missing(methodName);
+        break;
+    case "complete":
+        static if (__traits(hasMember, Target, "complete"))
+            return toNode(obj.complete(argStr(args, 0)));
+        missing(methodName);
+        break;
+    case "cancel":
+        static if (__traits(hasMember, Target, "cancel"))
+            return toNode(obj.cancel(argStr(args, 0)));
+        missing(methodName);
+        break;
+    case "set_priority":
+        static if (__traits(hasMember, Target, "setPriority"))
+            return toNode(obj.setPriority(argStr(args, 0), argLong(args, 1)));
+        missing(methodName);
+        break;
     default:
         throw new Exception("unknown method " ~ methodName);
     }
