@@ -1,0 +1,14 @@
+[
+  {
+    "id": "rl-l1-spec",
+    "level": 1,
+    "calls": [
+      {"m": "allow", "a": ["api", 0], "e": "true"},
+      {"m": "allow", "a": ["api", 1], "e": "true"},
+      {"m": "allow", "a": ["api", 2], "e": "true"},
+      {"m": "allow", "a": ["api", 3], "e": "false"},
+      {"m": "allow", "a": ["other", 3], "e": "true"},
+      {"m": "allow", "a": ["api", 10], "e": "true"}
+    ]
+  }
+]

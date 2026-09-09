@@ -17,6 +17,7 @@ _CLASS = {
     "file_storage": "Simulation",
     "workers": "Simulation",
     "inventory": "Simulation",
+    "rate_limiter": "Simulation",
 }
 
 

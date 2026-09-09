@@ -1294,6 +1294,31 @@ def test_submit_last_workers_level_prints_done(monkeypatch, tmp_path: Path, caps
     assert load_session()["cleared"] is True
 
 
+def test_submit_last_inventory_level_prints_next_rate_limiter(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "inventory",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 4,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert main(["submit", "inventory", "--kind", "solution", "--confirm", "y"]) == 0
+    out = capsys.readouterr().out
+    assert "DONE: inventory python3" in out
+    assert "NEXT: " in out
+    assert "start rate_limiter" in out
+
+
 def test_run_last_level_marks_cleared(monkeypatch, tmp_path: Path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))

@@ -4,7 +4,8 @@
     "in_memory_database",
     "file_storage",
     "workers",
-    "inventory"
+    "inventory",
+    "rate_limiter"
   ],
   "required_ids": [
     "clojure",
