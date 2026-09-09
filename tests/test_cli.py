@@ -545,6 +545,7 @@ def test_start_picker_lists_problem_level_counts(monkeypatch, tmp_path, capsys) 
     out = capsys.readouterr().out
     assert "bank_system (4 levels)" in out
     assert "workers (4 levels)" in out
+    assert "inventory (4 levels)" in out
 
 
 def test_start_picker_problem_typo_does_not_suggest_language(monkeypatch, tmp_path, capsys) -> None:

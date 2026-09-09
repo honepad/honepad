@@ -215,6 +215,41 @@ JSONValue dispatch(Target obj, string methodName, JSONValue args)
             return toNode(obj.setDoublePay(argStr(args, 0), argLong(args, 1), argLong(args, 2)));
         missing(methodName);
         break;
+    case "create_item":
+        static if (__traits(hasMember, Target, "createItem"))
+            return toNode(obj.createItem(argStr(args, 0), argStr(args, 1)));
+        missing(methodName);
+        break;
+    case "stock":
+        static if (__traits(hasMember, Target, "stock"))
+            return toNode(obj.stock(argStr(args, 0), argLong(args, 1)));
+        missing(methodName);
+        break;
+    case "get_qty":
+        static if (__traits(hasMember, Target, "getQty"))
+            return toNode(obj.getQty(argStr(args, 0)));
+        missing(methodName);
+        break;
+    case "list_low":
+        static if (__traits(hasMember, Target, "listLow"))
+            return toNode(obj.listLow(argLong(args, 0)));
+        missing(methodName);
+        break;
+    case "reserve":
+        static if (__traits(hasMember, Target, "reserve"))
+            return toNode(obj.reserve(argStr(args, 0), argLong(args, 1)));
+        missing(methodName);
+        break;
+    case "release":
+        static if (__traits(hasMember, Target, "release"))
+            return toNode(obj.release(argStr(args, 0), argLong(args, 1)));
+        missing(methodName);
+        break;
+    case "ship":
+        static if (__traits(hasMember, Target, "ship"))
+            return toNode(obj.ship(argStr(args, 0), argLong(args, 1)));
+        missing(methodName);
+        break;
     case "calc_salary":
         static if (__traits(hasMember, Target, "calcSalary"))
             return toNode(obj.calcSalary(argStr(args, 0), argLong(args, 1), argLong(args, 2)));

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "inv-l2-spec",
+    "level": 2,
+    "calls": [
+      {"m": "create_item", "a": ["sku-a", "Bolt"], "e": "true"},
+      {"m": "create_item", "a": ["sku-b", "Nut"], "e": "true"},
+      {"m": "create_item", "a": ["sku-c", "Washer"], "e": "true"},
+      {"m": "create_item", "a": ["sku-d", "Screw"], "e": "true"},
+      {"m": "stock", "a": ["sku-a", 5], "e": "5"},
+      {"m": "stock", "a": ["sku-b", 2], "e": "2"},
+      {"m": "stock", "a": ["sku-c", 8], "e": "8"},
+      {"m": "stock", "a": ["sku-d", 2], "e": "2"},
+      {"m": "list_low", "a": [5], "e": "sku-b(2), sku-d(2), sku-a(5)"},
+      {"m": "list_low", "a": [1], "e": ""}
+    ]
+  }
+]

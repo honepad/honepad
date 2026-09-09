@@ -1288,7 +1288,8 @@ def test_submit_last_workers_level_prints_done(monkeypatch, tmp_path: Path, caps
     assert "DONE: workers python3" in out
     assert "all 4 levels" in out
     assert "UNLOCKED" not in out
-    assert "NEXT:" not in out
+    assert "NEXT: " in out
+    assert "start inventory" in out
     assert load_session()["unlocked"] == 4
     assert load_session()["cleared"] is True
 

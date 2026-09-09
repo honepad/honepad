@@ -166,6 +166,41 @@ begin
     M := Bind(Obj, 'SetDoublePay', Method);
     Exit(TFnSII(M)(ArgStr(Args, 0), ArgInt(Args, 1), ArgInt(Args, 2)));
   end;
+  if Method = 'create_item' then
+  begin
+    M := Bind(Obj, 'CreateItem', Method);
+    Exit(TFnSS(M)(ArgStr(Args, 0), ArgStr(Args, 1)));
+  end;
+  if Method = 'stock' then
+  begin
+    M := Bind(Obj, 'Stock', Method);
+    Exit(TFnSI(M)(ArgStr(Args, 0), ArgInt(Args, 1)));
+  end;
+  if Method = 'get_qty' then
+  begin
+    M := Bind(Obj, 'GetQty', Method);
+    Exit(TFnS(M)(ArgStr(Args, 0)));
+  end;
+  if Method = 'list_low' then
+  begin
+    M := Bind(Obj, 'ListLow', Method);
+    Exit(TFnI(M)(ArgInt(Args, 0)));
+  end;
+  if Method = 'reserve' then
+  begin
+    M := Bind(Obj, 'Reserve', Method);
+    Exit(TFnSI(M)(ArgStr(Args, 0), ArgInt(Args, 1)));
+  end;
+  if Method = 'release' then
+  begin
+    M := Bind(Obj, 'Release', Method);
+    Exit(TFnSI(M)(ArgStr(Args, 0), ArgInt(Args, 1)));
+  end;
+  if Method = 'ship' then
+  begin
+    M := Bind(Obj, 'Ship', Method);
+    Exit(TFnSI(M)(ArgStr(Args, 0), ArgInt(Args, 1)));
+  end;
   if Method = 'calc_salary' then
   begin
     M := Bind(Obj, 'CalcSalary', Method);

@@ -3,7 +3,8 @@
     "bank_system",
     "in_memory_database",
     "file_storage",
-    "workers"
+    "workers",
+    "inventory"
   ],
   "required_ids": [
     "clojure",
