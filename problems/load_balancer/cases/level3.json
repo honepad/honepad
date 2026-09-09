@@ -1,0 +1,15 @@
+[
+  {
+    "id": "lb-l3-spec",
+    "level": 3,
+    "calls": [
+      {"m": "add_backend", "a": ["a"], "e": "true"},
+      {"m": "add_backend", "a": ["b"], "e": "true"},
+      {"m": "sticky", "a": ["c1"], "e": "a"},
+      {"m": "sticky", "a": ["c1"], "e": "a"},
+      {"m": "sticky", "a": ["c2"], "e": "b"},
+      {"m": "set_health", "a": ["a", 0], "e": "true"},
+      {"m": "sticky", "a": ["c1"], "e": "b"}
+    ]
+  }
+]

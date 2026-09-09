@@ -124,6 +124,18 @@ class Target a where
   cancel _ _ = missing "cancel"
   setPriority :: a -> String -> Int64 -> (String, a)
   setPriority _ _ _ = missing "set_priority"
+  addBackend :: a -> String -> (String, a)
+  addBackend _ _ = missing "add_backend"
+  route :: a -> (String, a)
+  route _ = missing "route"
+  setHealth :: a -> String -> Int64 -> (String, a)
+  setHealth _ _ _ = missing "set_health"
+  setWeight :: a -> String -> Int64 -> (String, a)
+  setWeight _ _ _ = missing "set_weight"
+  sticky :: a -> String -> (String, a)
+  sticky _ _ = missing "sticky"
+  doneBackend :: a -> String -> (String, a)
+  doneBackend _ _ = missing "done"
 
 maybeInt :: Maybe Int64 -> Value
 maybeInt Nothing = JNull
@@ -226,6 +238,12 @@ dispatch obj method args =
     "complete" -> wrapStr (complete obj (argStr args 0))
     "cancel" -> wrapStr (cancel obj (argStr args 0))
     "set_priority" -> wrapStr (setPriority obj (argStr args 0) (argInt args 1))
+    "add_backend" -> wrapStr (addBackend obj (argStr args 0))
+    "route" -> wrapStr (route obj)
+    "set_health" -> wrapStr (setHealth obj (argStr args 0) (argInt args 1))
+    "set_weight" -> wrapStr (setWeight obj (argStr args 0) (argInt args 1))
+    "sticky" -> wrapStr (sticky obj (argStr args 0))
+    "done" -> wrapStr (doneBackend obj (argStr args 0))
     _ -> missing method
   where
     wrapStr (r, obj') = (JStr r, obj')

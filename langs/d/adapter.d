@@ -382,6 +382,36 @@ JSONValue dispatch(Target obj, string methodName, JSONValue args)
             return toNode(obj.setPriority(argStr(args, 0), argLong(args, 1)));
         missing(methodName);
         break;
+    case "add_backend":
+        static if (__traits(hasMember, Target, "addBackend"))
+            return toNode(obj.addBackend(argStr(args, 0)));
+        missing(methodName);
+        break;
+    case "route":
+        static if (__traits(hasMember, Target, "route") && __traits(compiles, obj.route()))
+            return toNode(obj.route());
+        missing(methodName);
+        break;
+    case "set_health":
+        static if (__traits(hasMember, Target, "setHealth"))
+            return toNode(obj.setHealth(argStr(args, 0), argLong(args, 1)));
+        missing(methodName);
+        break;
+    case "set_weight":
+        static if (__traits(hasMember, Target, "setWeight"))
+            return toNode(obj.setWeight(argStr(args, 0), argLong(args, 1)));
+        missing(methodName);
+        break;
+    case "sticky":
+        static if (__traits(hasMember, Target, "sticky"))
+            return toNode(obj.sticky(argStr(args, 0)));
+        missing(methodName);
+        break;
+    case "done":
+        static if (__traits(hasMember, Target, "done") && __traits(compiles, obj.done("")))
+            return toNode(obj.done(argStr(args, 0)));
+        missing(methodName);
+        break;
     default:
         throw new Exception("unknown method " ~ methodName);
     }
