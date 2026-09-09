@@ -286,6 +286,7 @@ def cmd_start(args: argparse.Namespace) -> int:
                 print(start_next())
             print("problems: " + ", ".join(problems()))
             return 1
+    _bind_resolved_lang(args)
     try:
         try:
             row = language(args.lang)
@@ -410,6 +411,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     lang: str | None = None
     try:
         _require_problem(args.problem)
+        _bind_resolved_lang(args)
         session = load_session()
         lang = args.lang or (
             str(session["lang"])

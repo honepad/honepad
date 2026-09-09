@@ -220,12 +220,16 @@ def load_session(
     try:
         language(lang)
     except (KeyError, ValueError) as exc:
-        if replace_lang is not None:
+        resolved = resolve_language_token(lang)
+        if resolved is not None:
+            lang = resolved
+        elif replace_lang is not None:
             resolved = resolve_language_token(replace_lang)
             if resolved is None:
                 raise ValueError(f"unknown language: {replace_lang}") from exc
             return None
-        raise ValueError(f"unknown language: {lang}") from exc
+        else:
+            raise ValueError(f"unknown language: {lang}") from exc
     top = max_level(problem)
     if unlocked < 1 or unlocked > top:
         raise ValueError(f"{target} unlocked must be 1..{top}")

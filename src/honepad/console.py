@@ -571,9 +571,10 @@ def _reset_all(session: dict[str, Any], stdout: TextIO) -> int:
 
 
 def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:
-    from honepad.cli import _swap_start_lang_problem, require_java_path
+    from honepad.cli import _bind_resolved_lang, _swap_start_lang_problem, require_java_path
 
     _swap_start_lang_problem(args)
+    _bind_resolved_lang(args)
     problem = getattr(args, "problem", None)
     lang = getattr(args, "lang", None)
     if (problem is None) != (lang is None):

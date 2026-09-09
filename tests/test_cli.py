@@ -315,18 +315,41 @@ def test_bare_honepad_no_session_on_tty_picks(monkeypatch, tmp_path, capsys) -> 
     assert "OK: quit" in out
 
 
-def test_start_unknown_lang_python_suggests_python3(monkeypatch, tmp_path, capsys) -> None:
+def test_start_bank_system_python_resolves_to_python3(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
-    code = main(["start", "bank_system", "python", "--no-console"])
+    assert main(["start", "bank_system", "python", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
+
+
+def test_start_unknown_lang_pyton_suggests_python3(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["start", "bank_system", "pyton", "--no-console"])
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert code == 1
-    assert "unknown language: python" in out
+    assert "unknown language: pyton" in out
     assert "FAIL: 'unknown language" not in out
     assert "python3" in out
     assert "NEXT:" in out
     assert "langs" in out
     assert "Traceback" not in out
+    assert load_session() is None
+
+
+def test_start_unknown_lang_j_does_not_bind(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["start", "bank_system", "j", "--no-console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "unknown language: j" in out
+    assert "FAIL: 'unknown language" not in out
+    assert "Did you mean" in out
+    assert "NEXT:" in out
+    assert "langs" in out
     assert load_session() is None
 
 
@@ -454,15 +477,25 @@ def test_start_java_on_tty_picks_problem(monkeypatch, tmp_path, capsys) -> None:
     assert "OK: LEVEL" in out
 
 
-def test_run_unknown_lang_js_suggests_javascript(monkeypatch, tmp_path, capsys) -> None:
+def test_run_lang_python_resolves_to_python3(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
-    code = main(["run", "bank_system", "--lang", "js"])
+    assert main(["run", "bank_system", "--lang", "python"]) == 0
+    out = capsys.readouterr().out
+    assert "bank_system python3 through LEVEL 4" in out
+    assert "OK" in out
+    assert "unknown language" not in out
+    assert load_session() is None
+
+
+def test_run_unknown_lang_pyton_suggests_python3(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    code = main(["run", "bank_system", "--lang", "pyton"])
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert code == 1
-    assert "unknown language: js" in out
+    assert "unknown language: pyton" in out
     assert "FAIL: 'unknown language" not in out
-    assert "javascript" in out
+    assert "python3" in out
     assert "NEXT:" in out
     assert "langs" in out
     assert "Traceback" not in out

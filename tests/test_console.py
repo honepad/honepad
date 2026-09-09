@@ -701,32 +701,27 @@ def test_console_unimplemented_lang_fails(monkeypatch, tmp_path: Path, capsys) -
     assert "start bank_system java" in out
 
 
-def test_console_unknown_lang_python_suggests_python3(monkeypatch, tmp_path: Path, capsys) -> None:
+def test_console_bank_system_python_resolves_to_python3(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
-    code = main(["console", "bank_system", "python"])
-    captured = capsys.readouterr()
-    out = captured.out + captured.err
-    assert code == 1
-    assert "unknown language: python" in out
-    assert "FAIL: 'unknown language" not in out
-    assert "python3" in out
-    assert "NEXT:" in out
-    assert "langs" in out
-    assert "Traceback" not in out
+    monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
+    assert main(["console", "bank_system", "python"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
 
 
-def test_vscode_unknown_lang_python_suggests_python3(monkeypatch, tmp_path: Path, capsys) -> None:
+def test_vscode_bank_system_python_resolves_to_python3(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
-    code = main(["vscode", "bank_system", "python", "--no-open"])
-    captured = capsys.readouterr()
-    out = captured.out + captured.err
-    assert code == 1
-    assert "unknown language: python" in out
-    assert "FAIL: 'unknown language" not in out
-    assert "python3" in out
-    assert "NEXT:" in out
-    assert "langs" in out
-    assert "Traceback" not in out
+    assert main(["vscode", "bank_system", "python", "--no-open"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
 
 
 def _pipe_stdin(data: bytes) -> io.TextIOWrapper:
