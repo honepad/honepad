@@ -5,7 +5,8 @@
     "file_storage",
     "workers",
     "inventory",
-    "rate_limiter"
+    "rate_limiter",
+    "gpu_scheduler"
   ],
   "required_ids": [
     "clojure",

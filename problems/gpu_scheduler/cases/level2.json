@@ -1,0 +1,18 @@
+[
+  {
+    "id": "gpu-l2-spec",
+    "level": 2,
+    "calls": [
+      {"m": "add_gpu", "a": ["g1", 8], "e": "true"},
+      {"m": "submit_job", "a": ["j1", 4], "e": "true"},
+      {"m": "assign", "a": [], "e": "j1"},
+      {"m": "status", "a": ["j1"], "e": "running"},
+      {"m": "assign", "a": [], "e": ""},
+      {"m": "submit_job", "a": ["j2", 4], "e": "true"},
+      {"m": "complete", "a": ["j1"], "e": "true"},
+      {"m": "status", "a": ["j1"], "e": "done"},
+      {"m": "assign", "a": [], "e": "j2"},
+      {"m": "complete", "a": ["j9"], "e": "invalid_request"}
+    ]
+  }
+]

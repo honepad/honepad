@@ -1,0 +1,25 @@
+[
+  {
+    "id": "gpu-l4-spec",
+    "level": 4,
+    "calls": [
+      {"m": "add_gpu", "a": ["g1", 4], "e": "true"},
+      {"m": "add_gpu", "a": ["g2", 16], "e": "true"},
+      {"m": "submit_job", "a": ["j1", 4], "e": "true"},
+      {"m": "submit_job", "a": ["j2", 4], "e": "true"},
+      {"m": "submit_job", "a": ["big", 16], "e": "true"},
+      {"m": "set_priority", "a": ["j2", 10], "e": "true"},
+      {"m": "set_priority", "a": ["big", 5], "e": "true"},
+      {"m": "set_priority", "a": ["j9", 1], "e": "invalid_request"},
+      {"m": "assign", "a": [], "e": "j2"},
+      {"m": "assign", "a": [], "e": "big"},
+      {"m": "complete", "a": ["j2"], "e": "true"},
+      {"m": "assign", "a": [], "e": "j1"},
+      {"m": "add_gpu", "a": ["tiny", 4], "e": "true"},
+      {"m": "submit_job", "a": ["huge", 16], "e": "true"},
+      {"m": "submit_job", "a": ["fit", 4], "e": "true"},
+      {"m": "set_priority", "a": ["huge", 10], "e": "true"},
+      {"m": "assign", "a": [], "e": "fit"}
+    ]
+  }
+]
