@@ -1,0 +1,14 @@
+[
+  {
+    "id": "hid-l4-bonus-before-session",
+    "level": 4,
+    "calls": [
+      {"m": "add_worker", "a": ["John", "Middle Developer", 200], "e": "true"},
+      {"m": "set_double_pay", "a": ["John", 0, 100], "e": "true"},
+      {"m": "register", "a": ["John", 10], "e": "registered"},
+      {"m": "register", "a": ["John", 50], "e": "registered"},
+      {"m": "calc_salary", "a": ["John", 0, 100], "e": "16000"},
+      {"m": "get", "a": ["John"], "e": "40"}
+    ]
+  }
+]

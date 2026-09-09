@@ -18,8 +18,20 @@ def problem_dir(problem: str) -> Path:
 
 
 def load_cases(problem: str, level: int | None = None) -> list[dict[str, Any]]:
-    cases_dir = problem_dir(problem) / "cases"
+    return _load_suite_cases(problem_dir(problem) / "cases", level)
+
+
+def load_hidden_cases(problem: str, level: int | None = None) -> list[dict[str, Any]]:
+    hidden_dir = problem_dir(problem) / "hidden"
+    if not hidden_dir.is_dir():
+        return []
+    return _load_suite_cases(hidden_dir, level)
+
+
+def _load_suite_cases(cases_dir: Path, level: int | None) -> list[dict[str, Any]]:
     cases: list[dict[str, Any]] = []
+    if not cases_dir.is_dir():
+        return cases
     if level is None:
         paths = sorted(cases_dir.glob("*.json"))
     else:

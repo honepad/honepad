@@ -44,6 +44,7 @@ from honepad.term import (
     print_complete,
     print_fail,
     render_fail,
+    render_hidden_fail,
     render_pass,
     spec_line,
     start_next,
@@ -54,7 +55,7 @@ from honepad.term import (
     work_line,
     work_reset_next,
 )
-from honepad.traces import load_cases, method_name, problem_dir
+from honepad.traces import load_cases, load_hidden_cases, method_name, problem_dir
 from honepad.workspace import refresh_workspace, workspace_dir, write_workspace
 
 
@@ -519,6 +520,36 @@ def cmd_run(args: argparse.Namespace) -> int:
             _print_work_notes(args.problem, lang)
         return 1
     print(render_pass(report.problem, report.lang, report.level, report.passed))
+    if _wants_hidden(kind, bool(getattr(args, "unlock", False))):
+        hidden = load_hidden_cases(args.problem, level)
+        if hidden:
+            hidden_report = run(args.problem, lang, level, kind=kind, cases=hidden)
+            print(
+                f"{hidden_report.problem} {hidden_report.lang} hidden through LEVEL "
+                f"{hidden_report.level} passed={hidden_report.passed} "
+                f"failed={len(hidden_report.failed)}"
+            )
+            if hidden_report.failed:
+                fail = hidden_report.failed[0]
+                naming = str(language(lang)["naming"])
+                shown = method_name(fail.method, naming)
+                argv = ", ".join(repr(item) for item in fail.args)
+                print(
+                    render_hidden_fail(
+                        problem=hidden_report.problem,
+                        lang=hidden_report.lang,
+                        level=hidden_report.level,
+                        case=fail.case,
+                        index=fail.index,
+                        call=f"{shown}({argv})",
+                        actual=repr(fail.actual),
+                        passed=hidden_report.passed,
+                        total=hidden_report.passed + len(hidden_report.failed),
+                    )
+                )
+                if kind == "work":
+                    _print_work_notes(args.problem, lang)
+                return 1
     may_unlock = bool(getattr(args, "unlock", False))
     if practice and session is not None and kind in ("solution", "work"):
         nxt = int(session["unlocked"]) + 1
@@ -648,6 +679,12 @@ def cmd_submit(args: argparse.Namespace) -> int:
         return 1
     args.unlock = True
     return cmd_run(args)
+
+
+def _wants_hidden(kind: str | None, unlock: bool) -> bool:
+    if kind == "solution":
+        return True
+    return bool(unlock) and kind == "work"
 
 
 def _unlocked_at_last_level(problem: str) -> bool:

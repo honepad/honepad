@@ -301,7 +301,7 @@ def _write_readme(
     lines = [
         f"# {problem} public tests (unlocked through L{unlocked})",
         "",
-        "These are the same public traces honepad run uses (no separate hidden suite).",
+        "These are the same public traces honepad run uses. Hidden traces run only on submit.",
         "",
         f"Current spec: spec.md and spec/current.md (L{unlocked}).",
         "Per-level copies: spec/level1.md, spec/level2.md, ...",

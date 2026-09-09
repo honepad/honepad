@@ -1817,8 +1817,8 @@ def test_workspace_readme_names_public_traces(monkeypatch, tmp_path: Path) -> No
     assert "public traces" in readme
     assert "honepad run" in readme
     assert "same public traces honepad run uses" in readme
-    assert "no separate hidden suite" in readme
-    assert "Hidden tests are not here" not in readme
+    assert "Hidden traces run only on submit" in readme
+    assert "no separate hidden suite" not in readme
     assert "Current spec:" in readme
     assert "spec/level1.md" in readme
 
