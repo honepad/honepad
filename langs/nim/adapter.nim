@@ -170,6 +170,41 @@ proc dispatch(obj: var Target; methodName: string; args: JsonNode): JsonNode =
       result = toNode(obj.setDoublePay(argStr(args, 0), argInt(args, 1), argInt(args, 2)))
     else:
       missing(methodName)
+  of "create_item":
+    when compiles(obj.createItem("", "")):
+      result = toNode(obj.createItem(argStr(args, 0), argStr(args, 1)))
+    else:
+      missing(methodName)
+  of "stock":
+    when compiles(obj.stock("", 0'i64)):
+      result = toNode(obj.stock(argStr(args, 0), argInt(args, 1)))
+    else:
+      missing(methodName)
+  of "get_qty":
+    when compiles(obj.getQty("")):
+      result = toNode(obj.getQty(argStr(args, 0)))
+    else:
+      missing(methodName)
+  of "list_low":
+    when compiles(obj.listLow(0'i64)):
+      result = toNode(obj.listLow(argInt(args, 0)))
+    else:
+      missing(methodName)
+  of "reserve":
+    when compiles(obj.reserve("", 0'i64)):
+      result = toNode(obj.reserve(argStr(args, 0), argInt(args, 1)))
+    else:
+      missing(methodName)
+  of "release":
+    when compiles(obj.release("", 0'i64)):
+      result = toNode(obj.release(argStr(args, 0), argInt(args, 1)))
+    else:
+      missing(methodName)
+  of "ship":
+    when compiles(obj.ship("", 0'i64)):
+      result = toNode(obj.ship(argStr(args, 0), argInt(args, 1)))
+    else:
+      missing(methodName)
   of "calc_salary":
     when compiles(obj.calcSalary("", 0'i64, 0'i64)):
       result = toNode(obj.calcSalary(argStr(args, 0), argInt(args, 1), argInt(args, 2)))

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "inv-l3-spec",
+    "level": 3,
+    "calls": [
+      {"m": "create_item", "a": ["sku-a", "Bolt"], "e": "true"},
+      {"m": "stock", "a": ["sku-a", 10], "e": "10"},
+      {"m": "reserve", "a": ["sku-a", 4], "e": "true"},
+      {"m": "stock", "a": ["sku-a", -7], "e": "invalid_request"},
+      {"m": "stock", "a": ["sku-a", -6], "e": "4"},
+      {"m": "get_qty", "a": ["sku-a"], "e": "4"},
+      {"m": "release", "a": ["sku-a", 2], "e": "true"},
+      {"m": "reserve", "a": ["sku-z", 1], "e": "invalid_request"},
+      {"m": "reserve", "a": ["sku-a", 0], "e": "invalid_request"}
+    ]
+  }
+]

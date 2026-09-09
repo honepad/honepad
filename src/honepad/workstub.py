@@ -16,6 +16,7 @@ _CLASS = {
     "in_memory_database": "InMemoryDatabase",
     "file_storage": "Simulation",
     "workers": "Simulation",
+    "inventory": "Simulation",
 }
 
 

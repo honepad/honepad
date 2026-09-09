@@ -62,6 +62,20 @@ class Target a where
   calcSalary _ _ _ _ = missing "calc_salary"
   setDoublePay :: a -> String -> Int64 -> Int64 -> (String, a)
   setDoublePay _ _ _ _ = missing "set_double_pay"
+  createItem :: a -> String -> String -> (String, a)
+  createItem _ _ _ = missing "create_item"
+  stock :: a -> String -> Int64 -> (String, a)
+  stock _ _ _ = missing "stock"
+  getQty :: a -> String -> (String, a)
+  getQty _ _ = missing "get_qty"
+  listLow :: a -> Int64 -> (String, a)
+  listLow _ _ = missing "list_low"
+  reserve :: a -> String -> Int64 -> (String, a)
+  reserve _ _ _ = missing "reserve"
+  release :: a -> String -> Int64 -> (String, a)
+  release _ _ _ = missing "release"
+  ship :: a -> String -> Int64 -> (String, a)
+  ship _ _ _ = missing "ship"
   set :: a -> String -> String -> String -> (String, a)
   set _ _ _ _ = missing "set"
   get2 :: a -> String -> String -> (String, a)
@@ -147,6 +161,13 @@ dispatch obj method args =
     "calc_salary" -> wrapStr (calcSalary obj (argStr args 0) (argInt args 1) (argInt args 2))
     "set_double_pay" ->
       wrapStr (setDoublePay obj (argStr args 0) (argInt args 1) (argInt args 2))
+    "create_item" -> wrapStr (createItem obj (argStr args 0) (argStr args 1))
+    "stock" -> wrapStr (stock obj (argStr args 0) (argInt args 1))
+    "get_qty" -> wrapStr (getQty obj (argStr args 0))
+    "list_low" -> wrapStr (listLow obj (argInt args 0))
+    "reserve" -> wrapStr (reserve obj (argStr args 0) (argInt args 1))
+    "release" -> wrapStr (release obj (argStr args 0) (argInt args 1))
+    "ship" -> wrapStr (ship obj (argStr args 0) (argInt args 1))
     "set" -> wrapStr (set obj (argStr args 0) (argStr args 1) (argStr args 2))
     "delete" -> wrapStr (delete obj (argStr args 0) (argStr args 1))
     "scan" -> wrapStr (scan obj (argStr args 0))
