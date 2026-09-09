@@ -1,0 +1,22 @@
+[
+  {
+    "id": "rl-l2-spec",
+    "level": 2,
+    "calls": [
+      {"m": "configure", "a": ["api", 2, 10], "e": "true"},
+      {"m": "allow", "a": ["api", 0], "e": "true"},
+      {"m": "allow", "a": ["api", 1], "e": "true"},
+      {"m": "allow", "a": ["api", 2], "e": "false"},
+      {"m": "configure", "a": ["api", 0, 10], "e": "invalid_request"},
+      {"m": "configure", "a": ["api", 2, 0], "e": "invalid_request"},
+      {"m": "allow", "a": ["fresh", 0], "e": "true"},
+      {"m": "allow", "a": ["fresh", 1], "e": "true"},
+      {"m": "allow", "a": ["fresh", 2], "e": "true"},
+      {"m": "allow", "a": ["fresh", 3], "e": "false"},
+      {"m": "configure", "a": ["api", 1, 5], "e": "true"},
+      {"m": "allow", "a": ["api", 0], "e": "true"},
+      {"m": "allow", "a": ["api", 4], "e": "false"},
+      {"m": "allow", "a": ["api", 5], "e": "true"}
+    ]
+  }
+]

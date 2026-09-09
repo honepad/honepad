@@ -1,0 +1,21 @@
+[
+  {
+    "id": "rl-l4-spec",
+    "level": 4,
+    "calls": [
+      {"m": "configure", "a": ["api", 5, 10], "e": "true"},
+      {"m": "allow_weighted", "a": ["api", 3, 0], "e": "true"},
+      {"m": "remaining", "a": ["api", 1], "e": "2"},
+      {"m": "allow_weighted", "a": ["api", 3, 1], "e": "false"},
+      {"m": "allow_weighted", "a": ["api", 2, 1], "e": "true"},
+      {"m": "remaining", "a": ["api", 2], "e": "0"},
+      {"m": "allow_weighted", "a": ["api", 0, 2], "e": "invalid_request"},
+      {"m": "allow_weighted", "a": ["api", -1, 2], "e": "invalid_request"},
+      {"m": "allow", "a": ["api", 10], "e": "true"},
+      {"m": "remaining", "a": ["api", 10], "e": "4"},
+      {"m": "allow_weighted", "a": ["api", 5, 10], "e": "false"},
+      {"m": "allow_weighted", "a": ["api", 4, 10], "e": "true"},
+      {"m": "remaining", "a": ["api", 11], "e": "0"}
+    ]
+  }
+]

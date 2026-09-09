@@ -220,6 +220,28 @@ JSONValue dispatch(Target obj, string methodName, JSONValue args)
             return toNode(obj.createItem(argStr(args, 0), argStr(args, 1)));
         missing(methodName);
         break;
+    case "allow":
+        static if (__traits(hasMember, Target, "allow"))
+            return toNode(obj.allow(argStr(args, 0), argLong(args, 1)));
+        missing(methodName);
+        break;
+    case "configure":
+        static if (__traits(hasMember, Target, "configure"))
+            return toNode(obj.configure(argStr(args, 0), argLong(args, 1), argLong(args, 2)));
+        missing(methodName);
+        break;
+    case "remaining":
+        static if (__traits(compiles, obj.remaining(argStr(args, 0), argLong(args, 1))))
+            return toNode(obj.remaining(argStr(args, 0), argLong(args, 1)));
+        else static if (__traits(hasMember, Target, "remaining"))
+            return toNode(obj.remaining(argStr(args, 0)));
+        missing(methodName);
+        break;
+    case "allow_weighted":
+        static if (__traits(hasMember, Target, "allowWeighted"))
+            return toNode(obj.allowWeighted(argStr(args, 0), argLong(args, 1), argLong(args, 2)));
+        missing(methodName);
+        break;
     case "stock":
         static if (__traits(hasMember, Target, "stock"))
             return toNode(obj.stock(argStr(args, 0), argLong(args, 1)));

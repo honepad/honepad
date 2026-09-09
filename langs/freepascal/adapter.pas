@@ -171,6 +171,26 @@ begin
     M := Bind(Obj, 'CreateItem', Method);
     Exit(TFnSS(M)(ArgStr(Args, 0), ArgStr(Args, 1)));
   end;
+  if Method = 'allow' then
+  begin
+    M := Bind(Obj, 'Allow', Method);
+    Exit(TFnSI(M)(ArgStr(Args, 0), ArgInt(Args, 1)));
+  end;
+  if Method = 'configure' then
+  begin
+    M := Bind(Obj, 'Configure', Method);
+    Exit(TFnSII(M)(ArgStr(Args, 0), ArgInt(Args, 1), ArgInt(Args, 2)));
+  end;
+  if Method = 'remaining' then
+  begin
+    M := Bind(Obj, 'Remaining', Method);
+    Exit(TFnSI(M)(ArgStr(Args, 0), ArgInt(Args, 1)));
+  end;
+  if Method = 'allow_weighted' then
+  begin
+    M := Bind(Obj, 'AllowWeighted', Method);
+    Exit(TFnSII(M)(ArgStr(Args, 0), ArgInt(Args, 1), ArgInt(Args, 2)));
+  end;
   if Method = 'stock' then
   begin
     M := Bind(Obj, 'Stock', Method);
