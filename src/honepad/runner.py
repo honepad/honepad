@@ -25,6 +25,13 @@ from honepad.catalog import language, repo_root
 from honepad.traces import load_cases, method_name
 from honepad.workstub import class_name_for
 
+
+def _resolve_cases(
+    problem: str, level: int, cases: list[dict[str, Any]] | None
+) -> list[dict[str, Any]]:
+    return cases if cases is not None else load_cases(problem, level)
+
+
 RUN_TIMEOUT_S = 30
 COMPILE_TIMEOUT_S = 120
 
@@ -107,11 +114,12 @@ def report_from_proc(
     problem: str,
     lang_id: str,
     level: int,
+    cases: list[dict[str, Any]] | None = None,
 ) -> Report:
     if not proc.stdout.strip():
         raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
     payload, debug = _extract_report_payload(proc.stdout, lang_id)
-    cases = {str(case["id"]): case for case in load_cases(problem, level)}
+    cases = {str(case["id"]): case for case in _resolve_cases(problem, level, cases)}
     failed: list[Fail] = []
     raw_failed = payload.get("failed", [])
     if not isinstance(raw_failed, list):
@@ -180,16 +188,17 @@ def run_compiled(
     level: int,
     prepare: Callable[[Path, str], list[str]],
     src: Path | None = None,
+    cases: list[dict[str, Any]] | None = None,
 ) -> Report:
     """prepare(tmpdir: Path, cases_path: str) -> list[str]  (argv to run in tmpdir)."""
-    cases = load_cases(problem, level)
+    cases = _resolve_cases(problem, level, cases)
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
         cases_path = tmpdir / "cases.json"
         cases_path.write_text(json.dumps(cases), encoding="utf-8")
         argv = prepare(tmpdir, str(cases_path))
         proc = run_prepare_cmd(argv, tmpdir, lang_id, timeout=RUN_TIMEOUT_S, src=src)
-    return report_from_proc(proc, problem, lang_id, level)
+    return report_from_proc(proc, problem, lang_id, level, cases=cases)
 
 
 def run_script(
@@ -199,8 +208,9 @@ def run_script(
     kind: str,
     argv: list[str],
     src: Path | None = None,
+    cases: list[dict[str, Any]] | None = None,
 ) -> Report:
-    cases = load_cases(problem, level)
+    cases = _resolve_cases(problem, level, cases)
     with tempfile.TemporaryDirectory() as tmp:
         cases_path = Path(tmp) / "cases.json"
         cases_path.write_text(json.dumps(cases), encoding="utf-8")
@@ -210,7 +220,7 @@ def run_script(
             timeout=RUN_TIMEOUT_S,
             src=src,
         )
-    return report_from_proc(proc, problem, lang_id, level)
+    return report_from_proc(proc, problem, lang_id, level, cases=cases)
 
 
 # --------------------------------------------------------------------------
@@ -219,17 +229,27 @@ def run_script(
 
 
 def run_spec_script(
-    problem: str, lang_id: str, level: int, kind: str, spec: dict[str, Any]
+    problem: str,
+    lang_id: str,
+    level: int,
+    kind: str,
+    spec: dict[str, Any],
+    cases: list[dict[str, Any]] | None = None,
 ) -> Report:
     src = spec_src(lang_id, problem, kind, spec)
     ctx = packspec.context(lang_id, class_name=class_name_for(problem), src=src)
     tool = packspec.resolve_tool(spec, lang_id)
     argv = packspec.render_argv(list(spec["argv"]), ctx, tool)
-    return run_script(problem, lang_id, level, kind, argv, src=src)
+    return run_script(problem, lang_id, level, kind, argv, src=src, cases=cases)
 
 
 def run_spec_compiled(
-    problem: str, lang_id: str, level: int, kind: str, spec: dict[str, Any]
+    problem: str,
+    lang_id: str,
+    level: int,
+    kind: str,
+    spec: dict[str, Any],
+    cases: list[dict[str, Any]] | None = None,
 ) -> Report:
     src = spec_src(lang_id, problem, kind, spec)
     class_name = class_name_for(problem)
@@ -247,7 +267,7 @@ def run_spec_compiled(
                 raise compile_fail(src, built, str(step.get("fail", "compile failed")))
         return packspec.render_argv(list(spec["argv"]), ctx, packspec.resolve_tool(spec, lang_id))
 
-    return run_compiled(problem, lang_id, level, prepare, src=src)
+    return run_compiled(problem, lang_id, level, prepare, src=src, cases=cases)
 
 
 # --------------------------------------------------------------------------
@@ -286,8 +306,13 @@ def python_entry(problem: str, kind: str) -> Path:
     return pack_src("python3", problem, kind, "solution.py", "stub.py")
 
 
-def run_python_body(problem: str, level: int, kind: str = "solution") -> Report:
-    cases = load_cases(problem, level)
+def run_python_body(
+    problem: str,
+    level: int,
+    kind: str = "solution",
+    cases: list[dict[str, Any]] | None = None,
+) -> Report:
+    cases = _resolve_cases(problem, level, cases)
     differ = _values_differ
     cls = _load_python_class(python_entry(problem, kind), class_name_for(problem))
     failed: list[Fail] = []
@@ -317,15 +342,29 @@ def run_python_body(problem: str, level: int, kind: str = "solution") -> Report:
     return Report(problem, "python3", level, passed, failed)
 
 
-def run_python(problem: str, level: int, kind: str = "solution") -> Report:
+def run_python(
+    problem: str,
+    level: int,
+    kind: str = "solution",
+    cases: list[dict[str, Any]] | None = None,
+) -> Report:
     src = python_entry(problem, kind)
     env = os.environ.copy()
     src_dir = str(repo_root() / "src")
     prior = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = src_dir if not prior else src_dir + os.pathsep + prior
+    argv = [sys.executable, "-m", "honepad._pyrun", problem, str(level), kind]
+    resolved = _resolve_cases(problem, level, cases)
+    cases_path: Path | None = None
+    if cases is not None:
+        handle, raw = tempfile.mkstemp(prefix="honepad-cases-", suffix=".json")
+        os.close(handle)
+        cases_path = Path(raw)
+        cases_path.write_text(json.dumps(resolved), encoding="utf-8")
+        env["HONEPAD_CASES"] = str(cases_path)
     try:
         proc = subprocess.run(
-            [sys.executable, "-m", "honepad._pyrun", problem, str(level), kind],
+            argv,
             check=False,
             capture_output=True,
             text=True,
@@ -334,7 +373,13 @@ def run_python(problem: str, level: int, kind: str = "solution") -> Report:
         )
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(f"{src}: python3 timed out after {RUN_TIMEOUT_S}s") from exc
-    return report_from_proc(proc, problem, "python3", level)
+    finally:
+        if cases_path is not None:
+            try:
+                cases_path.unlink()
+            except OSError:
+                pass
+    return report_from_proc(proc, problem, "python3", level, cases=resolved)
 
 
 _HOOK_RUNNERS: dict[str, Callable[[str, int, str], Report]] = {"python": run_python}
@@ -452,7 +497,13 @@ def _prepare_dotnet_env() -> None:
 # --------------------------------------------------------------------------
 
 
-def _run_pack(problem: str, lang_id: str, level: int, kind: str) -> Report:
+def _run_pack(
+    problem: str,
+    lang_id: str,
+    level: int,
+    kind: str,
+    cases: list[dict[str, Any]] | None = None,
+) -> Report:
     spec = packspec.run_spec(lang_id)
     if spec is None:
         raise NotImplementedError(f"no run recipe for {lang_id}")
@@ -460,10 +511,10 @@ def _run_pack(problem: str, lang_id: str, level: int, kind: str) -> Report:
         fn = _HOOK_RUNNERS.get(str(spec["hook"]))
         if fn is None:
             raise NotImplementedError(f"{lang_id}: unknown run hook {spec['hook']}")
-        return fn(problem, level, kind)
+        return fn(problem, level, kind, cases=cases)
     if spec["kind"] == "script":
-        return run_spec_script(problem, lang_id, level, kind, spec)
-    return run_spec_compiled(problem, lang_id, level, kind, spec)
+        return run_spec_script(problem, lang_id, level, kind, spec, cases=cases)
+    return run_spec_compiled(problem, lang_id, level, kind, spec, cases=cases)
 
 
 class _PackRunners:
@@ -505,13 +556,19 @@ class _PackRunners:
 _RUNNERS = _PackRunners()
 
 
-def run(problem: str, lang_id: str, level: int, kind: str = "solution") -> Report:
+def run(
+    problem: str,
+    lang_id: str,
+    level: int,
+    kind: str = "solution",
+    cases: list[dict[str, Any]] | None = None,
+) -> Report:
     row = language(lang_id)
     if row["id"] not in _RUNNERS:
         raise NotImplementedError(
             f"runner for {lang_id} is a factory job (adapter={row.get('adapter')})"
         )
-    return _run_pack(problem, str(row["id"]), level, kind)
+    return _run_pack(problem, str(row["id"]), level, kind, cases=cases)
 
 
 def map_call(call: dict[str, Any], naming: str) -> dict[str, Any]:

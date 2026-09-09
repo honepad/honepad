@@ -502,6 +502,31 @@ def render_fail(
     return "\n".join(lines)
 
 
+def render_hidden_fail(
+    *,
+    problem: str,
+    lang: str,
+    level: int,
+    case: str,
+    index: int,
+    call: str,
+    actual: str,
+    passed: int,
+    total: int,
+) -> str:
+    """Hidden-suite fail. Omits expected= so the answer stays off the desk."""
+    failed = max(0, total - passed)
+    plural = "case" if failed == 1 else "cases"
+    lines = [
+        status_fail(f"FAIL  {problem} {lang} LEVEL {level} hidden  {failed} {plural} short"),
+        f"  {dim('case')}      {case}  {dim(f'call #{index}')}",
+        f"  {dim('call')}      {call}",
+        f"  {status_fail('actual=' + actual)}",
+        f"  {meter(passed, total)}  {dim(f'{passed}/{total} hidden')}",
+    ]
+    return "\n".join(lines)
+
+
 # Key 2 is named by the same flag `render_keys` uses, so help and the menu
 # cannot drift apart: once the problem is cleared there is nothing left to
 # unlock and the key is a replay.

@@ -6,6 +6,7 @@ import json
 import os
 import sys
 import tempfile
+from pathlib import Path
 
 from honepad.runner import run_python_body
 
@@ -29,7 +30,14 @@ def main(argv: list[str] | None = None) -> int:
     captured = b""
     try:
         try:
-            report = run_python_body(problem, int(level_s), kind)
+            extra = os.environ.get("HONEPAD_CASES")
+            cases = None
+            if extra:
+                loaded = json.loads(Path(extra).read_text(encoding="utf-8"))
+                if not isinstance(loaded, list):
+                    raise ValueError("HONEPAD_CASES must be a JSON list")
+                cases = loaded
+            report = run_python_body(problem, int(level_s), kind, cases=cases)
             rc = 0 if report.ok else 1
         except KeyboardInterrupt:
             raise

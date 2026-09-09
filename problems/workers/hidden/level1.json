@@ -1,0 +1,16 @@
+[
+  {
+    "id": "hid-l1-two-workers",
+    "level": 1,
+    "calls": [
+      {"m": "add_worker", "a": ["John", "Middle Developer", 200], "e": "true"},
+      {"m": "add_worker", "a": ["Walter", "Junior Developer", 100], "e": "true"},
+      {"m": "register", "a": ["John", 10], "e": "registered"},
+      {"m": "register", "a": ["John", 40], "e": "registered"},
+      {"m": "register", "a": ["Walter", 20], "e": "registered"},
+      {"m": "register", "a": ["Walter", 50], "e": "registered"},
+      {"m": "get", "a": ["John"], "e": "30"},
+      {"m": "get", "a": ["Walter"], "e": "30"}
+    ]
+  }
+]
