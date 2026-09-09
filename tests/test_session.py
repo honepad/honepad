@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -1830,15 +1831,37 @@ def test_load_session_resolves_unique_prefix_lang(monkeypatch, tmp_path: Path) -
     assert session["problem"] == "bank_system"
 
 
-def test_start_replaces_unknown_session_lang_when_caller_gives_python3(
-    monkeypatch, tmp_path: Path
-) -> None:
-    monkeypatch.setenv("HONEPAD_SESSION", str(_write_python_lang_session(tmp_path)))
+def test_start_replaces_non_prefix_unknown_session_lang(monkeypatch, tmp_path: Path) -> None:
+    session_file = _write_lang_session(tmp_path, "gone")
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
     assert main(["start", "bank_system", "python3", "--no-console"]) == 0
     session = load_session()
     assert session is not None
     assert session["lang"] == "python3"
     assert session["problem"] == "bank_system"
+
+
+def test_start_resumes_unique_prefix_session_unlock(monkeypatch, tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python",
+                "started_at": int(time.time()),
+                "minutes": 90,
+                "unlocked": 2,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    assert session["unlocked"] == 2
+    assert session["lang"] == "python3"
 
 
 def test_run_does_not_treat_unknown_session_lang_as_no_session(
