@@ -8,7 +8,13 @@ import sys
 import time
 from typing import Any
 
-from honepad.catalog import language, language_ids, languages, problems, suggest_choice
+from honepad.catalog import (
+    language,
+    languages,
+    problems,
+    resolve_language_token,
+    suggest_choice,
+)
 from honepad.console import cmd_console, cmd_vscode, loop_console
 from honepad.packspec import missing_tools, on_missing_tools
 from honepad.runner import _RUNNERS, run
@@ -202,7 +208,15 @@ def _require_problem(problem: str) -> None:
 
 
 def _is_lang_token(name: str) -> bool:
-    return name in _RUNNERS or name in language_ids()
+    return resolve_language_token(name) is not None
+
+
+def _bind_resolved_lang(args: argparse.Namespace) -> None:
+    if not args.lang:
+        return
+    resolved = resolve_language_token(args.lang)
+    if resolved is not None:
+        args.lang = resolved
 
 
 def require_tools(lang_id: str) -> None:
@@ -244,6 +258,7 @@ def _swap_start_lang_problem(args: argparse.Namespace) -> None:
         return
     if _is_lang_token(args.problem) and args.lang in problems() and not _is_lang_token(args.lang):
         args.problem, args.lang = args.lang, args.problem
+        _bind_resolved_lang(args)
 
 
 def cmd_start(args: argparse.Namespace) -> int:
@@ -255,6 +270,7 @@ def cmd_start(args: argparse.Namespace) -> int:
     ):
         args.lang = args.problem
         args.problem = None
+        _bind_resolved_lang(args)
     _swap_start_lang_problem(args)
     if not args.problem or not args.lang:
         if not (_can_prompt() and _fill_start_args(args)):
@@ -266,6 +282,7 @@ def cmd_start(args: argparse.Namespace) -> int:
                 print(start_next())
             print("problems: " + ", ".join(problems()))
             return 1
+    _bind_resolved_lang(args)
     try:
         try:
             row = language(args.lang)
@@ -277,6 +294,7 @@ def cmd_start(args: argparse.Namespace) -> int:
                 and not _is_lang_token(args.lang)
             ):
                 args.problem, args.lang = args.lang, args.problem
+                _bind_resolved_lang(args)
                 row = language(args.lang)
             else:
                 raise
@@ -389,6 +407,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     lang: str | None = None
     try:
         _require_problem(args.problem)
+        _bind_resolved_lang(args)
         session = load_session()
         lang = args.lang or (
             str(session["lang"])

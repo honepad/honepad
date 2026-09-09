@@ -1800,13 +1800,13 @@ def test_load_session_rejects_unknown_lang(monkeypatch, tmp_path: Path) -> None:
         load_session()
 
 
-def _write_python_lang_session(tmp_path: Path) -> Path:
+def _write_lang_session(tmp_path: Path, lang: str) -> Path:
     session_file = tmp_path / "session.json"
     session_file.write_text(
         json.dumps(
             {
                 "problem": "bank_system",
-                "lang": "python",
+                "lang": lang,
                 "started_at": 1_700_000_000,
                 "minutes": 90,
                 "unlocked": 1,
@@ -1818,32 +1818,105 @@ def _write_python_lang_session(tmp_path: Path) -> Path:
     return session_file
 
 
-def test_default_unknown_lang_python_suggests_python3(monkeypatch, tmp_path: Path, capsys) -> None:
+def _write_python_lang_session(tmp_path: Path) -> Path:
+    return _write_lang_session(tmp_path, "python")
+
+
+def test_load_session_resolves_unique_prefix_lang(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(_write_python_lang_session(tmp_path)))
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
+
+
+def test_start_replaces_unknown_session_lang_when_caller_gives_python3(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(_write_python_lang_session(tmp_path)))
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
+
+
+def test_run_does_not_treat_unknown_session_lang_as_no_session(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = _write_lang_session(tmp_path, "gone")
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    code = main(["run", "bank_system", "--lang", "python3"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "unknown language: gone" in out
+    assert "\nOK\n" not in out
+    assert not out.strip().endswith("OK")
+    assert "through LEVEL 4" not in out
+    assert "UNLOCKED" not in out
+    leftover = json.loads(session_file.read_text(encoding="utf-8"))
+    assert leftover["lang"] == "gone"
+
+
+def test_run_lang_python_uses_leftover_session_work(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    session_file = tmp_path / "session.json"
+    payload = json.loads(session_file.read_text(encoding="utf-8"))
+    payload["lang"] = "python"
+    session_file.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    code = main(["run", "bank_system", "--lang", "python"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "unknown language" not in out
+    assert "python3" in out
+    assert "through LEVEL 4" not in out
+    assert "UNLOCKED" not in out
+    leftover = json.loads(session_file.read_text(encoding="utf-8"))
+    assert leftover["lang"] in {"python", "python3"}
+
+
+def test_start_replace_lang_reports_caller_token_when_invalid(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = _write_lang_session(tmp_path, "gone")
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    with pytest.raises(ValueError, match="unknown language: notalang"):
+        load_session(replace_lang="notalang")
+    code = main(["start", "bank_system", "notalang", "--no-console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "unknown language: notalang" in out
+    assert "unknown language: gone" not in out
+    leftover = json.loads(session_file.read_text(encoding="utf-8"))
+    assert leftover["lang"] == "gone"
+
+
+def test_default_leftover_python_resolves_to_python3(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(_write_python_lang_session(tmp_path)))
+    monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
     code = main([])
-    captured = capsys.readouterr()
-    out = captured.out + captured.err
-    assert code == 1
-    assert "unknown language: python" in out
-    assert "FAIL: 'unknown language" not in out
-    assert "python3" in out
-    assert "NEXT:" in out
-    assert "langs" in out
-    assert "Traceback" not in out
+    capsys.readouterr()
+    assert code == 0
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
 
 
-def test_timer_unknown_lang_python_suggests_python3(monkeypatch, tmp_path: Path, capsys) -> None:
+def test_timer_leftover_python_resolves_to_python3(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(_write_python_lang_session(tmp_path)))
-    code = main(["timer"])
-    captured = capsys.readouterr()
-    out = captured.out + captured.err
-    assert code == 1
-    assert "unknown language: python" in out
-    assert "FAIL: 'unknown language" not in out
-    assert "python3" in out
-    assert "NEXT:" in out
-    assert "langs" in out
-    assert "Traceback" not in out
+    assert main(["timer"]) == 0
+    out = capsys.readouterr().out
+    assert "unknown language" not in out
+    assert "WAIT:" in out
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
 
 
 def test_load_session_rejects_unknown_problem(monkeypatch, tmp_path: Path, capsys) -> None:

@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from honepad.catalog import language, problems, repo_root
+from honepad.catalog import language, problems, repo_root, resolve_language_token
 from honepad.traces import problem_dir
 from honepad.workstub import (
     class_name_for,
@@ -189,7 +189,9 @@ def remaining_s(started_at: int, minutes: int, now: int | None = None) -> int:
     return left if left > 0 else 0
 
 
-def load_session(path: Path | None = None) -> dict[str, Any] | None:
+def load_session(
+    path: Path | None = None, *, replace_lang: str | None = None
+) -> dict[str, Any] | None:
     target = path or session_path()
     if not target.is_file():
         return None
@@ -218,7 +220,16 @@ def load_session(path: Path | None = None) -> dict[str, Any] | None:
     try:
         language(lang)
     except (KeyError, ValueError) as exc:
-        raise ValueError(f"unknown language: {lang}") from exc
+        resolved = resolve_language_token(lang)
+        if resolved is not None:
+            lang = resolved
+        elif replace_lang is not None:
+            resolved = resolve_language_token(replace_lang)
+            if resolved is None:
+                raise ValueError(f"unknown language: {replace_lang}") from exc
+            return None
+        else:
+            raise ValueError(f"unknown language: {lang}") from exc
     top = max_level(problem)
     if unlocked < 1 or unlocked > top:
         raise ValueError(f"{target} unlocked must be 1..{top}")
@@ -289,7 +300,7 @@ def ensure_session(
     minutes: int | None = None,
     reset: bool = False,
 ) -> dict[str, Any]:
-    current = None if reset else load_session()
+    current = None if reset else load_session(replace_lang=lang)
     duration = 90 if minutes is None else minutes
     if current is None or current.get("problem") != problem:
         session = new_session(problem, lang, duration)
