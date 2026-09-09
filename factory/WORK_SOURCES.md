@@ -98,9 +98,9 @@ Priority (first match wins):
 
 ## Parked
 
-Cheap Ubuntu-runnable catalog langs are done (38 of 51 ids in
+Cheap Ubuntu-runnable catalog langs are done (38 of 50 ids in
 `_RUNNERS`). `pr-79` already landed: adapter= FAIL is #45/#46, langs
-header count is #79. Leftover catalog ids (`objc`, `vb`, `python2`,
+header count is #79. Leftover catalog ids (`objc`, `vb`,
 `frontend`, `sql`, `hack`, `mongodb`) are not the next expand unless
 the user asks.
 

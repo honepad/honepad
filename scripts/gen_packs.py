@@ -37,7 +37,6 @@ GCA = [
     ("octave", "GNU Octave", "m", "snake"),
     ("perl", "Perl", "pl", "snake"),
     ("php", "PHP", "php", "camel"),
-    ("python2", "Python 2", "py", "snake"),
     ("python3", "Python 3", "py", "snake"),
     ("r", "R", "R", "snake"),
     ("ruby", "Ruby", "rb", "snake"),
@@ -190,7 +189,7 @@ def suites_for(lang_id: str, extra_suite: str | None) -> list[str]:
         out.append("gca")
     if lang_id in ICA:
         out.append("ica")
-    if lang_id in {"python2", "python3"}:
+    if lang_id == "python3":
         out.append("ml")
     return out or [extra_suite or "gca"]
 
@@ -297,7 +296,7 @@ def main() -> None:
             suites.append("gca")
         if lang_id in ICA:
             suites.append("ica")
-        if lang_id in {"python2", "python3"}:
+        if lang_id == "python3":
             suites.append("ml")
         rows.append(
             {
