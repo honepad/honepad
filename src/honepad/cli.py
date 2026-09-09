@@ -207,18 +207,14 @@ def _require_problem(problem: str) -> None:
         raise ValueError(f"invalid problem: {problem}")
 
 
-def _resolve_lang_token(name: str) -> str | None:
-    return resolve_language_token(name)
-
-
 def _is_lang_token(name: str) -> bool:
-    return _resolve_lang_token(name) is not None
+    return resolve_language_token(name) is not None
 
 
 def _bind_resolved_lang(args: argparse.Namespace) -> None:
     if not args.lang:
         return
-    resolved = _resolve_lang_token(args.lang)
+    resolved = resolve_language_token(args.lang)
     if resolved is not None:
         args.lang = resolved
 
