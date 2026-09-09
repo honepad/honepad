@@ -231,8 +231,10 @@ JSONValue dispatch(Target obj, string methodName, JSONValue args)
         missing(methodName);
         break;
     case "remaining":
-        static if (__traits(hasMember, Target, "remaining"))
+        static if (__traits(compiles, obj.remaining(argStr(args, 0), argLong(args, 1))))
             return toNode(obj.remaining(argStr(args, 0), argLong(args, 1)));
+        else static if (__traits(hasMember, Target, "remaining"))
+            return toNode(obj.remaining(argStr(args, 0)));
         missing(methodName);
         break;
     case "allow_weighted":

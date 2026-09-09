@@ -57,7 +57,7 @@ instance Target Simulation where
             )
         )
 
-  remaining sim key timestamp =
+  remainingAt sim key timestamp =
     let item = stateOf sim key
         (used, _) = usedAt item timestamp False
      in (show (itemLimit item - used), putKey sim key item)

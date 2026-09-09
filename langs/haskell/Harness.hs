@@ -80,8 +80,8 @@ class Target a where
   allow _ _ _ = missing "allow"
   configure :: a -> String -> Int64 -> Int64 -> (String, a)
   configure _ _ _ _ = missing "configure"
-  remaining :: a -> String -> Int64 -> (String, a)
-  remaining _ _ _ = missing "remaining"
+  remainingAt :: a -> String -> Int64 -> (String, a)
+  remainingAt _ _ _ = missing "remaining"
   allowWeighted :: a -> String -> Int64 -> Int64 -> (String, a)
   allowWeighted _ _ _ _ = missing "allow_weighted"
   set :: a -> String -> String -> String -> (String, a)
@@ -179,7 +179,7 @@ dispatch obj method args =
     "allow" -> wrapStr (allow obj (argStr args 0) (argInt args 1))
     "configure" ->
       wrapStr (configure obj (argStr args 0) (argInt args 1) (argInt args 2))
-    "remaining" -> wrapStr (remaining obj (argStr args 0) (argInt args 1))
+    "remaining" -> wrapStr (remainingAt obj (argStr args 0) (argInt args 1))
     "allow_weighted" ->
       wrapStr (allowWeighted obj (argStr args 0) (argInt args 1) (argInt args 2))
     "set" -> wrapStr (set obj (argStr args 0) (argStr args 1) (argStr args 2))

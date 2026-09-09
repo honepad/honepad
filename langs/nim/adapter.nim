@@ -188,6 +188,8 @@ proc dispatch(obj: var Target; methodName: string; args: JsonNode): JsonNode =
   of "remaining":
     when compiles(obj.remaining("", 0'i64)):
       result = toNode(obj.remaining(argStr(args, 0), argInt(args, 1)))
+    elif compiles(obj.remaining("")):
+      result = toNode(obj.remaining(argStr(args, 0)))
     else:
       missing(methodName)
   of "allow_weighted":
