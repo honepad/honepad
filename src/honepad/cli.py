@@ -23,10 +23,12 @@ from honepad.session import (
     ensure_session,
     ensure_work_copy,
     extra_work_note,
+    format_debrief,
     load_session,
     mark_cleared,
     max_level,
     note_clock_restarted,
+    record_last_run,
     remaining_s,
     require_minutes,
     unlock_next,
@@ -458,6 +460,12 @@ def cmd_run(args: argparse.Namespace) -> int:
         report = run(args.problem, lang, level, kind=kind)
         if session is not None and same:
             left = remaining_s(int(session["started_at"]), int(session["minutes"]))
+            record_last_run(
+                session,
+                level=report.level,
+                passed=report.passed,
+                failed=len(report.failed),
+            )
         if report.debug.strip():
             for line in report.debug.splitlines():
                 print(f"DEBUG: {line}")
@@ -547,6 +555,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         if left == 0:
             print(status_fail("TIME UP: the clock ran out. Next level stays locked."))
             print(status_note("NOTE: q then honepad start starts a new clock and keeps your work."))
+            print(format_debrief(session))
             if kind == "work":
                 _print_work_notes(args.problem, lang)
             return 0
@@ -646,6 +655,20 @@ def _unlocked_at_last_level(problem: str) -> bool:
     if session is None or session.get("problem") != problem:
         return False
     return int(session["unlocked"]) >= max_level(problem)
+
+
+def cmd_debrief(_args: argparse.Namespace) -> int:
+    try:
+        session = load_session()
+    except ValueError as exc:
+        print_fail(exc)
+        return 1
+    if session is None:
+        print(status_fail("FAIL: no session"))
+        print(f"NEXT: {invocation()} start")
+        return 1
+    print(format_debrief(session))
+    return 0
 
 
 def cmd_timer(args: argparse.Namespace) -> int:
@@ -772,6 +795,16 @@ def build_parser() -> argparse.ArgumentParser:
     timer = sub.add_parser("timer", help="print a 90-minute remaining_s")
     timer.add_argument("--minutes", type=int, default=90)
     timer.set_defaults(func=cmd_timer)
+
+    debrief = sub.add_parser(
+        "debrief",
+        help="print unlock and last-run recap",
+        description=(
+            "Print unlocked level, minutes used, and the last public run. "
+            "Does not restart the clock."
+        ),
+    )
+    debrief.set_defaults(func=cmd_debrief)
 
     cases = sub.add_parser("cases", help="count traces")
     cases.add_argument("problem")
