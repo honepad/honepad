@@ -18,6 +18,7 @@ _CLASS = {
     "workers": "Simulation",
     "inventory": "Simulation",
     "rate_limiter": "Simulation",
+    "gpu_scheduler": "Simulation",
 }
 
 

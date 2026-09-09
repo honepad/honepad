@@ -1,0 +1,17 @@
+[
+  {
+    "id": "gpu-l3-spec",
+    "level": 3,
+    "calls": [
+      {"m": "add_gpu", "a": ["g1", 8], "e": "true"},
+      {"m": "submit_job", "a": ["j1", 4], "e": "true"},
+      {"m": "submit_job", "a": ["j2", 4], "e": "true"},
+      {"m": "assign", "a": [], "e": "j1"},
+      {"m": "cancel", "a": ["j1"], "e": "true"},
+      {"m": "status", "a": ["j1"], "e": ""},
+      {"m": "status", "a": ["j2"], "e": "running"},
+      {"m": "cancel", "a": ["j9"], "e": "invalid_request"},
+      {"m": "cancel", "a": ["j2"], "e": "true"}
+    ]
+  }
+]
