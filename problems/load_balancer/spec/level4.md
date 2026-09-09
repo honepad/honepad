@@ -12,6 +12,7 @@ the least in-flight count. Ties keep the weighted robin order.
 ```
 add_backend("a") -> "true"
 add_backend("b") -> "true"
+add_backend("c") -> "true"
 route() -> "a"
 route() -> "b"
 done("a") -> "true"

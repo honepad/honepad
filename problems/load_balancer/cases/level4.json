@@ -5,6 +5,7 @@
     "calls": [
       {"m": "add_backend", "a": ["a"], "e": "true"},
       {"m": "add_backend", "a": ["b"], "e": "true"},
+      {"m": "add_backend", "a": ["c"], "e": "true"},
       {"m": "route", "a": [], "e": "a"},
       {"m": "route", "a": [], "e": "b"},
       {"m": "done", "a": ["a"], "e": "true"},

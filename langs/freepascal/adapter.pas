@@ -323,6 +323,36 @@ begin
     M := Bind(Obj, 'SetPriority', Method);
     Exit(TFnSI(M)(ArgStr(Args, 0), ArgInt(Args, 1)));
   end;
+  if Method = 'add_backend' then
+  begin
+    M := Bind(Obj, 'AddBackend', Method);
+    Exit(TFnS(M)(ArgStr(Args, 0)));
+  end;
+  if Method = 'route' then
+  begin
+    M := Bind(Obj, 'Route', Method);
+    Exit(TFnNone(M)());
+  end;
+  if Method = 'set_health' then
+  begin
+    M := Bind(Obj, 'SetHealth', Method);
+    Exit(TFnSI(M)(ArgStr(Args, 0), ArgInt(Args, 1)));
+  end;
+  if Method = 'set_weight' then
+  begin
+    M := Bind(Obj, 'SetWeight', Method);
+    Exit(TFnSI(M)(ArgStr(Args, 0), ArgInt(Args, 1)));
+  end;
+  if Method = 'sticky' then
+  begin
+    M := Bind(Obj, 'Sticky', Method);
+    Exit(TFnS(M)(ArgStr(Args, 0)));
+  end;
+  if Method = 'done' then
+  begin
+    M := Bind(Obj, 'Done', Method);
+    Exit(TFnS(M)(ArgStr(Args, 0)));
+  end;
   raise Exception.Create('unknown method ' + Method);
 end;
 

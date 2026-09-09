@@ -333,6 +333,36 @@ proc dispatch(obj: var Target; methodName: string; args: JsonNode): JsonNode =
       result = toNode(obj.setPriority(argStr(args, 0), argInt(args, 1)))
     else:
       missing(methodName)
+  of "add_backend":
+    when compiles(obj.addBackend("")):
+      result = toNode(obj.addBackend(argStr(args, 0)))
+    else:
+      missing(methodName)
+  of "route":
+    when compiles(obj.route()):
+      result = toNode(obj.route())
+    else:
+      missing(methodName)
+  of "set_health":
+    when compiles(obj.setHealth("", 0'i64)):
+      result = toNode(obj.setHealth(argStr(args, 0), argInt(args, 1)))
+    else:
+      missing(methodName)
+  of "set_weight":
+    when compiles(obj.setWeight("", 0'i64)):
+      result = toNode(obj.setWeight(argStr(args, 0), argInt(args, 1)))
+    else:
+      missing(methodName)
+  of "sticky":
+    when compiles(obj.sticky("")):
+      result = toNode(obj.sticky(argStr(args, 0)))
+    else:
+      missing(methodName)
+  of "done":
+    when compiles(obj.done("")):
+      result = toNode(obj.done(argStr(args, 0)))
+    else:
+      missing(methodName)
   else:
     raise newException(ValueError, "unknown method " & methodName)
 
