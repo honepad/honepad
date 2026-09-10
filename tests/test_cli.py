@@ -203,7 +203,8 @@ def test_timer_does_not_sleep(monkeypatch, tmp_path, capsys) -> None:
     assert "NEXT:" in out
 
 
-def test_run_unimplemented_catalog_lang_exits(capsys) -> None:
+def test_run_unimplemented_catalog_lang_exits(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
     code = main(["run", "bank_system", "--lang", UNIMPLEMENTED_CATALOG_LANG, "--level", "1"])
     captured = capsys.readouterr()
     out = captured.out + captured.err
@@ -217,7 +218,7 @@ def test_run_unknown_lang_id_exits(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "java", "--reset"]) == 0
     capsys.readouterr()
-    code = main(["run", "bank_system", "--lang", "notalang", "--level", "1"])
+    code = main(["run", "bank_system", "--lang", "notalang", "--level", "1", "--kind", "solution"])
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert code == 1

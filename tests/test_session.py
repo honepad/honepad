@@ -451,6 +451,7 @@ def test_run_without_session_defaults_to_python3_level4(
     assert main(["run", "bank_system"]) == 0
     out = capsys.readouterr().out
     assert "bank_system python3 through LEVEL 4" in out
+    assert "KIND: solution" in out
     assert "UNLOCKED" not in out
     assert load_session() is None
 
@@ -538,6 +539,90 @@ def test_submit_wrong_problem_does_not_run_solution(
     assert after["problem"] == "workers"
     assert after["unlocked"] == unlocked
     assert after["started_at"] == started
+
+
+def test_run_wrong_problem_with_session_does_not_run_solution(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "workers", "python3", "--reset", "--no-console"]) == 0
+    before = load_session()
+    assert before is not None
+    assert before["problem"] == "workers"
+    unlocked = before["unlocked"]
+    started = before["started_at"]
+    capsys.readouterr()
+    code = main(["run", "bank_system"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL:" in out
+    assert "FAIL: no session" in out
+    assert "NEXT:" in out
+    assert "start bank_system" in out
+    assert "PASS" not in out
+    assert "through LEVEL" not in out
+    assert "UNLOCKED" not in out
+    after = load_session()
+    assert after is not None
+    assert after["problem"] == "workers"
+    assert after["unlocked"] == unlocked
+    assert after["started_at"] == started
+
+
+def test_run_wrong_lang_with_session_does_not_run_solution(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "workers", "python3", "--reset", "--no-console"]) == 0
+    before = load_session()
+    assert before is not None
+    assert before["problem"] == "workers"
+    assert before["lang"] == "python3"
+    unlocked = before["unlocked"]
+    started = before["started_at"]
+    capsys.readouterr()
+    code = main(["run", "workers", "--lang", "java"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL:" in out
+    assert "FAIL: no session" in out
+    assert "NEXT:" in out
+    assert "start workers" in out
+    assert "PASS" not in out
+    assert "through LEVEL" not in out
+    assert "UNLOCKED" not in out
+    after = load_session()
+    assert after is not None
+    assert after["problem"] == "workers"
+    assert after["lang"] == "python3"
+    assert after["unlocked"] == unlocked
+    assert after["started_at"] == started
+
+
+def test_run_kind_solution_with_session_mismatch_still_runs(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "workers", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "KIND: solution" in out
+    assert "bank_system python3 through LEVEL 4" in out
+    assert "UNLOCKED" not in out
+    after = load_session()
+    assert after is not None
+    assert after["problem"] == "workers"
+
+
+def test_run_kind_solution_without_session_still_runs(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    assert main(["run", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "KIND: solution" in out
+    assert "bank_system python3 through LEVEL 4" in out
+    assert "UNLOCKED" not in out
+    assert load_session() is None
 
 
 def test_start_copies_work_file_away_from_pack(monkeypatch, tmp_path: Path, capsys) -> None:
