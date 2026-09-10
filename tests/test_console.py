@@ -2584,13 +2584,94 @@ def test_console_switch_enter_enter_does_not_restart_a_dead_clock(
     session["started_at"] = 1_700_000_000
     save_session(session)
     started = int(session["started_at"])
+    called = {"n": 0}
+
+    def _blocked(*_a, **_k):
+        called["n"] += 1
+        raise AssertionError("ensure_session must not run on a no-op switch")
+
+    monkeypatch.setattr("honepad.console.ensure_session", _blocked)
     stdout = io.StringIO()
     assert dispatch("6", session, stdout, io.StringIO("\n\n")) == 0
+    assert called["n"] == 0
     assert session["started_at"] == started
     assert (session["problem"], session["lang"]) == ("bank_system", "python3")
     after = load_session()
     assert after is not None
     assert after["started_at"] == started
+
+
+def test_console_switch_problem_keeps_custom_minutes(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    assert (
+        main(["start", "bank_system", "python3", "--minutes", "30", "--reset", "--no-console"]) == 0
+    )
+    first = load_session()
+    assert first is not None
+    assert first["minutes"] == 30
+    first["unlocked"] = 2
+    save_session(first)
+    started = int(first["started_at"])
+    clock["now"] = started + 12 * 60
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("6\nin_memory_database\n\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    after = load_session()
+    assert after is not None
+    assert after["problem"] == "in_memory_database"
+    assert after["lang"] == "python3"
+    assert after["minutes"] == 30
+    assert after["unlocked"] == 1
+    assert after["started_at"] == int(clock["now"])
+    assert after["started_at"] != started
+    assert "NOTE: new desk at LEVEL 1. Clock is 30 minutes." in out
+
+
+def test_console_switch_language_keeps_started_at_and_minutes(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    session = _session_at(tmp_path, "bank_system", "python3")
+    session["minutes"] = 30
+    session["unlocked"] = 2
+    save_session(session)
+    started = int(session["started_at"])
+    stdout = io.StringIO()
+    assert dispatch("6", session, stdout, io.StringIO("\nruby\n")) == 0
+    assert session["problem"] == "bank_system"
+    assert session["lang"] == "ruby"
+    assert session["minutes"] == 30
+    assert session["started_at"] == started
+    assert session["unlocked"] == 2
+    assert "NOTE: new desk" not in stdout.getvalue()
+
+
+def test_console_switch_language_restarts_dead_clock_on_stdout(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    session = _session_at(tmp_path, "bank_system", "python3")
+    session["minutes"] = 30
+    session["started_at"] = 1_700_000_000
+    save_session(session)
+    now = 1_700_000_000 + 30 * 60 + 5
+    monkeypatch.setattr("honepad.session.time.time", lambda: now)
+    stdout = io.StringIO()
+    assert dispatch("6", session, stdout, io.StringIO("\nruby\n")) == 0
+    assert session["lang"] == "ruby"
+    assert session["minutes"] == 30
+    assert session["started_at"] == now
+    note = "NOTE: previous clock was 0. New clock started. Work file kept."
+    assert note in stdout.getvalue()
+    assert note not in capsys.readouterr().out
 
 
 def test_console_switch_can_change_language_too(monkeypatch, tmp_path: Path, capsys) -> None:

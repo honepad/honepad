@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 from honepad.catalog import language, problems, repo_root, resolve_language_token
 from honepad.traces import problem_dir
@@ -381,15 +382,21 @@ def ensure_session(
     return current
 
 
-def note_clock_restarted(session: dict[str, Any], *, work_kept: bool = True) -> None:
+def note_clock_restarted(
+    session: dict[str, Any],
+    *,
+    work_kept: bool = True,
+    stdout: TextIO | None = None,
+) -> None:
+    out = sys.stdout if stdout is None else stdout
     if session.pop("clock_restarted", False):
         if work_kept:
-            print("NOTE: previous clock was 0. New clock started. Work file kept.")
+            out.write("NOTE: previous clock was 0. New clock started. Work file kept.\n")
         else:
-            print("NOTE: previous clock was 0. New clock started.")
+            out.write("NOTE: previous clock was 0. New clock started.\n")
     now_minutes = session.pop("clock_now_minutes", None)
     if now_minutes is not None:
-        print(f"NOTE: clock is now {now_minutes} minutes")
+        out.write(f"NOTE: clock is now {now_minutes} minutes\n")
 
 
 def unlock_next(session: dict[str, Any]) -> int | None:
