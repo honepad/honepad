@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Partition pytest node ids so CI shards do not share tests.
 
+Default is unit. Token routing applies to test_traces.py. A skipif
+on which("bin") fails closed when the assigned shard is outside
+BINARY_TO_SHARDS[bin] (set membership, not 1:1).
+
 Naive ``pytest -k java`` also matches javascript. ``-k c`` matches
 csharp and clojure. This script assigns by underscore-bounded tokens
 and exact overrides, then runs the selected node ids.
@@ -9,9 +13,11 @@ and exact overrides, then runs the selected node ids.
 from __future__ import annotations
 
 import argparse
+import ast
 import os
 import subprocess
 import sys
+from collections.abc import Iterable
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -80,6 +86,43 @@ _OVERRIDES: dict[str, str] = {
     "test_workers_python_and_js": "script",
 }
 
+# Shards that install each skipif binary. Set membership, not 1:1.
+BINARY_TO_SHARDS: dict[str, frozenset[str]] = {
+    "javac": frozenset({"unit", "script", "jvm"}),
+    "node": frozenset(SHARDS),
+    "ruby": frozenset(SHARDS),
+    "bash": frozenset(SHARDS),
+    "cargo": frozenset({"compiled"}),
+    "go": frozenset({"compiled"}),
+    "dotnet": frozenset({"compiled"}),
+    "cc": frozenset({"compiled"}),
+    "gcc": frozenset({"compiled"}),
+    "gst": frozenset({"script"}),
+    "php": frozenset({"script"}),
+    "perl": frozenset({"script"}),
+    "lua": frozenset({"script"}),
+    "tclsh": frozenset({"script"}),
+    "groovy": frozenset({"script"}),
+    "dart": frozenset({"script"}),
+    "elixir": frozenset({"script"}),
+    "escript": frozenset({"script"}),
+    "julia": frozenset({"script"}),
+    "coffee": frozenset({"script"}),
+    "sbcl": frozenset({"script"}),
+    "clojure": frozenset({"script"}),
+    "pwsh": frozenset({"script"}),
+    "Rscript": frozenset({"stats"}),
+    "octave": frozenset({"stats"}),
+    "octave-cli": frozenset({"stats"}),
+}
+_MVN_UNIT_ALLOW = frozenset(
+    {
+        "test_java_junit_l1_stub_fails_without_npe",
+        "test_java_junit_project_compiles",
+        "test_java_junit_l2_project_compiles",
+    }
+)
+
 
 def _log(line: str) -> None:
     print(line, flush=True)
@@ -138,6 +181,77 @@ def assign_shard(nodeid: str) -> str:
     return "unit"
 
 
+def _is_skipif_decorator(node: ast.expr) -> bool:
+    target = node.func if isinstance(node, ast.Call) else node
+    if isinstance(target, ast.Name):
+        return target.id == "skipif"
+    if isinstance(target, ast.Attribute):
+        return target.attr == "skipif"
+    return False
+
+
+def _is_which_call(func: ast.expr) -> bool:
+    if isinstance(func, ast.Name):
+        return func.id == "which"
+    if isinstance(func, ast.Attribute):
+        return func.attr == "which"
+    return False
+
+
+def skipif_which_binaries(source: str) -> dict[str, list[str]]:
+    """Map test function names to binaries named in skipif(which(...))."""
+    tree = ast.parse(source)
+    found: dict[str, list[str]] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        binaries: list[str] = []
+        for dec in node.decorator_list:
+            if not _is_skipif_decorator(dec):
+                continue
+            for child in ast.walk(dec):
+                if not isinstance(child, ast.Call) or not _is_which_call(child.func):
+                    continue
+                if not child.args:
+                    continue
+                arg = child.args[0]
+                if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                    binaries.append(arg.value)
+        if binaries:
+            found[node.name] = binaries
+    return found
+
+
+def check_skipif_assignment(nodeid: str, assigned: str, binaries: Iterable[str]) -> None:
+    """Exit 1 when a skipif binary is missing or assigned off its shard set."""
+    func = function_name(nodeid)
+    for binary in binaries:
+        if binary == "mvn" and func in _MVN_UNIT_ALLOW and assigned == "unit":
+            continue
+        allowed = BINARY_TO_SHARDS.get(binary)
+        if allowed is None:
+            _log(f"FAIL: {nodeid} binary={binary} assigned={assigned} allowed=missing")
+            raise SystemExit(1)
+        if assigned not in allowed:
+            _log(f"FAIL: {nodeid} binary={binary} assigned={assigned} allowed={sorted(allowed)}")
+            raise SystemExit(1)
+
+
+def _check_skipif_fail_closed(nodeids: list[str]) -> None:
+    cache: dict[str, dict[str, list[str]]] = {}
+    for nodeid in nodeids:
+        path = node_path(nodeid)
+        if path not in cache:
+            full = ROOT / path
+            if full.is_file():
+                cache[path] = skipif_which_binaries(full.read_text(encoding="utf-8"))
+            else:
+                cache[path] = {}
+        binaries = cache[path].get(function_name(nodeid), ())
+        if binaries:
+            check_skipif_assignment(nodeid, assign_shard(nodeid), binaries)
+
+
 def collect_nodeids() -> list[str]:
     _log("DO: pytest --collect-only")
     proc = subprocess.run(
@@ -178,6 +292,7 @@ def partition(nodeids: list[str]) -> dict[str, list[str]]:
 
 def check_partition(nodeids: list[str]) -> dict[str, list[str]]:
     buckets = partition(nodeids)
+    _check_skipif_fail_closed(nodeids)
     empty = [name for name, rows in buckets.items() if not rows]
     if empty:
         _log(f"FAIL: empty shards {empty}")

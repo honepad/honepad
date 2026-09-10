@@ -1,9 +1,13 @@
 import importlib.util
+import inspect
 import json
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -168,6 +172,147 @@ def test_ci_pytest_shard_tokens_do_not_collide() -> None:
         _SHARD.assign_shard(f"{session}::test_work_compile_error_prints_c_work_path") == "compiled"
     )
     assert _SHARD.assign_shard("tests/test_console.py::test_java_junit_project_compiles") == "unit"
+    assert _SHARD.assign_shard(f"{session}::test_extra_java_work_file_is_not_run") == "unit"
+    console = "tests/test_console.py"
+    assert _SHARD.assign_shard(f"{console}::test_java_junit_l1_stub_fails_without_npe") == "unit"
+    assert _SHARD.assign_shard(f"{console}::test_java_junit_l2_project_compiles") == "unit"
+    hides = f"{session}::test_start_work_hides_later_level_methods"
+    assert _SHARD.assign_shard(hides) == "unit"
+    for lang in ("java", "rust", "go", "javascript", "python3", "c"):
+        assert _SHARD.assign_shard(f"{hides}[{lang}]") == "unit"
+
+
+def test_pytest_pythonpath_collects_without_editable_pth() -> None:
+    """Collect via pyproject pythonpath, not an editable .pth.
+
+    Official gate remains pip install -e ".[dev]". This does not claim a
+    no-install clone works.
+    """
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    assert re.search(r'(?m)^pythonpath\s*=\s*\["src"\]\s*$', text)
+    src = str((ROOT / "src").resolve())
+    isolator = f"""
+import runpy
+import sys
+from pathlib import Path
+
+src = Path({src!r}).resolve()
+sys.path[:] = [p for p in sys.path if not p or Path(p).resolve() != src]
+try:
+    import honepad
+except ImportError:
+    pass
+else:
+    raise SystemExit("isolation failed: honepad imported from editable path")
+
+sys.argv = [
+    "pytest",
+    "--collect-only",
+    "-q",
+    "tests/test_packaging.py",
+    "tests/test_catalog.py",
+]
+runpy.run_module("pytest", run_name="__main__")
+"""
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+    result = subprocess.run(
+        [sys.executable, "-c", isolator],
+        cwd=ROOT,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "ModuleNotFoundError" not in result.stderr
+    assert "test_packaging.py" in result.stdout
+
+
+def test_ci_pytest_shard_skipif_unknown_binary_fails_closed() -> None:
+    source = (
+        "import pytest\n"
+        "from shutil import which\n"
+        "\n"
+        '@pytest.mark.skipif(which("rustc") is None, reason="no rustc")\n'
+        "def test_needs_rustc() -> None:\n"
+        "    return None\n"
+    )
+    found = _SHARD.skipif_which_binaries(source)
+    assert found["test_needs_rustc"] == ["rustc"]
+    with pytest.raises(SystemExit) as exc:
+        _SHARD.check_skipif_assignment(
+            "tests/test_session.py::test_needs_rustc",
+            "unit",
+            found["test_needs_rustc"],
+        )
+    assert exc.value.code == 1
+
+
+def test_ci_pytest_shard_skipif_wrong_shard_fails_closed() -> None:
+    and_source = (
+        "import pytest\n"
+        "import shutil\n"
+        "\n"
+        "@pytest.mark.skipif(\n"
+        '    shutil.which("cc") is None and shutil.which("gcc") is None,\n'
+        '    reason="cc/gcc not found",\n'
+        ")\n"
+        "def test_needs_cc() -> None:\n"
+        "    return None\n"
+    )
+    parsed = _SHARD.skipif_which_binaries(and_source)
+    assert parsed["test_needs_cc"] == ["cc", "gcc"]
+    with pytest.raises(SystemExit) as exc:
+        _SHARD.check_skipif_assignment(
+            "tests/test_session.py::test_needs_cargo",
+            "unit",
+            ["cargo"],
+        )
+    assert exc.value.code == 1
+    _SHARD.check_skipif_assignment(
+        "tests/test_session.py::test_extra_java_work_file_is_not_run",
+        "unit",
+        ["javac"],
+    )
+    _SHARD.check_skipif_assignment(
+        "tests/test_console.py::test_java_junit_project_compiles",
+        "unit",
+        ["mvn"],
+    )
+
+
+def test_ci_pytest_shard_binary_table_covers_which_calls() -> None:
+    found: set[str] = set()
+    for path in (ROOT / "tests").rglob("*.py"):
+        found.update(re.findall(r'which\("([^"]+)"\)', path.read_text(encoding="utf-8")))
+    table = _SHARD.BINARY_TO_SHARDS
+    assert "mvn" not in table
+    assert "rustc" not in table
+    assert found - {"mvn", "rustc"} <= set(table)
+    assert table["javac"] == frozenset({"unit", "script", "jvm"})
+    assert table["node"] == frozenset(_SHARD.SHARDS)
+    assert table["cargo"] == frozenset({"compiled"})
+    assert table["gst"] == frozenset({"script"})
+    assert table["Rscript"] == frozenset({"stats"})
+    assert _SHARD._MVN_UNIT_ALLOW == frozenset(
+        {
+            "test_java_junit_l1_stub_fails_without_npe",
+            "test_java_junit_project_compiles",
+            "test_java_junit_l2_project_compiles",
+        }
+    )
+
+
+def test_ci_pytest_shard_docstring_default_unit_and_skipif() -> None:
+    doc = _SHARD.__doc__ or ""
+    lowered = doc.lower()
+    assert "default" in lowered
+    assert "unit" in lowered
+    assert "skipif" in lowered
+    assert "1:1" in doc
+    source = inspect.getsource(_SHARD.check_partition)
+    assert "skipif" in source
 
 
 def test_ci_pytest_shard_covers_collected_tests() -> None:
