@@ -814,6 +814,30 @@ def test_console_bank_system_python_resolves_to_python3(
     assert session["problem"] == "bank_system"
 
 
+def test_console_python3_bank_system_swaps_lang_and_problem(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
+    assert main(["console", "python3", "bank_system"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
+
+
+def test_console_python3_alone_needs_both(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["console", "python3"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "both problem and lang" in out
+    assert "invalid problem" not in out
+    assert "NEXT:" in out
+    assert load_session() is None
+
+
 def test_vscode_bank_system_python_resolves_to_python3(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["vscode", "bank_system", "python", "--no-open"]) == 0

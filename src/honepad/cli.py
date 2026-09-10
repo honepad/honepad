@@ -246,51 +246,47 @@ def toolchain_warning(lang_id: str) -> str | None:
 require_java_path = require_tools
 
 
-def _swap_start_lang_problem(args: argparse.Namespace) -> None:
-    if not args.problem or not args.lang:
-        return
-    if _is_lang_token(args.problem) and args.lang in problems() and not _is_lang_token(args.lang):
-        args.problem, args.lang = args.lang, args.problem
-        _bind_resolved_lang(args)
+def resolve_start_target(problem: str | None, lang: str | None) -> tuple[str | None, str | None]:
+    """Normalise a (problem, language) pair in either order.
+
+    Returns (problem, lang_id). lang_id is a catalog id when resolvable.
+    Raises ValueError with the user-facing message when a provided
+    token cannot resolve. Does not prompt.
+    """
+    if problem and not lang and problem not in problems() and _is_lang_token(problem):
+        lang = problem
+        problem = None
+    if (
+        problem
+        and lang
+        and _is_lang_token(problem)
+        and lang in problems()
+        and not _is_lang_token(lang)
+    ):
+        problem, lang = lang, problem
+    if lang:
+        resolved = resolve_language_token(lang)
+        if resolved is not None:
+            lang = resolved
+        language(lang)
+    return problem, lang
 
 
 def cmd_start(args: argparse.Namespace) -> int:
-    if (
-        args.problem
-        and not args.lang
-        and args.problem not in problems()
-        and _is_lang_token(args.problem)
-    ):
-        args.lang = args.problem
-        args.problem = None
-        _bind_resolved_lang(args)
-    _swap_start_lang_problem(args)
-    if not args.problem or not args.lang:
-        if not (_can_prompt() and _fill_start_args(args)):
-            if args.lang and not args.problem:
-                print(status_fail("FAIL: start needs a problem"))
-                print(f"NEXT: {invocation()} start bank_system {args.lang}")
-            else:
-                print(status_fail("FAIL: start needs a problem and a language"))
-                print(start_next())
-            print("problems: " + ", ".join(problems()))
-            return 1
-    _bind_resolved_lang(args)
     try:
-        try:
-            row = language(args.lang)
-        except ValueError:
-            if (
-                args.problem
-                and _is_lang_token(args.problem)
-                and args.lang in problems()
-                and not _is_lang_token(args.lang)
-            ):
-                args.problem, args.lang = args.lang, args.problem
-                _bind_resolved_lang(args)
-                row = language(args.lang)
-            else:
-                raise
+        args.problem, args.lang = resolve_start_target(args.problem, args.lang)
+        if not args.problem or not args.lang:
+            if not (_can_prompt() and _fill_start_args(args)):
+                if args.lang and not args.problem:
+                    print(status_fail("FAIL: start needs a problem"))
+                    print(f"NEXT: {invocation()} start bank_system {args.lang}")
+                else:
+                    print(status_fail("FAIL: start needs a problem and a language"))
+                    print(start_next())
+                print("problems: " + ", ".join(problems()))
+                return 1
+            args.problem, args.lang = resolve_start_target(args.problem, args.lang)
+        row = language(args.lang)
         if row["id"] not in _RUNNERS:
             print(status_fail(f"FAIL: no runner for {row['id']}"))
             print(start_next())

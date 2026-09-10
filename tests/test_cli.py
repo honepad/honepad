@@ -7,7 +7,7 @@ import pytest
 
 from honepad import packspec
 from honepad.catalog import languages, problems
-from honepad.cli import build_parser, main
+from honepad.cli import build_parser, main, resolve_start_target
 from honepad.runner import _RUNNERS, run_prepare_cmd
 from honepad.session import load_session
 from honepad.term import invocation
@@ -414,6 +414,7 @@ def test_start_java_alone_is_language_not_problem(monkeypatch, tmp_path, capsys)
     assert "java" in out
     assert "invalid problem" not in out
     assert "NEXT:" in out
+    assert "problems:" in out
     assert "Traceback" not in out
     assert load_session() is None
 
@@ -468,6 +469,7 @@ def test_start_python_alone_is_language_not_problem(monkeypatch, tmp_path, capsy
     assert "start bank_system python3" in out
     assert "invalid problem" not in out
     assert "NEXT:" in out
+    assert "problems:" in out
     assert "Traceback" not in out
     assert load_session() is None
 
@@ -482,6 +484,81 @@ def test_start_java_python3_does_not_swap_two_langs(monkeypatch, tmp_path, capsy
     assert "invalid problem: java" in out
     assert "invalid problem: python3" not in out
     assert "OK: LEVEL" not in out
+    assert load_session() is None
+
+
+def test_resolve_start_target_both_orders() -> None:
+    assert resolve_start_target("bank_system", "python3") == ("bank_system", "python3")
+    assert resolve_start_target("python3", "bank_system") == ("bank_system", "python3")
+
+
+def test_resolve_start_target_bare_lang_leaves_problem_unset() -> None:
+    assert resolve_start_target("python3", None) == (None, "python3")
+    assert resolve_start_target("python", None) == (None, "python3")
+
+
+def test_resolve_start_target_prefix_and_missing() -> None:
+    assert resolve_start_target("bank_system", "python") == ("bank_system", "python3")
+    assert resolve_start_target(None, None) == (None, None)
+    assert resolve_start_target("bank_system", None) == ("bank_system", None)
+
+
+def test_resolve_start_target_unknown_lang_raises() -> None:
+    with pytest.raises(ValueError, match="unknown language: pyton"):
+        resolve_start_target("bank_system", "pyton")
+    with pytest.raises(ValueError, match="unknown language: Python3"):
+        resolve_start_target("bank_system", "Python3")
+
+
+def test_resolve_start_target_two_langs_does_not_swap() -> None:
+    assert resolve_start_target("java", "python3") == ("java", "python3")
+
+
+def test_resolve_start_target_leaves_invalid_problem_to_caller() -> None:
+    assert resolve_start_target("bank_systm", "java") == ("bank_systm", "java")
+
+
+def test_start_python3_alone_prints_fail_next_problems(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["start", "python3", "--no-console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL: start needs a problem" in out
+    assert "and a language" not in out
+    assert "NEXT:" in out
+    assert "start bank_system python3" in out
+    assert "problems:" in out
+    assert "bank_system" in out.split("problems:", 1)[1]
+    assert "invalid problem" not in out
+    assert load_session() is None
+
+
+def test_start_without_args_prints_fail_next_problems(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["start", "--no-console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL: start needs a problem and a language" in out
+    assert "NEXT:" in out
+    assert "start bank_system java" in out
+    assert "problems:" in out
+    assert "bank_system" in out.split("problems:", 1)[1]
+    assert load_session() is None
+
+
+def test_start_problem_only_prints_fail_next_problems(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    code = main(["start", "bank_system", "--no-console"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL: start needs a problem and a language" in out
+    assert "NEXT:" in out
+    assert "start bank_system java" in out
+    assert "problems:" in out
+    assert "bank_system" in out.split("problems:", 1)[1]
     assert load_session() is None
 
 
