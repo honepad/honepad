@@ -202,8 +202,7 @@ def read_choice(
             return keep
         if raw in {"", "q", "quit"}:
             return None
-        # Digit-only branch matches today's CLI: an out-of-range
-        # number is not a prefix match. "99" stays FAIL, not startswith.
+        # Out-of-range digits are FAIL, not startswith.
         if raw.isdigit():
             n = int(raw)
             if 1 <= n <= len(items):
