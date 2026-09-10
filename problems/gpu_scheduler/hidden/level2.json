@@ -1,0 +1,82 @@
+[
+  {
+    "id": "hid-l2-assign-complete",
+    "level": 2,
+    "calls": [
+      {
+        "m": "add_gpu",
+        "a": [
+          "g-desk",
+          8
+        ],
+        "e": "true"
+      },
+      {
+        "m": "submit_job",
+        "a": [
+          "job-a",
+          4
+        ],
+        "e": "true"
+      },
+      {
+        "m": "submit_job",
+        "a": [
+          "job-b",
+          5
+        ],
+        "e": "true"
+      },
+      {
+        "m": "assign",
+        "a": [],
+        "e": "job-a"
+      },
+      {
+        "m": "status",
+        "a": [
+          "job-a"
+        ],
+        "e": "running"
+      },
+      {
+        "m": "assign",
+        "a": [],
+        "e": ""
+      },
+      {
+        "m": "complete",
+        "a": [
+          "job-a"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "status",
+        "a": [
+          "job-a"
+        ],
+        "e": "done"
+      },
+      {
+        "m": "assign",
+        "a": [],
+        "e": "job-b"
+      },
+      {
+        "m": "status",
+        "a": [
+          "job-b"
+        ],
+        "e": "running"
+      },
+      {
+        "m": "complete",
+        "a": [
+          "missing"
+        ],
+        "e": "invalid_request"
+      }
+    ]
+  }
+]

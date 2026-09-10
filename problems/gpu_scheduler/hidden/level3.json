@@ -1,0 +1,79 @@
+[
+  {
+    "id": "hid-l3-cancel-running",
+    "level": 3,
+    "calls": [
+      {
+        "m": "add_gpu",
+        "a": [
+          "g-desk",
+          8
+        ],
+        "e": "true"
+      },
+      {
+        "m": "submit_job",
+        "a": [
+          "run-me",
+          4
+        ],
+        "e": "true"
+      },
+      {
+        "m": "submit_job",
+        "a": [
+          "next-me",
+          4
+        ],
+        "e": "true"
+      },
+      {
+        "m": "assign",
+        "a": [],
+        "e": "run-me"
+      },
+      {
+        "m": "cancel",
+        "a": [
+          "run-me"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "status",
+        "a": [
+          "run-me"
+        ],
+        "e": ""
+      },
+      {
+        "m": "status",
+        "a": [
+          "next-me"
+        ],
+        "e": "running"
+      },
+      {
+        "m": "cancel",
+        "a": [
+          "next-me"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "status",
+        "a": [
+          "next-me"
+        ],
+        "e": ""
+      },
+      {
+        "m": "cancel",
+        "a": [
+          "gone"
+        ],
+        "e": "invalid_request"
+      }
+    ]
+  }
+]

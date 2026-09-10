@@ -1,0 +1,106 @@
+[
+  {
+    "id": "hid-l3-pay-cashback-floor",
+    "level": 3,
+    "calls": [
+      {
+        "m": "pay",
+        "a": [
+          1,
+          "ghost",
+          10
+        ],
+        "e": null
+      },
+      {
+        "m": "create_account",
+        "a": [
+          2,
+          "desk-p"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          3,
+          "desk-p",
+          300
+        ],
+        "e": 300
+      },
+      {
+        "m": "pay",
+        "a": [
+          4,
+          "desk-p",
+          49
+        ],
+        "e": "payment1"
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          5,
+          "desk-p",
+          "payment1"
+        ],
+        "e": "IN_PROGRESS"
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          86400004,
+          "desk-p",
+          "payment1"
+        ],
+        "e": "CASHBACK_RECEIVED"
+      },
+      {
+        "m": "deposit",
+        "a": [
+          86400005,
+          "desk-p",
+          0
+        ],
+        "e": 251
+      },
+      {
+        "m": "pay",
+        "a": [
+          86400006,
+          "desk-p",
+          50
+        ],
+        "e": "payment2"
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          172800006,
+          "desk-p",
+          "payment2"
+        ],
+        "e": "CASHBACK_RECEIVED"
+      },
+      {
+        "m": "deposit",
+        "a": [
+          172800007,
+          "desk-p",
+          0
+        ],
+        "e": 202
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          172800008,
+          "ghost",
+          "payment2"
+        ],
+        "e": null
+      }
+    ]
+  }
+]

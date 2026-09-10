@@ -37,6 +37,30 @@ def test_every_catalog_problem_has_hidden_l1_and_l4() -> None:
             assert used <= allowed, (problem, case["id"], used - allowed)
 
 
+def test_hidden_ids_strictly_grow_l1_to_l4() -> None:
+    from honepad.catalog import problems
+    from honepad.session import max_level
+    from honepad.workstub import methods_through_level
+
+    for problem in problems():
+        prev_ids: set[str] = set()
+        for n in range(1, max_level(problem) + 1):
+            cases = load_hidden_cases(problem, n)
+            ids = {str(case["id"]) for case in cases}
+            assert ids, (problem, n)
+            if n > 1:
+                assert prev_ids < ids, (problem, n, sorted(prev_ids), sorted(ids))
+                new_methods = methods_through_level(problem, n, "snake") - methods_through_level(
+                    problem, n - 1, "snake"
+                )
+                for case in cases:
+                    if int(case["level"]) != n:
+                        continue
+                    used = {str(call["m"]) for call in case["calls"]}
+                    assert used & new_methods, (problem, case["id"], used, new_methods)
+            prev_ids = ids
+
+
 def test_hidden_l4_includes_hidden_l1() -> None:
     l1 = load_hidden_cases("workers", 1)
     l4 = load_hidden_cases("workers", 4)
@@ -63,6 +87,73 @@ def test_official_solution_passes_hidden() -> None:
         report = run(problem, "python3", 4, "solution", cases=hidden)
         assert report.ok, (problem, report.failed)
         assert report.passed == len(hidden)
+
+
+def test_official_solution_passes_hidden_at_every_level() -> None:
+    from honepad.catalog import problems
+    from honepad.session import max_level
+
+    for problem in problems():
+        for n in range(1, max_level(problem) + 1):
+            hidden = load_hidden_cases(problem, n)
+            report = run(problem, "python3", n, "solution", cases=hidden)
+            assert report.ok, (problem, n, report.failed)
+            assert report.passed == len(hidden)
+
+
+_HARDCODED_BANK_L2 = """\
+class Simulation:
+    def __init__(self):
+        self.accounts = {}
+
+    def create_account(self, timestamp, account_id):
+        if account_id in self.accounts:
+            return False
+        self.accounts[account_id] = 0
+        return True
+
+    def deposit(self, timestamp, account_id, amount):
+        if account_id not in self.accounts:
+            return None
+        self.accounts[account_id] += amount
+        return self.accounts[account_id]
+
+    def transfer(self, timestamp, source_account_id, target_account_id, amount):
+        if source_account_id not in self.accounts or target_account_id not in self.accounts:
+            return None
+        if source_account_id == target_account_id:
+            return None
+        if self.accounts[source_account_id] < amount:
+            return None
+        self.accounts[source_account_id] -= amount
+        self.accounts[target_account_id] += amount
+        return self.accounts[source_account_id]
+
+    def top_spenders(self, timestamp, n):
+        # Public L2 expects only. Hidden L2 uses other ids and must fail.
+        public = {
+            frozenset(): [],
+            frozenset(["acc1"]): ["acc1(500)"],
+            frozenset(["acc1", "acc2"]): ["acc1(500)", "acc2(0)"],
+            frozenset(["acc1", "acc2", "acc3"]): ["acc1(500)", "acc2(500)", "acc3(300)"],
+        }
+        if n <= 0:
+            return []
+        return public.get(frozenset(self.accounts), [])[:n]
+"""
+
+
+def test_hardcoded_public_l2_fails_hidden_l2(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    dest = work_src("bank_system", "python3")
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_text(_HARDCODED_BANK_L2, encoding="utf-8")
+    public = load_cases("bank_system", 2)
+    public_report = run("bank_system", "python3", 2, "work", cases=public)
+    assert public_report.ok, public_report.failed
+    hidden = load_hidden_cases("bank_system", 2)
+    hidden_report = run("bank_system", "python3", 2, "work", cases=hidden)
+    assert not hidden_report.ok
 
 
 def test_practice_run_stays_public_only(monkeypatch, tmp_path: Path, capsys) -> None:

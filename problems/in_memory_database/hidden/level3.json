@@ -1,0 +1,90 @@
+[
+  {
+    "id": "hid-l3-delete-at-expired",
+    "level": 3,
+    "calls": [
+      {
+        "m": "set_at_with_ttl",
+        "a": [
+          "desk",
+          "name",
+          "Ada",
+          100,
+          10
+        ],
+        "e": ""
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "desk",
+          "name",
+          105
+        ],
+        "e": "Ada"
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "desk",
+          "name",
+          110
+        ],
+        "e": ""
+      },
+      {
+        "m": "delete_at",
+        "a": [
+          "desk",
+          "name",
+          110
+        ],
+        "e": "false"
+      },
+      {
+        "m": "delete",
+        "a": [
+          "desk",
+          "name"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "set_at",
+        "a": [
+          "desk",
+          "city",
+          "NY",
+          200
+        ],
+        "e": ""
+      },
+      {
+        "m": "get_at",
+        "a": [
+          "desk",
+          "city",
+          50
+        ],
+        "e": "NY"
+      },
+      {
+        "m": "scan_at",
+        "a": [
+          "desk",
+          201
+        ],
+        "e": "city(NY)"
+      },
+      {
+        "m": "scan_by_prefix_at",
+        "a": [
+          "desk",
+          "c",
+          201
+        ],
+        "e": "city(NY)"
+      }
+    ]
+  }
+]

@@ -1,0 +1,77 @@
+[
+  {
+    "id": "hid-l2-list-low-tie",
+    "level": 2,
+    "calls": [
+      {
+        "m": "create_item",
+        "a": [
+          "nut",
+          "Nut"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "create_item",
+        "a": [
+          "bolt",
+          "Bolt"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "create_item",
+        "a": [
+          "washer",
+          "Washer"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "stock",
+        "a": [
+          "nut",
+          3
+        ],
+        "e": "3"
+      },
+      {
+        "m": "stock",
+        "a": [
+          "bolt",
+          3
+        ],
+        "e": "3"
+      },
+      {
+        "m": "stock",
+        "a": [
+          "washer",
+          9
+        ],
+        "e": "9"
+      },
+      {
+        "m": "list_low",
+        "a": [
+          3
+        ],
+        "e": "bolt(3), nut(3)"
+      },
+      {
+        "m": "list_low",
+        "a": [
+          2
+        ],
+        "e": ""
+      },
+      {
+        "m": "list_low",
+        "a": [
+          9
+        ],
+        "e": "bolt(3), nut(3), washer(9)"
+      }
+    ]
+  }
+]

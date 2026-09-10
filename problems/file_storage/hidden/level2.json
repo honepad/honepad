@@ -1,0 +1,80 @@
+[
+  {
+    "id": "hid-l2-n-largest-tie",
+    "level": 2,
+    "calls": [
+      {
+        "m": "add_file",
+        "a": [
+          "/desk/aa.bin",
+          8
+        ],
+        "e": "true"
+      },
+      {
+        "m": "add_file",
+        "a": [
+          "/desk/zz.bin",
+          8
+        ],
+        "e": "true"
+      },
+      {
+        "m": "add_file",
+        "a": [
+          "/desk/mid.txt",
+          3
+        ],
+        "e": "true"
+      },
+      {
+        "m": "add_file",
+        "a": [
+          "/other/x",
+          20
+        ],
+        "e": "true"
+      },
+      {
+        "m": "get_n_largest",
+        "a": [
+          "/desk",
+          2
+        ],
+        "e": "/desk/aa.bin(8), /desk/zz.bin(8)"
+      },
+      {
+        "m": "get_n_largest",
+        "a": [
+          "/desk/a",
+          2
+        ],
+        "e": "/desk/aa.bin(8)"
+      },
+      {
+        "m": "get_n_largest",
+        "a": [
+          "/none",
+          2
+        ],
+        "e": ""
+      },
+      {
+        "m": "get_n_largest",
+        "a": [
+          "/desk",
+          0
+        ],
+        "e": ""
+      },
+      {
+        "m": "get_n_largest",
+        "a": [
+          "/",
+          1
+        ],
+        "e": "/other/x(20)"
+      }
+    ]
+  }
+]

@@ -1,0 +1,79 @@
+[
+  {
+    "id": "hid-l3-reserve-release",
+    "level": 3,
+    "calls": [
+      {
+        "m": "create_item",
+        "a": [
+          "desk-sku",
+          "Widget"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "stock",
+        "a": [
+          "desk-sku",
+          10
+        ],
+        "e": "10"
+      },
+      {
+        "m": "reserve",
+        "a": [
+          "desk-sku",
+          4
+        ],
+        "e": "true"
+      },
+      {
+        "m": "reserve",
+        "a": [
+          "desk-sku",
+          7
+        ],
+        "e": "invalid_request"
+      },
+      {
+        "m": "reserve",
+        "a": [
+          "desk-sku",
+          6
+        ],
+        "e": "true"
+      },
+      {
+        "m": "release",
+        "a": [
+          "desk-sku",
+          3
+        ],
+        "e": "true"
+      },
+      {
+        "m": "release",
+        "a": [
+          "desk-sku",
+          8
+        ],
+        "e": "invalid_request"
+      },
+      {
+        "m": "reserve",
+        "a": [
+          "ghost",
+          1
+        ],
+        "e": "invalid_request"
+      },
+      {
+        "m": "get_qty",
+        "a": [
+          "desk-sku"
+        ],
+        "e": "10"
+      }
+    ]
+  }
+]

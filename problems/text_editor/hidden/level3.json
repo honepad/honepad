@@ -1,0 +1,22 @@
+[
+  {
+    "id": "hid-l3-undo-redo",
+    "level": 3,
+    "calls": [
+      {"m": "insert", "a": [0, "ab"], "e": "2"},
+      {"m": "erase", "a": [0, 1], "e": "a"},
+      {"m": "type_text", "a": ["Z"], "e": "2"},
+      {"m": "get_text", "a": [], "e": "Zb"},
+      {"m": "undo", "a": [], "e": "true"},
+      {"m": "get_text", "a": [], "e": "b"},
+      {"m": "redo", "a": [], "e": "true"},
+      {"m": "get_text", "a": [], "e": "Zb"},
+      {"m": "undo", "a": [], "e": "true"},
+      {"m": "undo", "a": [], "e": "true"},
+      {"m": "get_text", "a": [], "e": "ab"},
+      {"m": "redo", "a": [], "e": "true"},
+      {"m": "redo", "a": [], "e": "true"},
+      {"m": "get_text", "a": [], "e": "Zb"}
+    ]
+  }
+]

@@ -1,0 +1,65 @@
+[
+  {
+    "id": "hid-l3-sticky-unhealthy",
+    "level": 3,
+    "calls": [
+      {
+        "m": "add_backend",
+        "a": [
+          "west"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "add_backend",
+        "a": [
+          "east"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "sticky",
+        "a": [
+          "client-a"
+        ],
+        "e": "west"
+      },
+      {
+        "m": "sticky",
+        "a": [
+          "client-a"
+        ],
+        "e": "west"
+      },
+      {
+        "m": "sticky",
+        "a": [
+          "client-b"
+        ],
+        "e": "east"
+      },
+      {
+        "m": "set_health",
+        "a": [
+          "west",
+          0
+        ],
+        "e": "true"
+      },
+      {
+        "m": "sticky",
+        "a": [
+          "client-a"
+        ],
+        "e": "east"
+      },
+      {
+        "m": "sticky",
+        "a": [
+          "client-a"
+        ],
+        "e": "east"
+      }
+    ]
+  }
+]

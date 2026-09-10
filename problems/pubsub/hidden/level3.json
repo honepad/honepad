@@ -1,0 +1,18 @@
+[
+  {
+    "id": "hid-l3-peek-ack",
+    "level": 3,
+    "calls": [
+      {"m": "subscribe", "a": ["desk-t", "reader"], "e": "true"},
+      {"m": "publish", "a": ["desk-t", "one"], "e": "1"},
+      {"m": "publish", "a": ["desk-t", "two"], "e": "1"},
+      {"m": "peek", "a": ["reader"], "e": "desk-t:one"},
+      {"m": "inbox", "a": ["reader"], "e": "desk-t:one, desk-t:two"},
+      {"m": "ack", "a": ["reader", 1], "e": "1"},
+      {"m": "peek", "a": ["reader"], "e": "desk-t:two"},
+      {"m": "ack", "a": ["reader", 1], "e": "0"},
+      {"m": "peek", "a": ["reader"], "e": ""},
+      {"m": "ack", "a": ["reader", 1], "e": "invalid_request"}
+    ]
+  }
+]

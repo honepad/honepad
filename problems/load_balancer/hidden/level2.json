@@ -1,0 +1,104 @@
+[
+  {
+    "id": "hid-l2-health-weight",
+    "level": 2,
+    "calls": [
+      {
+        "m": "add_backend",
+        "a": [
+          "west"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "add_backend",
+        "a": [
+          "east"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "add_backend",
+        "a": [
+          "north"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "route",
+        "a": [],
+        "e": "west"
+      },
+      {
+        "m": "route",
+        "a": [],
+        "e": "east"
+      },
+      {
+        "m": "set_health",
+        "a": [
+          "east",
+          0
+        ],
+        "e": "true"
+      },
+      {
+        "m": "route",
+        "a": [],
+        "e": "west"
+      },
+      {
+        "m": "route",
+        "a": [],
+        "e": "north"
+      },
+      {
+        "m": "set_health",
+        "a": [
+          "east",
+          1
+        ],
+        "e": "true"
+      },
+      {
+        "m": "set_weight",
+        "a": [
+          "west",
+          2
+        ],
+        "e": "true"
+      },
+      {
+        "m": "route",
+        "a": [],
+        "e": "west"
+      },
+      {
+        "m": "route",
+        "a": [],
+        "e": "west"
+      },
+      {
+        "m": "route",
+        "a": [],
+        "e": "east"
+      },
+      {
+        "m": "set_health",
+        "a": [
+          "ghost",
+          1
+        ],
+        "e": "invalid_request"
+      },
+      {
+        "m": "set_weight",
+        "a": [
+          "west",
+          0
+        ],
+        "e": "invalid_request"
+      }
+    ]
+  }
+]

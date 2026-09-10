@@ -1,0 +1,17 @@
+[
+  {
+    "id": "hid-l2-list-and-count",
+    "level": 2,
+    "calls": [
+      {"m": "subscribe", "a": ["desk-news", "cara"], "e": "true"},
+      {"m": "subscribe", "a": ["desk-alerts", "ben"], "e": "true"},
+      {"m": "subscribe", "a": ["desk-news", "ben"], "e": "true"},
+      {"m": "list_topics", "a": [], "e": "desk-alerts, desk-news"},
+      {"m": "subscribers", "a": ["desk-news"], "e": "ben, cara"},
+      {"m": "unsubscribe", "a": ["desk-alerts", "ben"], "e": "true"},
+      {"m": "list_topics", "a": [], "e": "desk-news"},
+      {"m": "subscribers", "a": ["desk-alerts"], "e": ""},
+      {"m": "subscribers", "a": ["none"], "e": ""}
+    ]
+  }
+]

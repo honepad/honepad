@@ -1,0 +1,119 @@
+[
+  {
+    "id": "hid-l2-zero-and-tie",
+    "level": 2,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "zeta"
+        ],
+        "e": true
+      },
+      {
+        "m": "create_account",
+        "a": [
+          2,
+          "alpha"
+        ],
+        "e": true
+      },
+      {
+        "m": "create_account",
+        "a": [
+          3,
+          "mu"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          4,
+          "zeta",
+          900
+        ],
+        "e": 900
+      },
+      {
+        "m": "deposit",
+        "a": [
+          5,
+          "alpha",
+          400
+        ],
+        "e": 400
+      },
+      {
+        "m": "deposit",
+        "a": [
+          6,
+          "mu",
+          400
+        ],
+        "e": 400
+      },
+      {
+        "m": "transfer",
+        "a": [
+          7,
+          "zeta",
+          "alpha",
+          200
+        ],
+        "e": 700
+      },
+      {
+        "m": "transfer",
+        "a": [
+          8,
+          "alpha",
+          "mu",
+          100
+        ],
+        "e": 500
+      },
+      {
+        "m": "transfer",
+        "a": [
+          9,
+          "mu",
+          "zeta",
+          100
+        ],
+        "e": 400
+      },
+      {
+        "m": "top_spenders",
+        "a": [
+          10,
+          0
+        ],
+        "e": []
+      },
+      {
+        "m": "top_spenders",
+        "a": [
+          11,
+          3
+        ],
+        "e": [
+          "zeta(200)",
+          "alpha(100)",
+          "mu(100)"
+        ]
+      },
+      {
+        "m": "top_spenders",
+        "a": [
+          12,
+          1
+        ],
+        "e": [
+          "zeta(200)"
+        ]
+      }
+    ]
+  }
+]
