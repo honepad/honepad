@@ -1,0 +1,114 @@
+[
+  {
+    "id": "hid-l4-merge-history-last-wins",
+    "level": 4,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "keep"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          2,
+          "keep",
+          100
+        ],
+        "e": 100
+      },
+      {
+        "m": "create_account",
+        "a": [
+          3,
+          "drop"
+        ],
+        "e": true
+      },
+      {
+        "m": "deposit",
+        "a": [
+          4,
+          "drop",
+          400
+        ],
+        "e": 400
+      },
+      {
+        "m": "pay",
+        "a": [
+          5,
+          "drop",
+          100
+        ],
+        "e": "payment1"
+      },
+      {
+        "m": "merge_accounts",
+        "a": [
+          6,
+          "keep",
+          "drop"
+        ],
+        "e": true
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          7,
+          "drop",
+          6
+        ],
+        "e": null
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          7,
+          "keep",
+          2
+        ],
+        "e": 100
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          7,
+          "keep",
+          4
+        ],
+        "e": 400
+      },
+      {
+        "m": "get_balance",
+        "a": [
+          7,
+          "keep",
+          6
+        ],
+        "e": 400
+      },
+      {
+        "m": "get_payment_status",
+        "a": [
+          8,
+          "keep",
+          "payment1"
+        ],
+        "e": "IN_PROGRESS"
+      },
+      {
+        "m": "merge_accounts",
+        "a": [
+          9,
+          "keep",
+          "keep"
+        ],
+        "e": false
+      }
+    ]
+  }
+]

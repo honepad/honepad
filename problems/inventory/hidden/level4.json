@@ -1,0 +1,102 @@
+[
+  {
+    "id": "hid-l4-ship-reserved-only",
+    "level": 4,
+    "calls": [
+      {
+        "m": "create_item",
+        "a": [
+          "hid-a",
+          "Washer"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "stock",
+        "a": [
+          "hid-a",
+          10
+        ],
+        "e": "10"
+      },
+      {
+        "m": "ship",
+        "a": [
+          "hid-a",
+          2
+        ],
+        "e": "invalid_request"
+      },
+      {
+        "m": "reserve",
+        "a": [
+          "hid-a",
+          3
+        ],
+        "e": "true"
+      },
+      {
+        "m": "ship",
+        "a": [
+          "hid-a",
+          3
+        ],
+        "e": "true"
+      },
+      {
+        "m": "get_qty",
+        "a": [
+          "hid-a"
+        ],
+        "e": "7"
+      },
+      {
+        "m": "ship",
+        "a": [
+          "hid-a",
+          1
+        ],
+        "e": "invalid_request"
+      },
+      {
+        "m": "reserve",
+        "a": [
+          "hid-a",
+          2
+        ],
+        "e": "true"
+      },
+      {
+        "m": "release",
+        "a": [
+          "hid-a",
+          1
+        ],
+        "e": "true"
+      },
+      {
+        "m": "ship",
+        "a": [
+          "hid-a",
+          2
+        ],
+        "e": "invalid_request"
+      },
+      {
+        "m": "ship",
+        "a": [
+          "hid-a",
+          1
+        ],
+        "e": "true"
+      },
+      {
+        "m": "get_qty",
+        "a": [
+          "hid-a"
+        ],
+        "e": "6"
+      }
+    ]
+  }
+]

@@ -1,0 +1,104 @@
+[
+  {
+    "id": "hid-l1-two-keys",
+    "level": 1,
+    "calls": [
+      {
+        "m": "allow",
+        "a": [
+          "desk",
+          0
+        ],
+        "e": "true"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "desk",
+          1
+        ],
+        "e": "true"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "desk",
+          2
+        ],
+        "e": "true"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "desk",
+          3
+        ],
+        "e": "false"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "other",
+          3
+        ],
+        "e": "true"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "desk",
+          10
+        ],
+        "e": "true"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "late",
+          8
+        ],
+        "e": "true"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "late",
+          9
+        ],
+        "e": "true"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "late",
+          10
+        ],
+        "e": "true"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "late",
+          11
+        ],
+        "e": "true"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "late",
+          12
+        ],
+        "e": "true"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "late",
+          13
+        ],
+        "e": "false"
+      }
+    ]
+  }
+]

@@ -1,0 +1,93 @@
+[
+  {
+    "id": "hid-l1-two-skus",
+    "level": 1,
+    "calls": [
+      {
+        "m": "create_item",
+        "a": [
+          "hid-a",
+          "Washer"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "create_item",
+        "a": [
+          "hid-b",
+          "Nut"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "create_item",
+        "a": [
+          "hid-a",
+          "Washer"
+        ],
+        "e": "false"
+      },
+      {
+        "m": "stock",
+        "a": [
+          "hid-a",
+          6
+        ],
+        "e": "6"
+      },
+      {
+        "m": "stock",
+        "a": [
+          "hid-b",
+          2
+        ],
+        "e": "2"
+      },
+      {
+        "m": "stock",
+        "a": [
+          "hid-a",
+          -1
+        ],
+        "e": "5"
+      },
+      {
+        "m": "get_qty",
+        "a": [
+          "hid-a"
+        ],
+        "e": "5"
+      },
+      {
+        "m": "get_qty",
+        "a": [
+          "hid-z"
+        ],
+        "e": ""
+      },
+      {
+        "m": "stock",
+        "a": [
+          "hid-z",
+          1
+        ],
+        "e": ""
+      },
+      {
+        "m": "stock",
+        "a": [
+          "hid-b",
+          -3
+        ],
+        "e": "invalid_request"
+      },
+      {
+        "m": "get_qty",
+        "a": [
+          "hid-b"
+        ],
+        "e": "2"
+      }
+    ]
+  }
+]

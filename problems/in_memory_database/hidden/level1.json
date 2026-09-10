@@ -1,0 +1,83 @@
+[
+  {
+    "id": "hid-l1-two-keys",
+    "level": 1,
+    "calls": [
+      {
+        "m": "set",
+        "a": [
+          "row",
+          "name",
+          "Ada"
+        ],
+        "e": ""
+      },
+      {
+        "m": "set",
+        "a": [
+          "row",
+          "city",
+          "Paris"
+        ],
+        "e": ""
+      },
+      {
+        "m": "get",
+        "a": [
+          "row",
+          "name"
+        ],
+        "e": "Ada"
+      },
+      {
+        "m": "get",
+        "a": [
+          "row",
+          "missing"
+        ],
+        "e": ""
+      },
+      {
+        "m": "delete",
+        "a": [
+          "row",
+          "city"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "delete",
+        "a": [
+          "row",
+          "city"
+        ],
+        "e": "false"
+      },
+      {
+        "m": "get",
+        "a": [
+          "row",
+          "city"
+        ],
+        "e": ""
+      },
+      {
+        "m": "set",
+        "a": [
+          "other",
+          "name",
+          "Ben"
+        ],
+        "e": ""
+      },
+      {
+        "m": "get",
+        "a": [
+          "other",
+          "name"
+        ],
+        "e": "Ben"
+      }
+    ]
+  }
+]

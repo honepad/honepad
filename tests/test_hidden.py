@@ -20,9 +20,21 @@ def _copy_official_python_work(problem: str) -> None:
     shutil.copyfile(src, dest)
 
 
-def test_missing_hidden_dir_is_empty() -> None:
-    assert load_hidden_cases("bank_system", 4) == []
-    assert load_hidden_cases("file_storage") == []
+def test_every_catalog_problem_has_hidden_l1_and_l4() -> None:
+    from honepad.catalog import problems
+    from honepad.session import max_level
+    from honepad.workstub import methods_through_level
+
+    for problem in problems():
+        l1 = load_hidden_cases(problem, 1)
+        hidden = load_hidden_cases(problem, max_level(problem))
+        assert l1, problem
+        assert hidden, problem
+        assert {case["id"] for case in l1} <= {case["id"] for case in hidden}
+        allowed = methods_through_level(problem, 1, "snake")
+        for case in l1:
+            used = {str(call["m"]) for call in case["calls"]}
+            assert used <= allowed, (problem, case["id"], used - allowed)
 
 
 def test_hidden_l4_includes_hidden_l1() -> None:
@@ -35,16 +47,22 @@ def test_hidden_l4_includes_hidden_l1() -> None:
 
 
 def test_public_cases_unchanged_by_hidden() -> None:
-    public_ids = {case["id"] for case in load_cases("workers", 4)}
-    hidden_ids = {case["id"] for case in load_hidden_cases("workers", 4)}
-    assert public_ids.isdisjoint(hidden_ids)
+    from honepad.catalog import problems
+
+    for problem in problems():
+        public_ids = {case["id"] for case in load_cases(problem, 4)}
+        hidden_ids = {case["id"] for case in load_hidden_cases(problem, 4)}
+        assert public_ids.isdisjoint(hidden_ids), problem
 
 
 def test_official_solution_passes_hidden() -> None:
-    hidden = load_hidden_cases("workers", 4)
-    report = run("workers", "python3", 4, "solution", cases=hidden)
-    assert report.ok, report.failed
-    assert report.passed == len(hidden)
+    from honepad.catalog import problems
+
+    for problem in problems():
+        hidden = load_hidden_cases(problem, 4)
+        report = run(problem, "python3", 4, "solution", cases=hidden)
+        assert report.ok, (problem, report.failed)
+        assert report.passed == len(hidden)
 
 
 def test_practice_run_stays_public_only(monkeypatch, tmp_path: Path, capsys) -> None:

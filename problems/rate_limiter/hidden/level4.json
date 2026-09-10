@@ -1,0 +1,103 @@
+[
+  {
+    "id": "hid-l4-weighted-not-unit",
+    "level": 4,
+    "calls": [
+      {
+        "m": "configure",
+        "a": [
+          "desk",
+          5,
+          10
+        ],
+        "e": "true"
+      },
+      {
+        "m": "allow_weighted",
+        "a": [
+          "desk",
+          3,
+          0
+        ],
+        "e": "true"
+      },
+      {
+        "m": "remaining",
+        "a": [
+          "desk",
+          1
+        ],
+        "e": "2"
+      },
+      {
+        "m": "allow_weighted",
+        "a": [
+          "desk",
+          3,
+          1
+        ],
+        "e": "false"
+      },
+      {
+        "m": "allow_weighted",
+        "a": [
+          "desk",
+          2,
+          1
+        ],
+        "e": "true"
+      },
+      {
+        "m": "remaining",
+        "a": [
+          "desk",
+          2
+        ],
+        "e": "0"
+      },
+      {
+        "m": "allow_weighted",
+        "a": [
+          "desk",
+          0,
+          2
+        ],
+        "e": "invalid_request"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "desk",
+          10
+        ],
+        "e": "true"
+      },
+      {
+        "m": "remaining",
+        "a": [
+          "desk",
+          10
+        ],
+        "e": "4"
+      },
+      {
+        "m": "allow_weighted",
+        "a": [
+          "desk",
+          5,
+          10
+        ],
+        "e": "false"
+      },
+      {
+        "m": "allow_weighted",
+        "a": [
+          "desk",
+          4,
+          10
+        ],
+        "e": "true"
+      }
+    ]
+  }
+]

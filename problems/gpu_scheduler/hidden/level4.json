@@ -1,0 +1,94 @@
+[
+  {
+    "id": "hid-l4-priority-beats-fifo",
+    "level": 4,
+    "calls": [
+      {
+        "m": "add_gpu",
+        "a": [
+          "g1",
+          4
+        ],
+        "e": "true"
+      },
+      {
+        "m": "add_gpu",
+        "a": [
+          "g2",
+          16
+        ],
+        "e": "true"
+      },
+      {
+        "m": "submit_job",
+        "a": [
+          "early",
+          4
+        ],
+        "e": "true"
+      },
+      {
+        "m": "submit_job",
+        "a": [
+          "later",
+          4
+        ],
+        "e": "true"
+      },
+      {
+        "m": "submit_job",
+        "a": [
+          "big",
+          16
+        ],
+        "e": "true"
+      },
+      {
+        "m": "set_priority",
+        "a": [
+          "later",
+          10
+        ],
+        "e": "true"
+      },
+      {
+        "m": "set_priority",
+        "a": [
+          "big",
+          5
+        ],
+        "e": "true"
+      },
+      {
+        "m": "set_priority",
+        "a": [
+          "ghost",
+          1
+        ],
+        "e": "invalid_request"
+      },
+      {
+        "m": "assign",
+        "a": [],
+        "e": "later"
+      },
+      {
+        "m": "assign",
+        "a": [],
+        "e": "big"
+      },
+      {
+        "m": "complete",
+        "a": [
+          "later"
+        ],
+        "e": "true"
+      },
+      {
+        "m": "assign",
+        "a": [],
+        "e": "early"
+      }
+    ]
+  }
+]
