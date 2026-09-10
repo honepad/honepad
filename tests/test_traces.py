@@ -589,6 +589,22 @@ def test_load_balancer_python_and_js() -> None:
     assert js.ok, js.failed
 
 
+def test_pubsub_python_and_js() -> None:
+    py = run_python("pubsub", 4, "solution")
+    assert py.ok, py.failed
+    assert py.passed == len(load_cases("pubsub", 4))
+    js = run("pubsub", "javascript", 4, "solution")
+    assert js.ok, js.failed
+
+
+def test_text_editor_python_and_js() -> None:
+    py = run_python("text_editor", 4, "solution")
+    assert py.ok, py.failed
+    assert py.passed == len(load_cases("text_editor", 4))
+    js = run("text_editor", "javascript", 4, "solution")
+    assert js.ok, js.failed
+
+
 def test_ruby_all_problems() -> None:
     for problem, level in (
         ("bank_system", 4),
@@ -599,6 +615,8 @@ def test_ruby_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "ruby", level, "solution")
         assert report.ok, report.failed
@@ -625,6 +643,8 @@ def test_go_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "go", level, "solution")
         assert report.ok, report.failed
@@ -640,6 +660,8 @@ def test_php_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "php", level, "solution")
         assert report.ok, report.failed
@@ -655,6 +677,8 @@ def test_rust_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "rust", level, "solution")
         assert report.ok, report.failed
@@ -670,6 +694,8 @@ def test_java_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "java", level, "solution")
         assert report.ok, report.failed
@@ -685,6 +711,8 @@ def test_typescript_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "typescript", level, "solution")
         assert report.ok, report.failed
@@ -700,6 +728,8 @@ def test_csharp_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "csharp", level, "solution")
         assert report.ok, report.failed
@@ -715,6 +745,8 @@ def test_kotlin_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "kotlin", level, "solution")
         assert report.ok, report.failed
@@ -730,6 +762,8 @@ def test_cpp_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "cpp", level, "solution")
         assert report.ok, report.failed
@@ -745,6 +779,8 @@ def test_swift_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "swift", level, "solution")
         assert report.ok, report.failed
@@ -760,6 +796,8 @@ def test_perl_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "perl", level, "solution")
         assert report.ok, report.failed
@@ -775,6 +813,8 @@ def test_lua_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "lua", level, "solution")
         assert report.ok, report.failed
@@ -790,6 +830,8 @@ def test_c_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "c", level, "solution")
         assert report.ok, report.failed
@@ -810,6 +852,8 @@ def test_tcl_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "tcl", level, "solution")
         assert report.ok, report.failed
@@ -830,6 +874,8 @@ def test_r_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "r", level, "solution")
         assert report.ok, report.failed
@@ -850,6 +896,8 @@ def test_octave_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "octave", level, "solution")
         assert report.ok, report.failed
@@ -870,6 +918,8 @@ def test_nim_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "nim", level, "solution")
         assert report.ok, report.failed
@@ -890,6 +940,8 @@ def test_groovy_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "groovy", level, "solution")
         assert report.ok, report.failed
@@ -910,6 +962,8 @@ def test_dart_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "dart", level, "solution")
         assert report.ok, report.failed
@@ -930,6 +984,8 @@ def test_elixir_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "elixir", level, "solution")
         assert report.ok, report.failed
@@ -950,6 +1006,8 @@ def test_erlang_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "erlang", level, "solution")
         assert report.ok, report.failed
@@ -970,6 +1028,8 @@ def test_haskell_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "haskell", level, "solution")
         assert report.ok, report.failed
@@ -990,6 +1050,8 @@ def test_ocaml_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "ocaml", level, "solution")
         assert report.ok, report.failed
@@ -1010,6 +1072,8 @@ def test_scala_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "scala", level, "solution")
         assert report.ok, report.failed
@@ -1030,6 +1094,8 @@ def test_d_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "d", level, "solution")
         assert report.ok, report.failed
@@ -1050,6 +1116,8 @@ def test_julia_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "julia", level, "solution")
         assert report.ok, report.failed
@@ -1070,6 +1138,8 @@ def test_coffeescript_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "coffeescript", level, "solution")
         assert report.ok, report.failed
@@ -1090,6 +1160,8 @@ def test_bash_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "bash", level, "solution")
         assert report.ok, report.failed
@@ -1115,6 +1187,8 @@ def test_common_lisp_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "common-lisp", level, "solution")
         assert report.passed > 0, report
@@ -1136,6 +1210,8 @@ def test_fortran_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "fortran", level, "solution")
         assert report.passed > 0, report
@@ -1157,6 +1233,8 @@ def test_fsharp_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "fsharp", level, "solution")
         assert report.passed > 0, report
@@ -1178,6 +1256,8 @@ def test_freepascal_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "freepascal", level, "solution")
         assert report.passed > 0, report
@@ -1200,6 +1280,8 @@ def test_smalltalk_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "smalltalk", level, "solution")
         assert report.passed > 0, report
@@ -1222,6 +1304,8 @@ def test_clojure_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "clojure", level, "solution")
         assert report.passed > 0, report
@@ -1243,6 +1327,8 @@ def test_powershell_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "powershell", level, "solution")
         assert report.passed > 0, report
@@ -1264,6 +1350,8 @@ def test_shell_all_problems() -> None:
         ("rate_limiter", 4),
         ("gpu_scheduler", 4),
         ("load_balancer", 4),
+        ("pubsub", 4),
+        ("text_editor", 4),
     ):
         report = run(problem, "shell", level, "solution")
         assert report.passed > 0, report
@@ -1286,6 +1374,8 @@ def test_prove_python3_and_go_all_problems() -> None:
             ("rate_limiter", 4),
             ("gpu_scheduler", 4),
             ("load_balancer", 4),
+            ("pubsub", 4),
+            ("text_editor", 4),
         ):
             report = run(problem, lang, level, "solution")
             assert report.ok, (lang, problem, report.failed)
@@ -1575,6 +1665,8 @@ def test_every_runner_has_a_valid_recipe() -> None:
             "rate_limiter",
             "gpu_scheduler",
             "load_balancer",
+            "pubsub",
+            "text_editor",
         ):
             assert (pack / problem / str(spec["solution"])).is_file(), (lang_id, problem)
             assert (pack / problem / str(spec["stub"])).is_file(), (lang_id, problem)

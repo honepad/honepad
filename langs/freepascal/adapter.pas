@@ -353,6 +353,116 @@ begin
     M := Bind(Obj, 'Done', Method);
     Exit(TFnS(M)(ArgStr(Args, 0)));
   end;
+  if Method = 'subscribe' then
+  begin
+    M := Bind(Obj, 'Subscribe', Method);
+    Exit(TFnSS(M)(ArgStr(Args, 0), ArgStr(Args, 1)));
+  end;
+  if Method = 'unsubscribe' then
+  begin
+    M := Bind(Obj, 'Unsubscribe', Method);
+    Exit(TFnSS(M)(ArgStr(Args, 0), ArgStr(Args, 1)));
+  end;
+  if Method = 'publish' then
+  begin
+    M := Bind(Obj, 'Publish', Method);
+    Exit(TFnSS(M)(ArgStr(Args, 0), ArgStr(Args, 1)));
+  end;
+  if Method = 'inbox' then
+  begin
+    M := Bind(Obj, 'Inbox', Method);
+    Exit(TFnS(M)(ArgStr(Args, 0)));
+  end;
+  if Method = 'list_topics' then
+  begin
+    M := Bind(Obj, 'ListTopics', Method);
+    Exit(TFnNone(M)());
+  end;
+  if Method = 'subscribers' then
+  begin
+    M := Bind(Obj, 'Subscribers', Method);
+    Exit(TFnS(M)(ArgStr(Args, 0)));
+  end;
+  if Method = 'peek' then
+  begin
+    M := Bind(Obj, 'Peek', Method);
+    Exit(TFnS(M)(ArgStr(Args, 0)));
+  end;
+  if Method = 'ack' then
+  begin
+    M := Bind(Obj, 'Ack', Method);
+    Exit(TFnSI(M)(ArgStr(Args, 0), ArgInt(Args, 1)));
+  end;
+  if Method = 'retain' then
+  begin
+    M := Bind(Obj, 'Retain', Method);
+    Exit(TFnSS(M)(ArgStr(Args, 0), ArgStr(Args, 1)));
+  end;
+  if Method = 'insert' then
+  begin
+    M := Bind(Obj, 'Insert', Method);
+    Exit(TFnIS(M)(ArgInt(Args, 0), ArgStr(Args, 1)));
+  end;
+  if Method = 'erase' then
+  begin
+    M := Bind(Obj, 'Erase', Method);
+    Exit(TFnII(M)(ArgInt(Args, 0), ArgInt(Args, 1)));
+  end;
+  if Method = 'get_text' then
+  begin
+    M := Bind(Obj, 'GetText', Method);
+    Exit(TFnNone(M)());
+  end;
+  if Method = 'length' then
+  begin
+    M := Bind(Obj, 'Length', Method);
+    Exit(TFnNone(M)());
+  end;
+  if Method = 'move' then
+  begin
+    M := Bind(Obj, 'Move', Method);
+    Exit(TFnI(M)(ArgInt(Args, 0)));
+  end;
+  if Method = 'type_text' then
+  begin
+    M := Bind(Obj, 'TypeText', Method);
+    Exit(TFnS(M)(ArgStr(Args, 0)));
+  end;
+  if Method = 'cursor' then
+  begin
+    M := Bind(Obj, 'Cursor', Method);
+    Exit(TFnNone(M)());
+  end;
+  if Method = 'undo' then
+  begin
+    M := Bind(Obj, 'Undo', Method);
+    Exit(TFnNone(M)());
+  end;
+  if Method = 'redo' then
+  begin
+    M := Bind(Obj, 'Redo', Method);
+    Exit(TFnNone(M)());
+  end;
+  if Method = 'select' then
+  begin
+    M := Bind(Obj, 'Select', Method);
+    Exit(TFnII(M)(ArgInt(Args, 0), ArgInt(Args, 1)));
+  end;
+  if Method = 'cut' then
+  begin
+    M := Bind(Obj, 'Cut', Method);
+    Exit(TFnNone(M)());
+  end;
+  if Method = 'copy_sel' then
+  begin
+    M := Bind(Obj, 'CopySel', Method);
+    Exit(TFnNone(M)());
+  end;
+  if Method = 'paste' then
+  begin
+    M := Bind(Obj, 'Paste', Method);
+    Exit(TFnNone(M)());
+  end;
   raise Exception.Create('unknown method ' + Method);
 end;
 

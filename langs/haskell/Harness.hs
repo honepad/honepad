@@ -136,6 +136,50 @@ class Target a where
   sticky _ _ = missing "sticky"
   doneBackend :: a -> String -> (String, a)
   doneBackend _ _ = missing "done"
+  subscribe :: a -> String -> String -> (String, a)
+  subscribe _ _ _ = missing "subscribe"
+  unsubscribe :: a -> String -> String -> (String, a)
+  unsubscribe _ _ _ = missing "unsubscribe"
+  publish :: a -> String -> String -> (String, a)
+  publish _ _ _ = missing "publish"
+  inbox :: a -> String -> (String, a)
+  inbox _ _ = missing "inbox"
+  listTopics :: a -> (String, a)
+  listTopics _ = missing "list_topics"
+  subscribers :: a -> String -> (String, a)
+  subscribers _ _ = missing "subscribers"
+  peek :: a -> String -> (String, a)
+  peek _ _ = missing "peek"
+  ack :: a -> String -> Int64 -> (String, a)
+  ack _ _ _ = missing "ack"
+  retain :: a -> String -> String -> (String, a)
+  retain _ _ _ = missing "retain"
+  insert :: a -> Int64 -> String -> (String, a)
+  insert _ _ _ = missing "insert"
+  erase :: a -> Int64 -> Int64 -> (String, a)
+  erase _ _ _ = missing "erase"
+  getText :: a -> (String, a)
+  getText _ = missing "get_text"
+  bufLength :: a -> (String, a)
+  bufLength _ = missing "length"
+  move :: a -> Int64 -> (String, a)
+  move _ _ = missing "move"
+  typeText :: a -> String -> (String, a)
+  typeText _ _ = missing "type_text"
+  cursor :: a -> (String, a)
+  cursor _ = missing "cursor"
+  undo :: a -> (String, a)
+  undo _ = missing "undo"
+  redo :: a -> (String, a)
+  redo _ = missing "redo"
+  select :: a -> Int64 -> Int64 -> (String, a)
+  select _ _ _ = missing "select"
+  cut :: a -> (String, a)
+  cut _ = missing "cut"
+  copySel :: a -> (String, a)
+  copySel _ = missing "copy_sel"
+  paste :: a -> (String, a)
+  paste _ = missing "paste"
 
 maybeInt :: Maybe Int64 -> Value
 maybeInt Nothing = JNull
@@ -244,6 +288,28 @@ dispatch obj method args =
     "set_weight" -> wrapStr (setWeight obj (argStr args 0) (argInt args 1))
     "sticky" -> wrapStr (sticky obj (argStr args 0))
     "done" -> wrapStr (doneBackend obj (argStr args 0))
+    "subscribe" -> wrapStr (subscribe obj (argStr args 0) (argStr args 1))
+    "unsubscribe" -> wrapStr (unsubscribe obj (argStr args 0) (argStr args 1))
+    "publish" -> wrapStr (publish obj (argStr args 0) (argStr args 1))
+    "inbox" -> wrapStr (inbox obj (argStr args 0))
+    "list_topics" -> wrapStr (listTopics obj)
+    "subscribers" -> wrapStr (subscribers obj (argStr args 0))
+    "peek" -> wrapStr (peek obj (argStr args 0))
+    "ack" -> wrapStr (ack obj (argStr args 0) (argInt args 1))
+    "retain" -> wrapStr (retain obj (argStr args 0) (argStr args 1))
+    "insert" -> wrapStr (insert obj (argInt args 0) (argStr args 1))
+    "erase" -> wrapStr (erase obj (argInt args 0) (argInt args 1))
+    "get_text" -> wrapStr (getText obj)
+    "length" -> wrapStr (bufLength obj)
+    "move" -> wrapStr (move obj (argInt args 0))
+    "type_text" -> wrapStr (typeText obj (argStr args 0))
+    "cursor" -> wrapStr (cursor obj)
+    "undo" -> wrapStr (undo obj)
+    "redo" -> wrapStr (redo obj)
+    "select" -> wrapStr (select obj (argInt args 0) (argInt args 1))
+    "cut" -> wrapStr (cut obj)
+    "copy_sel" -> wrapStr (copySel obj)
+    "paste" -> wrapStr (paste obj)
     _ -> missing method
   where
     wrapStr (r, obj') = (JStr r, obj')

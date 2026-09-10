@@ -1,0 +1,13 @@
+# Simulation stub. Fill methods from the problem spec.
+# subscribe(topic, client)
+# unsubscribe(topic, client)
+# publish(topic, message)
+# inbox(client)
+# list_topics()
+# subscribers(topic)
+# peek(client)
+# ack(client, n)
+# retain(topic, message)
+package Simulation;
+sub new { bless {}, shift }
+1;

@@ -412,6 +412,116 @@ JSONValue dispatch(Target obj, string methodName, JSONValue args)
             return toNode(obj.done(argStr(args, 0)));
         missing(methodName);
         break;
+    case "subscribe":
+        static if (__traits(hasMember, Target, "subscribe"))
+            return toNode(obj.subscribe(argStr(args, 0), argStr(args, 1)));
+        missing(methodName);
+        break;
+    case "unsubscribe":
+        static if (__traits(hasMember, Target, "unsubscribe"))
+            return toNode(obj.unsubscribe(argStr(args, 0), argStr(args, 1)));
+        missing(methodName);
+        break;
+    case "publish":
+        static if (__traits(hasMember, Target, "publish"))
+            return toNode(obj.publish(argStr(args, 0), argStr(args, 1)));
+        missing(methodName);
+        break;
+    case "inbox":
+        static if (__traits(hasMember, Target, "inbox"))
+            return toNode(obj.inbox(argStr(args, 0)));
+        missing(methodName);
+        break;
+    case "list_topics":
+        static if (__traits(hasMember, Target, "listTopics"))
+            return toNode(obj.listTopics());
+        missing(methodName);
+        break;
+    case "subscribers":
+        static if (__traits(hasMember, Target, "subscribers"))
+            return toNode(obj.subscribers(argStr(args, 0)));
+        missing(methodName);
+        break;
+    case "peek":
+        static if (__traits(hasMember, Target, "peek"))
+            return toNode(obj.peek(argStr(args, 0)));
+        missing(methodName);
+        break;
+    case "ack":
+        static if (__traits(hasMember, Target, "ack"))
+            return toNode(obj.ack(argStr(args, 0), argLong(args, 1)));
+        missing(methodName);
+        break;
+    case "retain":
+        static if (__traits(hasMember, Target, "retain"))
+            return toNode(obj.retain(argStr(args, 0), argStr(args, 1)));
+        missing(methodName);
+        break;
+    case "insert":
+        static if (__traits(hasMember, Target, "insert"))
+            return toNode(obj.insert(argLong(args, 0), argStr(args, 1)));
+        missing(methodName);
+        break;
+    case "erase":
+        static if (__traits(hasMember, Target, "erase"))
+            return toNode(obj.erase(argLong(args, 0), argLong(args, 1)));
+        missing(methodName);
+        break;
+    case "get_text":
+        static if (__traits(hasMember, Target, "getText"))
+            return toNode(obj.getText());
+        missing(methodName);
+        break;
+    case "length":
+        static if (__traits(compiles, obj.length()))
+            return toNode(obj.length());
+        missing(methodName);
+        break;
+    case "move":
+        static if (__traits(hasMember, Target, "move"))
+            return toNode(obj.move(argLong(args, 0)));
+        missing(methodName);
+        break;
+    case "type_text":
+        static if (__traits(hasMember, Target, "typeText"))
+            return toNode(obj.typeText(argStr(args, 0)));
+        missing(methodName);
+        break;
+    case "cursor":
+        static if (__traits(compiles, obj.cursor()))
+            return toNode(obj.cursor());
+        missing(methodName);
+        break;
+    case "undo":
+        static if (__traits(hasMember, Target, "undo"))
+            return toNode(obj.undo());
+        missing(methodName);
+        break;
+    case "redo":
+        static if (__traits(hasMember, Target, "redo"))
+            return toNode(obj.redo());
+        missing(methodName);
+        break;
+    case "select":
+        static if (__traits(hasMember, Target, "select"))
+            return toNode(obj.select(argLong(args, 0), argLong(args, 1)));
+        missing(methodName);
+        break;
+    case "cut":
+        static if (__traits(hasMember, Target, "cut"))
+            return toNode(obj.cut());
+        missing(methodName);
+        break;
+    case "copy_sel":
+        static if (__traits(hasMember, Target, "copySel"))
+            return toNode(obj.copySel());
+        missing(methodName);
+        break;
+    case "paste":
+        static if (__traits(hasMember, Target, "paste"))
+            return toNode(obj.paste());
+        missing(methodName);
+        break;
     default:
         throw new Exception("unknown method " ~ methodName);
     }

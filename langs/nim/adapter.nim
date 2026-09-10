@@ -363,6 +363,116 @@ proc dispatch(obj: var Target; methodName: string; args: JsonNode): JsonNode =
       result = toNode(obj.done(argStr(args, 0)))
     else:
       missing(methodName)
+  of "subscribe":
+    when compiles(obj.subscribe("", "")):
+      result = toNode(obj.subscribe(argStr(args, 0), argStr(args, 1)))
+    else:
+      missing(methodName)
+  of "unsubscribe":
+    when compiles(obj.unsubscribe("", "")):
+      result = toNode(obj.unsubscribe(argStr(args, 0), argStr(args, 1)))
+    else:
+      missing(methodName)
+  of "publish":
+    when compiles(obj.publish("", "")):
+      result = toNode(obj.publish(argStr(args, 0), argStr(args, 1)))
+    else:
+      missing(methodName)
+  of "inbox":
+    when compiles(obj.inbox("")):
+      result = toNode(obj.inbox(argStr(args, 0)))
+    else:
+      missing(methodName)
+  of "list_topics":
+    when compiles(obj.listTopics()):
+      result = toNode(obj.listTopics())
+    else:
+      missing(methodName)
+  of "subscribers":
+    when compiles(obj.subscribers("")):
+      result = toNode(obj.subscribers(argStr(args, 0)))
+    else:
+      missing(methodName)
+  of "peek":
+    when compiles(obj.peek("")):
+      result = toNode(obj.peek(argStr(args, 0)))
+    else:
+      missing(methodName)
+  of "ack":
+    when compiles(obj.ack("", 0'i64)):
+      result = toNode(obj.ack(argStr(args, 0), argInt(args, 1)))
+    else:
+      missing(methodName)
+  of "retain":
+    when compiles(obj.retain("", "")):
+      result = toNode(obj.retain(argStr(args, 0), argStr(args, 1)))
+    else:
+      missing(methodName)
+  of "insert":
+    when compiles(obj.insert(0'i64, "")):
+      result = toNode(obj.insert(argInt(args, 0), argStr(args, 1)))
+    else:
+      missing(methodName)
+  of "erase":
+    when compiles(obj.erase(0'i64, 0'i64)):
+      result = toNode(obj.erase(argInt(args, 0), argInt(args, 1)))
+    else:
+      missing(methodName)
+  of "get_text":
+    when compiles(obj.getText()):
+      result = toNode(obj.getText())
+    else:
+      missing(methodName)
+  of "length":
+    when compiles(obj.length()):
+      result = toNode(obj.length())
+    else:
+      missing(methodName)
+  of "move":
+    when compiles(obj.move(0'i64)):
+      result = toNode(obj.move(argInt(args, 0)))
+    else:
+      missing(methodName)
+  of "type_text":
+    when compiles(obj.typeText("")):
+      result = toNode(obj.typeText(argStr(args, 0)))
+    else:
+      missing(methodName)
+  of "cursor":
+    when compiles(obj.cursor()):
+      result = toNode(obj.cursor())
+    else:
+      missing(methodName)
+  of "undo":
+    when compiles(obj.undo()):
+      result = toNode(obj.undo())
+    else:
+      missing(methodName)
+  of "redo":
+    when compiles(obj.redo()):
+      result = toNode(obj.redo())
+    else:
+      missing(methodName)
+  of "select":
+    when compiles(obj.select(0'i64, 0'i64)):
+      result = toNode(obj.select(argInt(args, 0), argInt(args, 1)))
+    else:
+      missing(methodName)
+  of "cut":
+    when compiles(obj.cut()):
+      result = toNode(obj.cut())
+    else:
+      missing(methodName)
+  of "copy_sel":
+    when compiles(obj.copySel()):
+      result = toNode(obj.copySel())
+    else:
+      missing(methodName)
+  of "paste":
+    when compiles(obj.paste()):
+      result = toNode(obj.paste())
+    else:
+      missing(methodName)
   else:
     raise newException(ValueError, "unknown method " & methodName)
 
