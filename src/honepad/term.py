@@ -356,6 +356,9 @@ def _print_invalid_problem_hint(text: str) -> None:
         print(f"Did you mean {hint}?")
 
 
+HONEPAD_ERRORS = (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError)
+
+
 def print_fail(exc: BaseException) -> None:
     print(status_fail(f"FAIL: {exc}"))
     text = str(exc)

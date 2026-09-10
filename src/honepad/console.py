@@ -26,6 +26,7 @@ from honepad.session import (
     work_src,
 )
 from honepad.term import (
+    HONEPAD_ERRORS,
     accent,
     bold,
     clock_style,
@@ -108,8 +109,8 @@ def cmd_console(args: argparse.Namespace) -> int:
             int(session["unlocked"]),
             cleared=bool(session.get("cleared")),
         )
-    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
-        _print_fail(exc)
+    except HONEPAD_ERRORS as exc:
+        print_fail(exc)
         if "both problem and lang" in str(exc):
             print(f"NEXT: {invocation()} console bank_system java")
         return 1
@@ -140,8 +141,8 @@ def cmd_vscode(args: argparse.Namespace) -> int:
             print("OK: wrote workspace")
             return 0
         return open_vscode(path, [work])
-    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
-        _print_fail(exc)
+    except HONEPAD_ERRORS as exc:
+        print_fail(exc)
         if "both problem and lang" in str(exc):
             print(f"NEXT: {invocation()} vscode bank_system java")
         return 1
@@ -244,7 +245,7 @@ def loop_console(
                 stdout.write("\n")
                 try:
                     last = _apply_reset(confirmed, session, stdout)
-                except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
+                except HONEPAD_ERRORS as exc:
                     stdout.write(status_fail(f"FAIL: {exc}") + "\n")
                     last = 1
                 else:
@@ -395,7 +396,7 @@ def dispatch(
         stdout.write(status_note("NOTE: ? prints what each key does.") + "\n")
         stdout.flush()
         return 1
-    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
+    except HONEPAD_ERRORS as exc:
         stdout.write(status_fail(f"FAIL: {exc}") + "\n")
         stdout.flush()
         return 1
@@ -429,10 +430,6 @@ def _print_spec_link(problem: str, lang: str) -> None:
     line = _spec_output(problem, lang)
     if line is not None:
         print(line)
-
-
-def _print_fail(exc: BaseException) -> None:
-    print_fail(exc)
 
 
 def _confirm_unlock(stdin: TextIO, stdout: TextIO, *, live: bool) -> bool | None:

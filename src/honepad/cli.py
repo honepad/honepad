@@ -35,6 +35,7 @@ from honepad.session import (
     work_src,
 )
 from honepad.term import (
+    HONEPAD_ERRORS,
     bold,
     columns,
     dim,
@@ -183,10 +184,6 @@ def _fill_start_args(args: argparse.Namespace) -> bool:
 def _is_work_file_problem(exc: BaseException) -> bool:
     text = str(exc)
     return "work file" in text or "/work/" in text or "work." in text
-
-
-def _print_fail(exc: BaseException) -> None:
-    print_fail(exc)
 
 
 def _check_level(problem: str, level: int) -> None:
@@ -357,8 +354,8 @@ def cmd_start(args: argparse.Namespace) -> int:
         level = unlocked if args.level is None else args.level
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
-    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
-        _print_fail(exc)
+    except HONEPAD_ERRORS as exc:
+        print_fail(exc)
         return 1
     if level > unlocked:
         print(status_fail(f"LOCKED: LEVEL {level} (open through LEVEL {unlocked})"))
@@ -448,13 +445,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                         int(session["unlocked"]),
                         cleared=bool(session.get("cleared")),
                     )
-                except (
-                    KeyError,
-                    ValueError,
-                    FileNotFoundError,
-                    OSError,
-                    RuntimeError,
-                ) as exc:
+                except HONEPAD_ERRORS as exc:
                     print(status_note(f"NOTE: workspace {exc}"))
         report = run(args.problem, lang, level, kind=kind)
         if session is not None and same:
@@ -468,15 +459,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         if report.debug.strip():
             for line in report.debug.splitlines():
                 print(f"DEBUG: {line}")
-    except (
-        NotImplementedError,
-        KeyError,
-        FileNotFoundError,
-        OSError,
-        RuntimeError,
-        ValueError,
-    ) as exc:
-        _print_fail(exc)
+    except HONEPAD_ERRORS + (NotImplementedError,) as exc:
+        print_fail(exc)
         if kind is not None and lang is not None:
             _print_run_source(args.problem, lang, kind)
         if _is_work_file_problem(exc):
@@ -553,15 +537,8 @@ def cmd_run(args: argparse.Namespace) -> int:
                     if kind == "work":
                         _print_work_notes(args.problem, lang)
                     return 1
-        except (
-            NotImplementedError,
-            KeyError,
-            FileNotFoundError,
-            OSError,
-            RuntimeError,
-            ValueError,
-        ) as exc:
-            _print_fail(exc)
+        except HONEPAD_ERRORS + (NotImplementedError,) as exc:
+            print_fail(exc)
             return 1
     may_unlock = bool(getattr(args, "unlock", False))
     if practice and session is not None and kind in ("solution", "work"):
@@ -578,13 +555,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                             max_level(str(session["problem"])),
                             cleared=True,
                         )
-                    except (
-                        KeyError,
-                        ValueError,
-                        FileNotFoundError,
-                        OSError,
-                        RuntimeError,
-                    ) as exc:
+                    except HONEPAD_ERRORS as exc:
                         print(status_note(f"NOTE: workspace {exc}"))
             print_complete(
                 str(session["problem"]),
@@ -606,7 +577,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         if may_unlock:
             try:
                 ensure_work_copy(args.problem, lang, reset=False, level=nxt, require_merge=True)
-            except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
+            except HONEPAD_ERRORS as exc:
                 print(status_fail(f"FAIL: {exc}"))
                 print(work_reset_next())
                 if lang is not None and (kind == "work" or _is_work_file_problem(exc)):
@@ -620,7 +591,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                     nxt,
                     cleared=bool(session.get("cleared")),
                 )
-            except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
+            except HONEPAD_ERRORS as exc:
                 workspace_exc = exc
             print(status_ok("OK"))
             unlocked = unlock_next(session)
@@ -666,7 +637,7 @@ def _print_run_source(problem: str, lang: str, kind: str) -> None:
         if spec is None:
             return
         print(f"SRC: {spec_src(lang, problem, kind, spec)}")
-    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError):
+    except HONEPAD_ERRORS:
         return
 
 
@@ -701,8 +672,8 @@ def cmd_submit(args: argparse.Namespace) -> int:
                 if not ok:
                     print("OK: submit cancelled")
                     return 0
-    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
-        _print_fail(exc)
+    except HONEPAD_ERRORS as exc:
+        print_fail(exc)
         return 1
     args.unlock = True
     return cmd_run(args)
@@ -769,8 +740,8 @@ def cmd_cases(args: argparse.Namespace) -> int:
             _check_level(args.problem, args.level)
             level = args.level
         cases = load_cases(args.problem, level)
-    except (ValueError, KeyError, FileNotFoundError) as exc:
-        _print_fail(exc)
+    except HONEPAD_ERRORS as exc:
+        print_fail(exc)
         return 1
     print(json.dumps({"problem": args.problem, "count": len(cases)}, indent=2))
     return 0
