@@ -13,5 +13,30 @@
       {"m": "get_n_largest", "a": ["/", 2], "e": "/big_file.mp4(20), /dir/file2(20)"},
       {"m": "get_n_largest", "a": ["/", 0], "e": ""}
     ]
+  },
+  {
+    "id": "fs-l2-empty-prefix",
+    "level": 2,
+    "calls": [
+      {"m": "add_file", "a": ["/dir/a.txt", 5], "e": "true"},
+      {"m": "get_n_largest", "a": ["/nope", 3], "e": ""}
+    ]
+  },
+  {
+    "id": "fs-l2-n-zero",
+    "level": 2,
+    "calls": [
+      {"m": "add_file", "a": ["/a.txt", 5], "e": "true"},
+      {"m": "get_n_largest", "a": ["/", 0], "e": ""}
+    ]
+  },
+  {
+    "id": "fs-l2-tie-name",
+    "level": 2,
+    "calls": [
+      {"m": "add_file", "a": ["/b.txt", 10], "e": "true"},
+      {"m": "add_file", "a": ["/a.txt", 10], "e": "true"},
+      {"m": "get_n_largest", "a": ["/", 2], "e": "/a.txt(10), /b.txt(10)"}
+    ]
   }
 ]

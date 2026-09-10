@@ -16,5 +16,27 @@
       {"m": "paste", "a": [], "e": "16"},
       {"m": "get_text", "a": [], "e": "hello worldhello"}
     ]
+  },
+  {
+    "id": "te-l4-copy-keeps",
+    "level": 4,
+    "calls": [
+      {"m": "insert", "a": [0, "hello"], "e": "5"},
+      {"m": "select", "a": [0, 5], "e": "true"},
+      {"m": "copy_sel", "a": [], "e": "hello"},
+      {"m": "get_text", "a": [], "e": "hello"},
+      {"m": "length", "a": [], "e": "5"}
+    ]
+  },
+  {
+    "id": "te-l4-cut-shortens",
+    "level": 4,
+    "calls": [
+      {"m": "insert", "a": [0, "hello"], "e": "5"},
+      {"m": "select", "a": [0, 2], "e": "true"},
+      {"m": "cut", "a": [], "e": "he"},
+      {"m": "get_text", "a": [], "e": "llo"},
+      {"m": "length", "a": [], "e": "3"}
+    ]
   }
 ]

@@ -11,5 +11,23 @@
       {"m": "set_health", "a": ["a", 0], "e": "true"},
       {"m": "sticky", "a": ["c1"], "e": "b"}
     ]
+  },
+  {
+    "id": "lb-l3-sticky-miss",
+    "level": 3,
+    "calls": [
+      {"m": "sticky", "a": ["c1"], "e": ""}
+    ]
+  },
+  {
+    "id": "lb-l3-sticky-unhealthy",
+    "level": 3,
+    "calls": [
+      {"m": "add_backend", "a": ["a"], "e": "true"},
+      {"m": "add_backend", "a": ["b"], "e": "true"},
+      {"m": "sticky", "a": ["c1"], "e": "a"},
+      {"m": "set_health", "a": ["a", 0], "e": "true"},
+      {"m": "sticky", "a": ["c1"], "e": "b"}
+    ]
   }
 ]

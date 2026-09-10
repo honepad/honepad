@@ -20,5 +20,24 @@
       {"m": "calc_salary", "a": ["John", 110, 350], "e": "45500"},
       {"m": "calc_salary", "a": ["John", 900, 1400], "e": "0"}
     ]
+  },
+  {
+    "id": "wk-l3-promote-later",
+    "level": 3,
+    "calls": [
+      {"m": "add_worker", "a": ["Ann", "Dev", 100], "e": "true"},
+      {"m": "promote", "a": ["Ann", "Lead", 200, 50], "e": "success"},
+      {"m": "register", "a": ["Ann", 50], "e": "registered"},
+      {"m": "register", "a": ["Ann", 60], "e": "registered"},
+      {"m": "calc_salary", "a": ["Ann", 0, 100], "e": "2000"}
+    ]
+  },
+  {
+    "id": "wk-l3-salary-zero",
+    "level": 3,
+    "calls": [
+      {"m": "add_worker", "a": ["Ann", "Dev", 100], "e": "true"},
+      {"m": "calc_salary", "a": ["Ann", 0, 100], "e": "0"}
+    ]
   }
 ]

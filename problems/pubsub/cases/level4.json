@@ -13,5 +13,24 @@
       {"m": "subscribe", "a": ["news", "c2"], "e": "true"},
       {"m": "inbox", "a": ["c2"], "e": "news:later"}
     ]
+  },
+  {
+    "id": "ps-l4-retain-overwrite",
+    "level": 4,
+    "calls": [
+      {"m": "retain", "a": ["news", "old"], "e": ""},
+      {"m": "retain", "a": ["news", "new"], "e": ""},
+      {"m": "subscribe", "a": ["news", "c1"], "e": "true"},
+      {"m": "inbox", "a": ["c1"], "e": "news:new"}
+    ]
+  },
+  {
+    "id": "ps-l4-retain-before-sub",
+    "level": 4,
+    "calls": [
+      {"m": "retain", "a": ["news", "hello"], "e": ""},
+      {"m": "subscribe", "a": ["news", "c1"], "e": "true"},
+      {"m": "inbox", "a": ["c1"], "e": "news:hello"}
+    ]
   }
 ]

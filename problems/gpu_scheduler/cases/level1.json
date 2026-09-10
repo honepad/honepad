@@ -12,5 +12,21 @@
       {"m": "status", "a": ["j1"], "e": "queued"},
       {"m": "status", "a": ["j9"], "e": ""}
     ]
+  },
+  {
+    "id": "gpu-l1-missing-job",
+    "level": 1,
+    "calls": [
+      {"m": "add_gpu", "a": ["g1", 8], "e": "true"},
+      {"m": "status", "a": ["ghost"], "e": ""}
+    ]
+  },
+  {
+    "id": "gpu-l1-dup-gpu",
+    "level": 1,
+    "calls": [
+      {"m": "add_gpu", "a": ["g1", 8], "e": "true"},
+      {"m": "add_gpu", "a": ["g1", 4], "e": "false"}
+    ]
   }
 ]

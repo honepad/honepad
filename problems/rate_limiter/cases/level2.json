@@ -18,5 +18,25 @@
       {"m": "allow", "a": ["api", 4], "e": "false"},
       {"m": "allow", "a": ["api", 5], "e": "true"}
     ]
+  },
+  {
+    "id": "rl-l2-configure-reset",
+    "level": 2,
+    "calls": [
+      {"m": "allow", "a": ["api", 0], "e": "true"},
+      {"m": "allow", "a": ["api", 1], "e": "true"},
+      {"m": "allow", "a": ["api", 2], "e": "true"},
+      {"m": "allow", "a": ["api", 3], "e": "false"},
+      {"m": "configure", "a": ["api", 2, 10], "e": "true"},
+      {"m": "allow", "a": ["api", 3], "e": "true"}
+    ]
+  },
+  {
+    "id": "rl-l2-zero-cap",
+    "level": 2,
+    "calls": [
+      {"m": "configure", "a": ["api", 0, 10], "e": "invalid_request"},
+      {"m": "allow", "a": ["api", 0], "e": "true"}
+    ]
   }
 ]

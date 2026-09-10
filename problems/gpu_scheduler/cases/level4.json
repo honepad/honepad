@@ -21,5 +21,26 @@
       {"m": "set_priority", "a": ["huge", 10], "e": "true"},
       {"m": "assign", "a": [], "e": "fit"}
     ]
+  },
+  {
+    "id": "gpu-l4-fifo-without-priority",
+    "level": 4,
+    "calls": [
+      {"m": "add_gpu", "a": ["g1", 8], "e": "true"},
+      {"m": "add_gpu", "a": ["g2", 8], "e": "true"},
+      {"m": "submit_job", "a": ["j1", 4], "e": "true"},
+      {"m": "submit_job", "a": ["j2", 4], "e": "true"},
+      {"m": "assign", "a": [], "e": "j1"},
+      {"m": "assign", "a": [], "e": "j2"}
+    ]
+  },
+  {
+    "id": "gpu-l4-missing-priority",
+    "level": 4,
+    "calls": [
+      {"m": "add_gpu", "a": ["g1", 8], "e": "true"},
+      {"m": "submit_job", "a": ["j1", 4], "e": "true"},
+      {"m": "set_priority", "a": ["ghost", 9], "e": "invalid_request"}
+    ]
   }
 ]

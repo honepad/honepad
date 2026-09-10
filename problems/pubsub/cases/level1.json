@@ -17,5 +17,23 @@
       {"m": "inbox", "a": ["ghost"], "e": ""},
       {"m": "publish", "a": ["none", "x"], "e": "0"}
     ]
+  },
+  {
+    "id": "ps-l1-empty-inbox",
+    "level": 1,
+    "calls": [
+      {"m": "subscribe", "a": ["news", "c1"], "e": "true"},
+      {"m": "inbox", "a": ["c1"], "e": ""}
+    ]
+  },
+  {
+    "id": "ps-l1-unsub-then-pub",
+    "level": 1,
+    "calls": [
+      {"m": "subscribe", "a": ["news", "c1"], "e": "true"},
+      {"m": "unsubscribe", "a": ["news", "c1"], "e": "true"},
+      {"m": "publish", "a": ["news", "hi"], "e": "0"},
+      {"m": "inbox", "a": ["c1"], "e": ""}
+    ]
   }
 ]

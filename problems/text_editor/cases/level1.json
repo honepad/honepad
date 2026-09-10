@@ -15,5 +15,21 @@
       {"m": "insert", "a": [6, "x"], "e": "invalid_request"},
       {"m": "length", "a": [], "e": "5"}
     ]
+  },
+  {
+    "id": "te-l1-erase-past-start",
+    "level": 1,
+    "calls": [
+      {"m": "erase", "a": [0, 1], "e": "invalid_request"},
+      {"m": "get_text", "a": [], "e": ""},
+      {"m": "length", "a": [], "e": "0"}
+    ]
+  },
+  {
+    "id": "te-l1-length-empty",
+    "level": 1,
+    "calls": [
+      {"m": "length", "a": [], "e": "0"}
+    ]
   }
 ]
