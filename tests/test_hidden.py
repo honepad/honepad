@@ -59,6 +59,26 @@ def test_practice_run_stays_public_only(monkeypatch, tmp_path: Path, capsys) -> 
     assert "hid-l1-two-workers" not in out
 
 
+def test_submit_hidden_load_error_is_fail_not_traceback(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "workers", "python3", "--no-console"]) == 0
+    capsys.readouterr()
+
+    def boom(*_a, **_k):
+        raise ValueError("hidden.json: bad")
+
+    monkeypatch.setattr("honepad.cli.load_hidden_cases", boom)
+    assert main(["submit", "workers", "--kind", "solution", "--confirm", "y"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "Traceback" not in out
+    session = load_session()
+    assert session is not None
+    assert session["unlocked"] == 1
+
+
 def test_submit_hidden_fail_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))

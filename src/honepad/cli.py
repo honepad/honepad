@@ -521,35 +521,46 @@ def cmd_run(args: argparse.Namespace) -> int:
         return 1
     print(render_pass(report.problem, report.lang, report.level, report.passed))
     if _wants_hidden(kind, bool(getattr(args, "unlock", False))):
-        hidden = load_hidden_cases(args.problem, level)
-        if hidden:
-            hidden_report = run(args.problem, lang, level, kind=kind, cases=hidden)
-            print(
-                f"{hidden_report.problem} {hidden_report.lang} hidden through LEVEL "
-                f"{hidden_report.level} passed={hidden_report.passed} "
-                f"failed={len(hidden_report.failed)}"
-            )
-            if hidden_report.failed:
-                fail = hidden_report.failed[0]
-                naming = str(language(lang)["naming"])
-                shown = method_name(fail.method, naming)
-                argv = ", ".join(repr(item) for item in fail.args)
+        try:
+            hidden = load_hidden_cases(args.problem, level)
+            if hidden:
+                hidden_report = run(args.problem, lang, level, kind=kind, cases=hidden)
                 print(
-                    render_hidden_fail(
-                        problem=hidden_report.problem,
-                        lang=hidden_report.lang,
-                        level=hidden_report.level,
-                        case=fail.case,
-                        index=fail.index,
-                        call=f"{shown}({argv})",
-                        actual=repr(fail.actual),
-                        passed=hidden_report.passed,
-                        total=hidden_report.passed + len(hidden_report.failed),
-                    )
+                    f"{hidden_report.problem} {hidden_report.lang} hidden through LEVEL "
+                    f"{hidden_report.level} passed={hidden_report.passed} "
+                    f"failed={len(hidden_report.failed)}"
                 )
-                if kind == "work":
-                    _print_work_notes(args.problem, lang)
-                return 1
+                if hidden_report.failed:
+                    fail = hidden_report.failed[0]
+                    naming = str(language(lang)["naming"])
+                    shown = method_name(fail.method, naming)
+                    argv = ", ".join(repr(item) for item in fail.args)
+                    print(
+                        render_hidden_fail(
+                            problem=hidden_report.problem,
+                            lang=hidden_report.lang,
+                            level=hidden_report.level,
+                            case=fail.case,
+                            index=fail.index,
+                            call=f"{shown}({argv})",
+                            actual=repr(fail.actual),
+                            passed=hidden_report.passed,
+                            total=hidden_report.passed + len(hidden_report.failed),
+                        )
+                    )
+                    if kind == "work":
+                        _print_work_notes(args.problem, lang)
+                    return 1
+        except (
+            NotImplementedError,
+            KeyError,
+            FileNotFoundError,
+            OSError,
+            RuntimeError,
+            ValueError,
+        ) as exc:
+            _print_fail(exc)
+            return 1
     may_unlock = bool(getattr(args, "unlock", False))
     if practice and session is not None and kind in ("solution", "work"):
         nxt = int(session["unlocked"]) + 1

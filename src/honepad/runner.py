@@ -91,6 +91,8 @@ def spec_src(lang_id: str, problem: str, kind: str, spec: dict[str, Any]) -> Pat
 def _values_differ(actual: Any, expected: Any) -> bool:
     if expected is True or expected is False or expected is None:
         return actual is not expected
+    if actual is True or actual is False or actual is None:
+        return True
     return actual != expected
 
 
@@ -126,6 +128,8 @@ def report_from_proc(
         raise RuntimeError(f"{lang_id} adapter produced invalid JSON")
     for row in raw_failed:
         if not isinstance(row, dict):
+            raise RuntimeError(f"{lang_id} adapter produced invalid JSON")
+        if any(key not in row for key in ("case", "index", "method", "expected", "actual")):
             raise RuntimeError(f"{lang_id} adapter produced invalid JSON")
         args = row.get("args", row.get("a"))
         if not isinstance(args, list):
