@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from honepad.catalog import problems, repo_root
-from honepad.cli import main
+from honepad.cli import build_parser, main
 from honepad.console import (
     _apply_reset,
     _confirm_reset,
@@ -619,13 +619,15 @@ def test_start_resume_note_before_spec(monkeypatch, tmp_path: Path, capsys) -> N
 
 def test_start_on_tty_opens_live_menu(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    monkeypatch.delenv("FORCE_COLOR", raising=False)
     fake_in = io.StringIO("q\n")
     monkeypatch.setattr(fake_in, "isatty", lambda: True)
     monkeypatch.setattr(sys, "stdin", fake_in)
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
     # StringIO has no fileno; stay on the readline menu path.
     monkeypatch.setattr("honepad.console._use_live", lambda *_a, **_k: False)
-    assert main(["start", "bank_system", "python3", "--reset"]) == 0
+    assert main(["start", "bank_system", "python3", "--reset", "--yes"]) == 0
     out = capsys.readouterr().out
     assert "1 run" in out
     assert "OK: quit" in out
@@ -637,11 +639,106 @@ def test_start_no_console_skips_menu_on_tty(monkeypatch, tmp_path: Path, capsys)
     monkeypatch.setattr(fake_in, "isatty", lambda: True)
     monkeypatch.setattr(sys, "stdin", fake_in)
     monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
-    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    assert main(["start", "bank_system", "python3", "--reset", "--yes", "--no-console"]) == 0
     out = capsys.readouterr().out
     assert "1 run" not in out
     assert "OK: quit" not in out
     assert fake_in.read() == "q\n"
+
+
+def _l2_python_work(monkeypatch, tmp_path: Path) -> Path:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = _write_python_solution(tmp_path)
+    assert main(["submit", "bank_system", "--lang", "python3"]) == 0
+    assert load_session()["unlocked"] == 2
+    assert "def merge_accounts(" in work.read_text(encoding="utf-8")
+    return work
+
+
+def test_start_back_declined_leaves_work_byte_identical(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    work = _l2_python_work(monkeypatch, tmp_path)
+    before = work.read_bytes()
+    session_file = tmp_path / "session.json"
+    session_before = session_file.read_bytes()
+    unlocked = int(load_session()["unlocked"])
+    fake_in = io.StringIO("n\n")
+    monkeypatch.setattr(fake_in, "isatty", lambda: True)
+    monkeypatch.setattr(sys, "stdin", fake_in)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    monkeypatch.setattr("honepad.console._use_live", lambda *_a, **_k: False)
+    capsys.readouterr()
+    assert main(["start", "bank_system", "python3", "--back", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert work.read_bytes() == before
+    assert session_file.read_bytes() == session_before
+    assert load_session()["unlocked"] == unlocked
+    assert "OK: cancelled" in out
+    assert str(work) in out
+    assert "rewrites your work file from the stub" in out
+    assert "Rewrite work file? y / n" in out
+
+
+def test_start_back_yes_rewrites_work(monkeypatch, tmp_path: Path, capsys) -> None:
+    work = _l2_python_work(monkeypatch, tmp_path)
+    capsys.readouterr()
+    assert main(["start", "bank_system", "python3", "--back", "--yes", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    text = work.read_text(encoding="utf-8")
+    assert "def create_account(" in text
+    assert "def merge_accounts(" not in text
+    assert "def top_spenders(" not in text
+    assert load_session()["unlocked"] == 1
+    assert "rewrites your work file from the stub" in out
+    assert str(work) in out
+
+
+def test_start_back_non_tty_does_not_block(monkeypatch, tmp_path: Path, capsys) -> None:
+    work = _l2_python_work(monkeypatch, tmp_path)
+    capsys.readouterr()
+    assert main(["start", "bank_system", "python3", "--back", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    text = work.read_text(encoding="utf-8")
+    assert "def merge_accounts(" not in text
+    assert "def top_spenders(" not in text
+    assert load_session()["unlocked"] == 1
+    assert "rewrites your work file from the stub" in out
+    assert str(work) in out
+    assert "Rewrite work file?" not in out
+
+
+def test_start_reset_yes_rewrites_work_on_tty(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    work.write_text("edited-by-candidate\n", encoding="utf-8")
+    fake_in = io.StringIO("n\n")
+    monkeypatch.setattr(fake_in, "isatty", lambda: True)
+    monkeypatch.setattr(sys, "stdin", fake_in)
+    monkeypatch.setattr(sys.stdout, "isatty", lambda: True)
+    capsys.readouterr()
+    assert main(["start", "bank_system", "python3", "--reset", "--yes", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    text = work.read_text(encoding="utf-8")
+    assert "edited-by-candidate" not in text
+    assert "def create_account(" in text
+    assert "rewrites your work file from the stub" in out
+    assert fake_in.read() == "n\n"
+
+
+def test_start_help_mentions_rewrite(capsys) -> None:
+    parser = build_parser()
+    with pytest.raises(SystemExit) as excinfo:
+        parser.parse_args(["start", "-h"])
+    assert excinfo.value.code == 0
+    out = capsys.readouterr().out
+    lowered = out.lower()
+    assert "rewrite" in lowered
+    assert "work file" in lowered
+    assert "--back" in out
+    assert "--reset" in out
 
 
 def test_bare_honepad_resumes_console(monkeypatch, tmp_path: Path, capsys) -> None:

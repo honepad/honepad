@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 import time
+from pathlib import Path
 from typing import Any
 
 from honepad.catalog import (
@@ -103,6 +104,7 @@ def cmd_default(_args: argparse.Namespace) -> int:
                     minutes=None,
                     reset=False,
                     back=False,
+                    yes=False,
                     no_console=False,
                 )
             )
@@ -122,6 +124,22 @@ def _can_prompt() -> bool:
         return bool(sys.stdin.isatty() and sys.stdout.isatty())
     except AttributeError:
         return False
+
+
+def _confirm_rewrite(work: Path, *, yes: bool) -> bool:
+    print(
+        status_fail(
+            "start --back / --reset rewrites your work file from the stub. "
+            "This deletes what you wrote:"
+        )
+    )
+    print(f"  {work}")
+    if yes or not _can_prompt():
+        return True
+    print("Rewrite work file? y / n")
+    print("Type y to rewrite it. Anything else cancels.")
+    line = sys.stdin.readline()
+    return line.strip().lower() in {"y", "yes"}
 
 
 def _runner_ids() -> list[str]:
@@ -301,10 +319,18 @@ def cmd_start(args: argparse.Namespace) -> int:
                 print(work_line(work_src(args.problem, row["id"])))
                 print(f"NEXT: {invocation()} start")
                 return 1
+            work = work_src(args.problem, row["id"])
+            if not _confirm_rewrite(work, yes=getattr(args, "yes", False)):
+                print(status_ok("OK: cancelled"))
+                return 0
             session, work = drop_level(session, minutes=args.minutes)
             session = ensure_session(args.problem, row["id"], minutes=args.minutes)
             unlocked = int(session["unlocked"])
         elif args.reset:
+            work = work_src(args.problem, row["id"])
+            if not _confirm_rewrite(work, yes=getattr(args, "yes", False)):
+                print(status_ok("OK: cancelled"))
+                return 0
             work = ensure_work_copy(args.problem, row["id"], reset=True, level=1)
             session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=True)
             unlocked = int(session["unlocked"])
@@ -782,6 +808,7 @@ def build_parser() -> argparse.ArgumentParser:
             "On a TTY, omit problem and language to pick from a list, "
             "then this opens the live menu. "
             "--reset starts over at level 1. --back drops one unlocked level. "
+            "Both flags rewrite the work file from the stub. "
             "Unimplemented catalog langs print FAIL and exit 1."
         ),
     )
@@ -789,8 +816,21 @@ def build_parser() -> argparse.ArgumentParser:
     start.add_argument("lang", nargs="?")
     start.add_argument("--level", type=int, default=None)
     start.add_argument("--minutes", type=int, default=None)
-    start.add_argument("--reset", action="store_true")
-    start.add_argument("--back", action="store_true")
+    start.add_argument(
+        "--reset",
+        action="store_true",
+        help="start over at level 1; rewrites the work file",
+    )
+    start.add_argument(
+        "--back",
+        action="store_true",
+        help="drop one unlocked level; rewrites the work file",
+    )
+    start.add_argument(
+        "--yes",
+        action="store_true",
+        help="rewrite the work file without prompting",
+    )
     start.add_argument("--no-console", action="store_true")
     start.set_defaults(func=cmd_start)
 
