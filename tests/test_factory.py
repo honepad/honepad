@@ -130,7 +130,10 @@ def test_ci_test_job_keeps_short_cli_smoke() -> None:
     assert "name: Stealth" in text
     assert "name: Lint" in text
     assert "name: Next job respects human_gate" in text
-    assert 'if state.get("human_gate"):' in text
+    assert "factory/scripts/check-human-gate.py" in text
+    assert 'if state.get("human_gate"):' not in text
+    assert "python3 - <<'PY'" not in text
+    assert "sys.exit(0 if result.returncode == 2 else 1)" not in text
     assert "- run: bash factory/scripts/next-job.sh\n" not in text
 
 
@@ -369,20 +372,39 @@ def test_auto_approve_constitution_item_8_names_workflow_and_shard() -> None:
     assert "factory/scripts/ci-pytest-shard.py" in item8
 
 
+def _human_gate_callers() -> dict[str, str]:
+    return {
+        "Makefile": (ROOT / "Makefile").read_text(),
+        "AGENTS.md": (ROOT / "AGENTS.md").read_text(),
+        "ci.yml": (ROOT / ".github/workflows/ci.yml").read_text(),
+    }
+
+
+def _gate_mod():
+    path = ROOT / "factory" / "scripts" / "check-human-gate.py"
+    spec = importlib.util.spec_from_file_location("check_human_gate", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def test_makefile_check_accepts_parked_human_gate() -> None:
     text = (ROOT / "Makefile").read_text()
     assert "factory/scripts/write-ledger.sh --self-test" in text
     assert "factory/scripts/ensure-scala.sh" in text
-    assert "factory/scripts/next-job.sh" in text
+    assert "factory/scripts/check-human-gate.py" in text
     assert "\tbash factory/scripts/next-job.sh\n" not in text
-    assert "human_gate" in text
-    assert "returncode == 2" in text
+    assert "python3 factory/scripts/check-human-gate.py" in text
     wrappers = [
         line.strip()
         for line in text.splitlines()
         if line.strip().startswith("python3 -c ") and "human_gate" in line
     ]
-    assert len(wrappers) == 1
+    assert wrappers == []
+    for name, body in _human_gate_callers().items():
+        assert "factory/scripts/check-human-gate.py" in body, name
+        assert "import json, subprocess, sys" not in body, name
     next_job = subprocess.run(
         ["bash", "factory/scripts/next-job.sh"],
         cwd=ROOT,
@@ -392,14 +414,32 @@ def test_makefile_check_accepts_parked_human_gate() -> None:
     )
     assert next_job.returncode == 2
     result = subprocess.run(
-        wrappers[0],
+        [sys.executable, "factory/scripts/check-human-gate.py"],
         cwd=ROOT,
-        shell=True,
         capture_output=True,
         text=True,
         check=False,
     )
     assert result.returncode == 0
+
+
+def test_check_human_gate_maps_both_branches() -> None:
+    path = ROOT / "factory" / "scripts" / "check-human-gate.py"
+    assert path.is_file()
+    assert os.access(path, os.X_OK)
+    mod = _gate_mod()
+    assert mod.mapped_exit({"kind": "parked"}, 2) == 0
+    assert mod.mapped_exit({"kind": "parked"}, 0) == 1
+    assert mod.mapped_exit(None, 0) == 0
+    assert mod.mapped_exit(None, 2) == 1
+    self_test = subprocess.run(
+        [sys.executable, str(path), "--self-test"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert self_test.returncode == 0
 
 
 def _publish_pypi_workflow() -> str:
