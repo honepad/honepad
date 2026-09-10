@@ -1,0 +1,24 @@
+[
+  {
+    "id": "ps-l3-spec",
+    "level": 3,
+    "calls": [
+      {"m": "subscribe", "a": ["t", "c1"], "e": "true"},
+      {"m": "publish", "a": ["t", "a"], "e": "1"},
+      {"m": "publish", "a": ["t", "b"], "e": "1"},
+      {"m": "peek", "a": ["c1"], "e": "t:a"},
+      {"m": "ack", "a": ["c1", 1], "e": "1"},
+      {"m": "peek", "a": ["c1"], "e": "t:b"},
+      {"m": "ack", "a": ["c1", 1], "e": "0"},
+      {"m": "peek", "a": ["c1"], "e": ""},
+      {"m": "ack", "a": ["c1", 1], "e": "invalid_request"},
+      {"m": "ack", "a": ["c1", 0], "e": "invalid_request"},
+      {"m": "ack", "a": ["ghost", 1], "e": "invalid_request"},
+      {"m": "publish", "a": ["t", "c"], "e": "1"},
+      {"m": "publish", "a": ["t", "d"], "e": "1"},
+      {"m": "ack", "a": ["c1", 3], "e": "invalid_request"},
+      {"m": "inbox", "a": ["c1"], "e": "t:c, t:d"},
+      {"m": "ack", "a": ["c1", 2], "e": "0"}
+    ]
+  }
+]

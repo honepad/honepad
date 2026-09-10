@@ -1,0 +1,23 @@
+[
+  {
+    "id": "te-l3-spec",
+    "level": 3,
+    "calls": [
+      {"m": "insert", "a": [0, "hello"], "e": "5"},
+      {"m": "erase", "a": [1, 3], "e": "ell"},
+      {"m": "get_text", "a": [], "e": "ho"},
+      {"m": "undo", "a": [], "e": "true"},
+      {"m": "get_text", "a": [], "e": "hello"},
+      {"m": "cursor", "a": [], "e": "0"},
+      {"m": "type_text", "a": ["X"], "e": "6"},
+      {"m": "get_text", "a": [], "e": "Xhello"},
+      {"m": "undo", "a": [], "e": "true"},
+      {"m": "get_text", "a": [], "e": "hello"},
+      {"m": "redo", "a": [], "e": "true"},
+      {"m": "get_text", "a": [], "e": "Xhello"},
+      {"m": "insert", "a": [6, "!"], "e": "7"},
+      {"m": "redo", "a": [], "e": "false"},
+      {"m": "get_text", "a": [], "e": "Xhello!"}
+    ]
+  }
+]

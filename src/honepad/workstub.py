@@ -20,6 +20,8 @@ _CLASS = {
     "rate_limiter": "Simulation",
     "gpu_scheduler": "Simulation",
     "load_balancer": "Simulation",
+    "pubsub": "Simulation",
+    "text_editor": "Simulation",
 }
 
 

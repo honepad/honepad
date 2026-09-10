@@ -1,0 +1,21 @@
+[
+  {
+    "id": "te-l2-spec",
+    "level": 2,
+    "calls": [
+      {"m": "insert", "a": [0, "hi"], "e": "2"},
+      {"m": "cursor", "a": [], "e": "0"},
+      {"m": "move", "a": [2], "e": "true"},
+      {"m": "type_text", "a": ["!"], "e": "3"},
+      {"m": "get_text", "a": [], "e": "hi!"},
+      {"m": "cursor", "a": [], "e": "3"},
+      {"m": "move", "a": [0], "e": "true"},
+      {"m": "type_text", "a": ["say "], "e": "7"},
+      {"m": "get_text", "a": [], "e": "say hi!"},
+      {"m": "cursor", "a": [], "e": "4"},
+      {"m": "move", "a": [-1], "e": "invalid_request"},
+      {"m": "move", "a": [8], "e": "invalid_request"},
+      {"m": "cursor", "a": [], "e": "4"}
+    ]
+  }
+]

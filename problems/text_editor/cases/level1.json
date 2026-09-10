@@ -1,0 +1,19 @@
+[
+  {
+    "id": "te-l1-spec",
+    "level": 1,
+    "calls": [
+      {"m": "insert", "a": [0, "hello"], "e": "5"},
+      {"m": "insert", "a": [5, " world"], "e": "11"},
+      {"m": "get_text", "a": [], "e": "hello world"},
+      {"m": "length", "a": [], "e": "11"},
+      {"m": "erase", "a": [5, 6], "e": " world"},
+      {"m": "get_text", "a": [], "e": "hello"},
+      {"m": "erase", "a": [0, 0], "e": "invalid_request"},
+      {"m": "erase", "a": [3, 10], "e": "invalid_request"},
+      {"m": "insert", "a": [-1, "x"], "e": "invalid_request"},
+      {"m": "insert", "a": [6, "x"], "e": "invalid_request"},
+      {"m": "length", "a": [], "e": "5"}
+    ]
+  }
+]

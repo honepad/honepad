@@ -1,0 +1,26 @@
+[
+  {
+    "id": "hid-l4-cut-deletes",
+    "level": 4,
+    "calls": [
+      {"m": "insert", "a": [0, "abcdef"], "e": "6"},
+      {"m": "select", "a": [2, 5], "e": "true"},
+      {"m": "cut", "a": [], "e": "cde"},
+      {"m": "get_text", "a": [], "e": "abf"},
+      {"m": "cut", "a": [], "e": "invalid_request"},
+      {"m": "copy_sel", "a": [], "e": "invalid_request"},
+      {"m": "paste", "a": [], "e": "6"},
+      {"m": "get_text", "a": [], "e": "abcdef"},
+      {"m": "select", "a": [0, 2], "e": "true"},
+      {"m": "copy_sel", "a": [], "e": "ab"},
+      {"m": "move", "a": [6], "e": "true"},
+      {"m": "paste", "a": [], "e": "8"},
+      {"m": "get_text", "a": [], "e": "abcdefab"},
+      {"m": "undo", "a": [], "e": "true"},
+      {"m": "get_text", "a": [], "e": ""},
+      {"m": "select", "a": [-1, 0], "e": "invalid_request"},
+      {"m": "paste", "a": [], "e": "2"},
+      {"m": "get_text", "a": [], "e": "ab"}
+    ]
+  }
+]
