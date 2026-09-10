@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import re
 
 from honepad.catalog import language
@@ -388,15 +389,25 @@ def _insert_before_java_class_close(text: str, extra: str, class_name: str) -> s
 def _insert_before_python_class_end(work: str, extra: str, class_name: str) -> str:
     if not extra:
         return work
-    match = re.search(rf"^class {re.escape(class_name)}\b", work, re.MULTILINE)
-    if match is None:
+    try:
+        tree = ast.parse(work)
+    except SyntaxError as exc:
+        raise ValueError(f"unparseable Python work file: {exc}") from exc
+    node = next(
+        (n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == class_name),
+        None,
+    )
+    if node is None or node.end_lineno is None:
         raise ValueError(f"missing class {class_name}")
-    nxt = re.search(r"^class ", work[match.end() :], re.MULTILINE)
     extras = extra.lstrip("\n")
-    if nxt is None:
-        return work.rstrip() + "\n\n" + extras
-    at = match.end() + nxt.start()
-    return work[:at].rstrip() + "\n\n" + extras + "\n\n" + work[at:]
+    if not extras.endswith("\n"):
+        extras += "\n"
+    lines = work.splitlines(keepends=True)
+    head = "".join(lines[: node.end_lineno]).rstrip() + "\n\n"
+    tail = "".join(lines[node.end_lineno :])
+    if tail.strip():
+        return head + extras + "\n" + tail
+    return head + extras
 
 
 def _slice_python(text: str, allowed: set[str]) -> str:
