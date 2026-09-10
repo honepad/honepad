@@ -8,3 +8,4 @@ dist/
 build/
 .DS_Store
 .pr-preflight-passed
+src/honepad/_data/

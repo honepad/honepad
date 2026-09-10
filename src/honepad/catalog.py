@@ -4,19 +4,36 @@ from __future__ import annotations
 
 import difflib
 import json
+import os
 from pathlib import Path
 from typing import Any
 
-ROOT = Path(__file__).resolve().parents[2]
-CATALOG_PATH = ROOT / "langs" / "catalog.json"
+
+def resolve_repo_root(module_file: Path, env: str | None) -> Path:
+    """Checkout first, then a bundled wheel tree, then the checkout guess.
+
+    ``HONEPAD_ROOT`` wins so tests and a relocated data dir can pin the tree.
+    An editable checkout keeps ``langs/`` next to ``src/``. A wheel copies
+    those trees under ``honepad/_data``.
+    """
+    if env:
+        return Path(env)
+    checkout = module_file.parents[2]
+    if (checkout / "langs" / "catalog.json").is_file():
+        return checkout
+    bundled = module_file.parent / "_data"
+    if (bundled / "langs" / "catalog.json").is_file():
+        return bundled
+    return checkout
 
 
 def repo_root() -> Path:
-    return ROOT
+    return resolve_repo_root(Path(__file__).resolve(), os.environ.get("HONEPAD_ROOT"))
 
 
 def load_catalog() -> dict[str, Any]:
-    return json.loads(CATALOG_PATH.read_text(encoding="utf-8"))
+    path = repo_root() / "langs" / "catalog.json"
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def languages() -> list[dict[str, Any]]:

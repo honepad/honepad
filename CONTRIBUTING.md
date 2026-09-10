@@ -4,8 +4,9 @@ Human contributors start here. `AGENTS.md` is for coding assistants.
 
 ## Install from a clone
 
-The CLI finds `langs/` and `problems/` at the git root. Install from
-this tree, not from a PyPI stub.
+A checkout keeps `langs/` and `problems/` at the git root. A wheel or
+sdist copies those trees into the package (`honepad/_data`). The CLI
+looks at `HONEPAD_ROOT`, then the checkout, then the bundled copy.
 
 ```bash
 git clone https://github.com/honepad/honepad.git
@@ -16,7 +17,8 @@ python3 -m venv .venv
 ```
 
 `python3 -m honepad` and `./honepad` also work after the editable
-install. `./honepad` runs `.venv/bin/honepad`.
+install. `./honepad` runs `.venv/bin/honepad`. `pip install honepad`
+is the same CLI once the published wheel includes the data trees.
 
 ## Local gate
 
