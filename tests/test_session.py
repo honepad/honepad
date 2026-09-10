@@ -1369,6 +1369,74 @@ def test_submit_last_gpu_scheduler_prints_next_load_balancer(
     assert "start load_balancer" in out
 
 
+def test_submit_last_load_balancer_prints_next_pubsub(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "load_balancer",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 4,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert main(["submit", "load_balancer", "--kind", "solution", "--confirm", "y"]) == 0
+    out = capsys.readouterr().out
+    assert "DONE: load_balancer python3" in out
+    assert "NEXT: " in out
+    assert "start pubsub" in out
+
+
+def test_submit_last_pubsub_prints_next_text_editor(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "pubsub",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 4,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert main(["submit", "pubsub", "--kind", "solution", "--confirm", "y"]) == 0
+    out = capsys.readouterr().out
+    assert "DONE: pubsub python3" in out
+    assert "NEXT: " in out
+    assert "start text_editor" in out
+
+
+def test_submit_last_text_editor_has_no_next_desk(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "text_editor",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 4,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert main(["submit", "text_editor", "--kind", "solution", "--confirm", "y"]) == 0
+    out = capsys.readouterr().out
+    assert "DONE: text_editor python3" in out
+    assert "NEXT:" not in out
+
+
 def test_run_last_level_marks_cleared(monkeypatch, tmp_path: Path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
