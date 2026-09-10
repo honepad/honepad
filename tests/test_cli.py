@@ -289,6 +289,25 @@ def test_start_picker_accepts_numbers(monkeypatch, tmp_path, capsys) -> None:
     assert session["problem"] == "file_storage"
 
 
+def test_start_picker_accepts_mixed_case(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "Python3\nBank_System\n")
+    assert main(["start", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
+    capsys.readouterr()
+
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session-caps.json"))
+    _tty_stdin(monkeypatch, "PYTHON3\nbank_system\n")
+    assert main(["start", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
+
+
 def test_start_with_problem_only_picks_lang(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     _tty_stdin(monkeypatch, "python3\n")
@@ -644,6 +663,50 @@ def test_start_picker_quit_prints_next(monkeypatch, tmp_path, capsys) -> None:
     assert "FAIL:" in out
     assert "NEXT:" in out
     assert load_session() is None
+
+
+def test_start_picker_quit_word_prints_next(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "quit\n")
+    assert main(["start", "--no-console"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "NEXT:" in out
+    assert load_session() is None
+
+
+def test_start_picker_eof_prints_next(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "")
+    assert main(["start", "--no-console"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "NEXT:" in out
+    assert load_session() is None
+
+
+def test_start_picker_out_of_range_digit_is_not_a_prefix(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "99\npython3\nbank_system\n")
+    assert main(["start", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert "not a choice: 99" in out
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["problem"] == "bank_system"
+
+
+def test_start_picker_mixed_case_typo_prints_lowercased_query(
+    monkeypatch, tmp_path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, "Pyton\npython3\nbank_system\n")
+    assert main(["start", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert "not a choice: pyton" in out
+    assert "Did you mean python3?" in out
+    assert "not a choice: Pyton" not in out
 
 
 def test_submit_tty_n_cancels(monkeypatch, tmp_path, capsys) -> None:

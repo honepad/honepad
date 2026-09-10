@@ -2616,6 +2616,17 @@ def test_console_switch_accepts_numbers_and_prefixes(monkeypatch, tmp_path: Path
     assert (session["problem"], session["lang"]) == ("file_storage", "ruby")
 
 
+def test_console_switch_accepts_mixed_case(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "file_storage", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("6\nBank_System\n\nq\n"))
+    assert main(["console"]) == 0
+    session = load_session()
+    assert session is not None
+    assert (session["problem"], session["lang"]) == ("bank_system", "python3")
+
+
 def test_console_switch_cancelled_leaves_the_session_alone(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:

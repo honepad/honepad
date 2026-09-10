@@ -13,7 +13,6 @@ from honepad.catalog import (
     languages,
     problems,
     resolve_language_token,
-    suggest_choice,
 )
 from honepad.console import cmd_console, cmd_vscode, loop_console
 from honepad.packspec import missing_tools, on_missing_tools, run_spec
@@ -43,6 +42,7 @@ from honepad.term import (
     paint_spec,
     print_complete,
     print_fail,
+    read_choice,
     render_fail,
     render_hidden_fail,
     render_pass,
@@ -136,36 +136,8 @@ def _print_choices(title: str, items: list[str], labels: list[str] | None = None
     sys.stdout.flush()
 
 
-def _prefix_match(raw: str, items: list[str]) -> str | None:
-    hits = [item for item in items if item.startswith(raw)]
-    if len(hits) == 1:
-        return hits[0]
-    return None
-
-
 def _read_choice(items: list[str]) -> str | None:
-    while True:
-        line = sys.stdin.readline()
-        if line == "":
-            return None
-        raw = line.strip()
-        if raw in {"", "q", "quit"}:
-            return None
-        if raw.isdigit():
-            n = int(raw)
-            if 1 <= n <= len(items):
-                return items[n - 1]
-        elif raw in items:
-            return raw
-        else:
-            unique = _prefix_match(raw, items)
-            if unique is not None:
-                return unique
-        print(status_fail(f"FAIL: not a choice: {raw}"))
-        hint = suggest_choice(raw, items)
-        if hint is not None:
-            print(f"Did you mean {hint}?")
-        sys.stdout.flush()
+    return read_choice(sys.stdin, sys.stdout, items)
 
 
 def _problem_labels(opts: list[str]) -> list[str]:
