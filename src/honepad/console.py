@@ -332,9 +332,13 @@ def _switch_session(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> i
     note = toolchain_warning(lang)
     if note is not None:
         stdout.write(status_note(note) + "\n")
-    nxt = ensure_session(problem, lang)
+    minutes = int(session["minutes"])
+    nxt = ensure_session(problem, lang, minutes)
     session.clear()
     session.update(nxt)
+    if problem != current_problem:
+        stdout.write(status_note(f"NOTE: new desk at LEVEL 1. Clock is {minutes} minutes.") + "\n")
+    note_clock_restarted(session, stdout=stdout)
     unlocked = int(session["unlocked"])
     ensure_work_copy(problem, lang, reset=False, level=unlocked)
     refresh_workspace(problem, lang, unlocked, cleared=bool(session.get("cleared")))
