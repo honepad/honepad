@@ -1329,6 +1329,9 @@ def test_report_from_proc_rejects_non_object_json() -> None:
 def test_values_differ_does_not_treat_bool_as_int() -> None:
     assert _values_differ(False, 0)
     assert _values_differ(True, 1)
+    assert _values_differ(0, False)
+    assert _values_differ(1, True)
+    assert _values_differ(0, None)
     assert not _values_differ(0, 0)
     assert not _values_differ(True, True)
     assert _values_differ(False, True)

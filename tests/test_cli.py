@@ -627,9 +627,10 @@ def test_start_rejects_level_above_problem_max(monkeypatch, tmp_path, capsys) ->
     out = capsys.readouterr().out
     assert code == 1
     assert "FAIL:" in out
-    assert "1.." in out
+    assert "has levels 1..4" in out
     assert "LOCKED" not in out
     assert "OK: LEVEL" not in out
+    assert load_session() is None
 
 
 def test_start_picker_quit_prints_next(monkeypatch, tmp_path, capsys) -> None:
