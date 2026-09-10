@@ -216,7 +216,7 @@ def load_session(
     problem = str(payload["problem"])
     lang = str(payload["lang"])
     if not _single_segment(problem) or problem not in problems():
-        raise ValueError(f"invalid problem {problem!r}")
+        raise ValueError(f"{target}: invalid problem {problem!r}")
     try:
         language(lang)
     except (KeyError, ValueError) as exc:

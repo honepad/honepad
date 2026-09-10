@@ -2042,6 +2042,8 @@ def test_load_session_rejects_unknown_problem(monkeypatch, tmp_path: Path, capsy
     assert "FAIL:" in out
     assert "invalid problem" in out
     assert "not-a-problem" in out
+    assert str(session_file) in out
+    assert "start --reset" in out
     with pytest.raises(ValueError, match="problem"):
         load_session()
 

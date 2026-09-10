@@ -2641,7 +2641,22 @@ def test_console_switch_rejects_a_name_that_is_not_a_problem(
     out = capsys.readouterr().out
     assert "not a choice: bank_sistem" in out
     assert "Did you mean bank_system?" in out
+    assert "OK: switch cancelled" in out
     assert load_session()["problem"] == "bank_system"
+
+
+def test_console_switch_retries_after_typo(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    monkeypatch.setattr(sys, "stdin", io.StringIO("6\nbank_sistem\nworkers\n\nq\n"))
+    assert main(["console"]) == 0
+    out = capsys.readouterr().out
+    assert "not a choice: bank_sistem" in out
+    assert "Did you mean bank_system?" in out
+    session = load_session()
+    assert session is not None
+    assert session["problem"] == "workers"
 
 
 def test_switch_warns_when_the_new_language_has_no_toolchain(monkeypatch, tmp_path: Path) -> None:
