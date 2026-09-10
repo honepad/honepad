@@ -14,10 +14,15 @@ DATA = ROOT / "src" / "honepad" / "_data"
 
 
 def copy_data() -> None:
+    """Copy checkout trees, or keep bundled copies when building from an sdist."""
     DATA.mkdir(parents=True, exist_ok=True)
     for name in ("langs", "problems"):
         src = ROOT / name
         dest = DATA / name
+        if not src.is_dir():
+            if dest.is_dir():
+                continue
+            raise FileNotFoundError(src)
         if dest.exists():
             shutil.rmtree(dest)
         shutil.copytree(

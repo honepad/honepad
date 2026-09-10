@@ -30,6 +30,31 @@ def test_resolve_repo_root_bundled_data(tmp_path: Path) -> None:
     assert resolve_repo_root(module, None) == pkg / "_data"
 
 
+def test_sdist_rebuild_keeps_bundled_data(tmp_path: Path) -> None:
+    import subprocess
+    import sys
+    import tarfile
+
+    root = Path(__file__).resolve().parents[1]
+    dest = tmp_path / "dist"
+    dest.mkdir()
+    subprocess.run(
+        [sys.executable, "-m", "build", "--sdist", "--wheel", "--outdir", str(dest)],
+        check=True,
+        cwd=root,
+    )
+    wheels = list(dest.glob("honepad-*.whl"))
+    sdists = list(dest.glob("honepad-*.tar.gz"))
+    assert len(wheels) == 1
+    assert len(sdists) == 1
+    with zipfile.ZipFile(wheels[0]) as archive:
+        names = archive.namelist()
+    assert any(name.endswith("honepad/_data/langs/catalog.json") for name in names)
+    with tarfile.open(sdists[0], "r:gz") as archive:
+        members = archive.getnames()
+    assert any(name.endswith("honepad/_data/langs/catalog.json") for name in members)
+
+
 def test_wheel_includes_langs_and_problems(tmp_path: Path) -> None:
     import subprocess
     import sys
