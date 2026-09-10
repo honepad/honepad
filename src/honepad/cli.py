@@ -16,8 +16,8 @@ from honepad.catalog import (
     suggest_choice,
 )
 from honepad.console import cmd_console, cmd_vscode, loop_console
-from honepad.packspec import missing_tools, on_missing_tools
-from honepad.runner import _RUNNERS, run
+from honepad.packspec import missing_tools, on_missing_tools, run_spec
+from honepad.runner import _RUNNERS, run, spec_src
 from honepad.session import (
     drop_level,
     ensure_session,
@@ -426,6 +426,10 @@ def cmd_run(args: argparse.Namespace) -> int:
             print(status_fail("FAIL: no session"))
             print(f"NEXT: {invocation()} start {args.problem} {lang}")
             return 1
+        if session is not None and args.kind is None and not same:
+            print(status_fail("FAIL: no session"))
+            print(f"NEXT: {invocation()} start {args.problem} {lang}")
+            return 1
         unlocked_now = int(session["unlocked"]) if same and session is not None else None
         practice = same and (args.level is None or args.level == unlocked_now)
         top = max_level(args.problem)
@@ -479,12 +483,16 @@ def cmd_run(args: argparse.Namespace) -> int:
         ValueError,
     ) as exc:
         _print_fail(exc)
+        if kind is not None and lang is not None:
+            _print_run_source(args.problem, lang, kind)
         if _is_work_file_problem(exc):
             print(work_reset_next())
         if lang is not None and (kind == "work" or _is_work_file_problem(exc)):
             _print_work_notes(args.problem, lang)
         return 1
     total = report.passed + len(report.failed)
+    if kind is not None and lang is not None:
+        _print_run_source(args.problem, lang, kind)
     print(
         f"{report.problem} {report.lang} through LEVEL {report.level} "
         f"passed={report.passed} failed={len(report.failed)}"
@@ -652,6 +660,20 @@ def _raised_type(actual: Any) -> str | None:
     if isinstance(actual, str) and actual.startswith("exc:"):
         return actual[len("exc:") :] or None
     return None
+
+
+def _print_run_source(problem: str, lang: str, kind: str) -> None:
+    print(f"KIND: {kind}")
+    try:
+        if kind == "work":
+            print(work_line(work_src(problem, lang)))
+            return
+        spec = run_spec(lang)
+        if spec is None:
+            return
+        print(f"SRC: {spec_src(lang, problem, kind, spec)}")
+    except (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError):
+        return
 
 
 def _print_work_notes(problem: str, lang: str) -> None:
