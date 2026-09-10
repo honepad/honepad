@@ -19,5 +19,22 @@
       {"m": "redo", "a": [], "e": "false"},
       {"m": "get_text", "a": [], "e": "Xhello!"}
     ]
+  },
+  {
+    "id": "te-l3-undo-empty",
+    "level": 3,
+    "calls": [
+      {"m": "undo", "a": [], "e": "false"},
+      {"m": "get_text", "a": [], "e": ""}
+    ]
+  },
+  {
+    "id": "te-l3-redo-empty",
+    "level": 3,
+    "calls": [
+      {"m": "insert", "a": [0, "x"], "e": "1"},
+      {"m": "redo", "a": [], "e": "false"},
+      {"m": "get_text", "a": [], "e": "x"}
+    ]
   }
 ]

@@ -159,6 +159,49 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
     assert [case["id"] for case in all_cases] == ["x", "l1", "l2"]
 
 
+# Public (problem, level) pairs that shipped with one case on 2026-09-10.
+# Min-3 applies only here; do not raise a global future floor.
+_THIN_WHEN_FILED = (
+    ("file_storage", 2),
+    ("workers", 1),
+    ("workers", 2),
+    ("workers", 3),
+    ("inventory", 1),
+    ("inventory", 2),
+    ("inventory", 3),
+    ("inventory", 4),
+    ("rate_limiter", 1),
+    ("rate_limiter", 2),
+    ("rate_limiter", 3),
+    ("rate_limiter", 4),
+    ("gpu_scheduler", 1),
+    ("gpu_scheduler", 2),
+    ("gpu_scheduler", 3),
+    ("gpu_scheduler", 4),
+    ("load_balancer", 1),
+    ("load_balancer", 2),
+    ("load_balancer", 3),
+    ("load_balancer", 4),
+    ("pubsub", 1),
+    ("pubsub", 2),
+    ("pubsub", 3),
+    ("pubsub", 4),
+    ("text_editor", 1),
+    ("text_editor", 2),
+    ("text_editor", 3),
+    ("text_editor", 4),
+)
+
+
+def test_previously_thin_public_levels_have_at_least_three_cases() -> None:
+    thin: list[tuple[str, int, int]] = []
+    for problem, level in _THIN_WHEN_FILED:
+        cases = [case for case in load_cases(problem, level) if int(case["level"]) == level]
+        if len(cases) < 3:
+            thin.append((problem, level, len(cases)))
+    assert thin == []
+
+
 @pytest.mark.parametrize(
     ("problem", "level", "needles"),
     [

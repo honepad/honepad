@@ -14,5 +14,33 @@
       {"m": "done", "a": ["a"], "e": "true"},
       {"m": "done", "a": ["a"], "e": "invalid_request"}
     ]
+  },
+  {
+    "id": "lb-l4-done-switches",
+    "level": 4,
+    "calls": [
+      {"m": "add_backend", "a": ["a"], "e": "true"},
+      {"m": "add_backend", "a": ["b"], "e": "true"},
+      {"m": "add_backend", "a": ["c"], "e": "true"},
+      {"m": "route", "a": [], "e": "a"},
+      {"m": "route", "a": [], "e": "b"},
+      {"m": "route", "a": [], "e": "c"},
+      {"m": "done", "a": ["b"], "e": "true"},
+      {"m": "route", "a": [], "e": "b"}
+    ]
+  },
+  {
+    "id": "lb-l4-no-done-robin",
+    "level": 4,
+    "calls": [
+      {"m": "add_backend", "a": ["a"], "e": "true"},
+      {"m": "add_backend", "a": ["b"], "e": "true"},
+      {"m": "add_backend", "a": ["c"], "e": "true"},
+      {"m": "route", "a": [], "e": "a"},
+      {"m": "route", "a": [], "e": "b"},
+      {"m": "route", "a": [], "e": "c"},
+      {"m": "route", "a": [], "e": "a"},
+      {"m": "route", "a": [], "e": "b"}
+    ]
   }
 ]

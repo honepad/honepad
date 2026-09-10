@@ -16,5 +16,27 @@
       {"m": "allow", "a": ["late", 12], "e": "true"},
       {"m": "allow", "a": ["late", 13], "e": "false"}
     ]
+  },
+  {
+    "id": "rl-l1-other-key",
+    "level": 1,
+    "calls": [
+      {"m": "allow", "a": ["api", 0], "e": "true"},
+      {"m": "allow", "a": ["api", 1], "e": "true"},
+      {"m": "allow", "a": ["api", 2], "e": "true"},
+      {"m": "allow", "a": ["api", 3], "e": "false"},
+      {"m": "allow", "a": ["other", 3], "e": "true"}
+    ]
+  },
+  {
+    "id": "rl-l1-window-edge",
+    "level": 1,
+    "calls": [
+      {"m": "allow", "a": ["k", 0], "e": "true"},
+      {"m": "allow", "a": ["k", 1], "e": "true"},
+      {"m": "allow", "a": ["k", 2], "e": "true"},
+      {"m": "allow", "a": ["k", 9], "e": "false"},
+      {"m": "allow", "a": ["k", 10], "e": "true"}
+    ]
   }
 ]

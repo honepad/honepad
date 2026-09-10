@@ -17,5 +17,24 @@
       {"m": "allow_weighted", "a": ["api", 4, 10], "e": "true"},
       {"m": "remaining", "a": ["api", 11], "e": "0"}
     ]
+  },
+  {
+    "id": "rl-l4-weighted-not-unit",
+    "level": 4,
+    "calls": [
+      {"m": "configure", "a": ["api", 5, 10], "e": "true"},
+      {"m": "allow_weighted", "a": ["api", 3, 0], "e": "true"},
+      {"m": "allow_weighted", "a": ["api", 3, 1], "e": "false"},
+      {"m": "remaining", "a": ["api", 1], "e": "2"}
+    ]
+  },
+  {
+    "id": "rl-l4-remaining-after-weighted",
+    "level": 4,
+    "calls": [
+      {"m": "configure", "a": ["api", 5, 10], "e": "true"},
+      {"m": "allow_weighted", "a": ["api", 3, 0], "e": "true"},
+      {"m": "remaining", "a": ["api", 1], "e": "2"}
+    ]
   }
 ]

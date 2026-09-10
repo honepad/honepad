@@ -19,5 +19,26 @@
       {"m": "top_n_workers", "a": [3, "Junior Developer"], "e": "Jason(350), Ashley(100), John(50)"},
       {"m": "top_n_workers", "a": [3, "Middle Developer"], "e": ""}
     ]
+  },
+  {
+    "id": "wk-l2-empty-position",
+    "level": 2,
+    "calls": [
+      {"m": "add_worker", "a": ["Ann", "Dev", 100], "e": "true"},
+      {"m": "top_n_workers", "a": [5, "Missing"], "e": ""}
+    ]
+  },
+  {
+    "id": "wk-l2-tie-id",
+    "level": 2,
+    "calls": [
+      {"m": "add_worker", "a": ["Zoe", "Dev", 100], "e": "true"},
+      {"m": "add_worker", "a": ["Ann", "Dev", 100], "e": "true"},
+      {"m": "register", "a": ["Zoe", 0], "e": "registered"},
+      {"m": "register", "a": ["Zoe", 50], "e": "registered"},
+      {"m": "register", "a": ["Ann", 0], "e": "registered"},
+      {"m": "register", "a": ["Ann", 50], "e": "registered"},
+      {"m": "top_n_workers", "a": [2, "Dev"], "e": "Ann(50), Zoe(50)"}
+    ]
   }
 ]

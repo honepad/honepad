@@ -13,5 +13,26 @@
       {"m": "ship", "a": ["sku-a", 2], "e": "true"},
       {"m": "get_qty", "a": ["sku-a"], "e": "4"}
     ]
+  },
+  {
+    "id": "inv-l4-unreserved-ship",
+    "level": 4,
+    "calls": [
+      {"m": "create_item", "a": ["sku-a", "Bolt"], "e": "true"},
+      {"m": "stock", "a": ["sku-a", 5], "e": "5"},
+      {"m": "ship", "a": ["sku-a", 1], "e": "invalid_request"},
+      {"m": "get_qty", "a": ["sku-a"], "e": "5"}
+    ]
+  },
+  {
+    "id": "inv-l4-ship-then-qty",
+    "level": 4,
+    "calls": [
+      {"m": "create_item", "a": ["sku-a", "Bolt"], "e": "true"},
+      {"m": "stock", "a": ["sku-a", 10], "e": "10"},
+      {"m": "reserve", "a": ["sku-a", 3], "e": "true"},
+      {"m": "ship", "a": ["sku-a", 3], "e": "true"},
+      {"m": "get_qty", "a": ["sku-a"], "e": "7"}
+    ]
   }
 ]

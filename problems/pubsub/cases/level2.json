@@ -13,5 +13,21 @@
       {"m": "unsubscribe", "a": ["alerts", "ann"], "e": "true"},
       {"m": "list_topics", "a": [], "e": "news"}
     ]
+  },
+  {
+    "id": "ps-l2-empty-topics",
+    "level": 2,
+    "calls": [
+      {"m": "list_topics", "a": [], "e": ""}
+    ]
+  },
+  {
+    "id": "ps-l2-subscribers-zero",
+    "level": 2,
+    "calls": [
+      {"m": "subscribe", "a": ["news", "c1"], "e": "true"},
+      {"m": "unsubscribe", "a": ["news", "c1"], "e": "true"},
+      {"m": "subscribers", "a": ["news"], "e": ""}
+    ]
   }
 ]

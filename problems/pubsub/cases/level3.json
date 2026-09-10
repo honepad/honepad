@@ -20,5 +20,25 @@
       {"m": "inbox", "a": ["c1"], "e": "t:c, t:d"},
       {"m": "ack", "a": ["c1", 2], "e": "0"}
     ]
+  },
+  {
+    "id": "ps-l3-peek-keeps",
+    "level": 3,
+    "calls": [
+      {"m": "subscribe", "a": ["t", "c1"], "e": "true"},
+      {"m": "publish", "a": ["t", "a"], "e": "1"},
+      {"m": "peek", "a": ["c1"], "e": "t:a"},
+      {"m": "inbox", "a": ["c1"], "e": "t:a"}
+    ]
+  },
+  {
+    "id": "ps-l3-ack-drops",
+    "level": 3,
+    "calls": [
+      {"m": "subscribe", "a": ["t", "c1"], "e": "true"},
+      {"m": "publish", "a": ["t", "a"], "e": "1"},
+      {"m": "ack", "a": ["c1", 1], "e": "0"},
+      {"m": "inbox", "a": ["c1"], "e": ""}
+    ]
   }
 ]

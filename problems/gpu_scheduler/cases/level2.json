@@ -14,5 +14,28 @@
       {"m": "assign", "a": [], "e": "j2"},
       {"m": "complete", "a": ["j9"], "e": "invalid_request"}
     ]
+  },
+  {
+    "id": "gpu-l2-no-free",
+    "level": 2,
+    "calls": [
+      {"m": "add_gpu", "a": ["g1", 8], "e": "true"},
+      {"m": "submit_job", "a": ["j1", 4], "e": "true"},
+      {"m": "submit_job", "a": ["j2", 4], "e": "true"},
+      {"m": "assign", "a": [], "e": "j1"},
+      {"m": "assign", "a": [], "e": ""}
+    ]
+  },
+  {
+    "id": "gpu-l2-complete-frees",
+    "level": 2,
+    "calls": [
+      {"m": "add_gpu", "a": ["g1", 8], "e": "true"},
+      {"m": "submit_job", "a": ["j1", 4], "e": "true"},
+      {"m": "submit_job", "a": ["j2", 4], "e": "true"},
+      {"m": "assign", "a": [], "e": "j1"},
+      {"m": "complete", "a": ["j1"], "e": "true"},
+      {"m": "assign", "a": [], "e": "j2"}
+    ]
   }
 ]

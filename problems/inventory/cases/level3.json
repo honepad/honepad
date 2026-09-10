@@ -13,5 +13,23 @@
       {"m": "reserve", "a": ["sku-z", 1], "e": "invalid_request"},
       {"m": "reserve", "a": ["sku-a", 0], "e": "invalid_request"}
     ]
+  },
+  {
+    "id": "inv-l3-over-reserve",
+    "level": 3,
+    "calls": [
+      {"m": "create_item", "a": ["sku-a", "Bolt"], "e": "true"},
+      {"m": "stock", "a": ["sku-a", 3], "e": "3"},
+      {"m": "reserve", "a": ["sku-a", 4], "e": "invalid_request"}
+    ]
+  },
+  {
+    "id": "inv-l3-release-none",
+    "level": 3,
+    "calls": [
+      {"m": "create_item", "a": ["sku-a", "Bolt"], "e": "true"},
+      {"m": "stock", "a": ["sku-a", 3], "e": "3"},
+      {"m": "release", "a": ["sku-a", 1], "e": "invalid_request"}
+    ]
   }
 ]

@@ -12,5 +12,22 @@
       {"m": "route", "a": [], "e": "a"},
       {"m": "route", "a": [], "e": "b"}
     ]
+  },
+  {
+    "id": "lb-l1-single",
+    "level": 1,
+    "calls": [
+      {"m": "add_backend", "a": ["only"], "e": "true"},
+      {"m": "route", "a": [], "e": "only"},
+      {"m": "route", "a": [], "e": "only"},
+      {"m": "route", "a": [], "e": "only"}
+    ]
+  },
+  {
+    "id": "lb-l1-missing-route",
+    "level": 1,
+    "calls": [
+      {"m": "route", "a": [], "e": ""}
+    ]
   }
 ]

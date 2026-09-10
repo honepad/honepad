@@ -13,5 +13,23 @@
       {"m": "stock", "a": ["sku-a", -8], "e": "invalid_request"},
       {"m": "get_qty", "a": ["sku-a"], "e": "7"}
     ]
+  },
+  {
+    "id": "inv-l1-missing",
+    "level": 1,
+    "calls": [
+      {"m": "create_item", "a": ["sku-a", "Bolt"], "e": "true"},
+      {"m": "get_qty", "a": ["sku-z"], "e": ""}
+    ]
+  },
+  {
+    "id": "inv-l1-over-unstock",
+    "level": 1,
+    "calls": [
+      {"m": "create_item", "a": ["sku-a", "Bolt"], "e": "true"},
+      {"m": "stock", "a": ["sku-a", 3], "e": "3"},
+      {"m": "stock", "a": ["sku-a", -4], "e": "invalid_request"},
+      {"m": "get_qty", "a": ["sku-a"], "e": "3"}
+    ]
   }
 ]

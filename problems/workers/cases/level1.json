@@ -15,5 +15,22 @@
       {"m": "get", "a": ["Walter"], "e": ""},
       {"m": "register", "a": ["Walter", 120], "e": "invalid_request"}
     ]
+  },
+  {
+    "id": "wk-l1-missing",
+    "level": 1,
+    "calls": [
+      {"m": "add_worker", "a": ["Ann", "Dev", 100], "e": "true"},
+      {"m": "get", "a": ["ghost"], "e": ""}
+    ]
+  },
+  {
+    "id": "wk-l1-open-session",
+    "level": 1,
+    "calls": [
+      {"m": "add_worker", "a": ["Ann", "Dev", 100], "e": "true"},
+      {"m": "register", "a": ["Ann", 10], "e": "registered"},
+      {"m": "get", "a": ["Ann"], "e": "0"}
+    ]
   }
 ]

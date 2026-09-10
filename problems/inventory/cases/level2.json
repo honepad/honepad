@@ -14,5 +14,25 @@
       {"m": "list_low", "a": [5], "e": "sku-b(2), sku-d(2), sku-a(5)"},
       {"m": "list_low", "a": [1], "e": ""}
     ]
+  },
+  {
+    "id": "inv-l2-empty-low",
+    "level": 2,
+    "calls": [
+      {"m": "create_item", "a": ["sku-a", "Bolt"], "e": "true"},
+      {"m": "stock", "a": ["sku-a", 10], "e": "10"},
+      {"m": "list_low", "a": [5], "e": ""}
+    ]
+  },
+  {
+    "id": "inv-l2-tie-sku",
+    "level": 2,
+    "calls": [
+      {"m": "create_item", "a": ["sku-b", "Nut"], "e": "true"},
+      {"m": "create_item", "a": ["sku-a", "Bolt"], "e": "true"},
+      {"m": "stock", "a": ["sku-b", 2], "e": "2"},
+      {"m": "stock", "a": ["sku-a", 2], "e": "2"},
+      {"m": "list_low", "a": [5], "e": "sku-a(2), sku-b(2)"}
+    ]
   }
 ]

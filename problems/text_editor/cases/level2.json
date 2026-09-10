@@ -17,5 +17,26 @@
       {"m": "move", "a": [8], "e": "invalid_request"},
       {"m": "cursor", "a": [], "e": "4"}
     ]
+  },
+  {
+    "id": "te-l2-move-past-end",
+    "level": 2,
+    "calls": [
+      {"m": "insert", "a": [0, "hi"], "e": "2"},
+      {"m": "cursor", "a": [], "e": "0"},
+      {"m": "move", "a": [99], "e": "invalid_request"},
+      {"m": "cursor", "a": [], "e": "0"}
+    ]
+  },
+  {
+    "id": "te-l2-type-at-cursor",
+    "level": 2,
+    "calls": [
+      {"m": "insert", "a": [0, "ac"], "e": "2"},
+      {"m": "move", "a": [1], "e": "true"},
+      {"m": "type_text", "a": ["b"], "e": "3"},
+      {"m": "get_text", "a": [], "e": "abc"},
+      {"m": "cursor", "a": [], "e": "2"}
+    ]
   }
 ]
