@@ -9,8 +9,9 @@ import shutil
 import sys
 import time
 from pathlib import Path
+from typing import TextIO
 
-from honepad.catalog import next_problem
+from honepad.catalog import next_problem, suggest_choice
 
 _CODE_SPAN = re.compile(r"`([^`]+)`")
 _ANSI = re.compile(r"\033\[[0-9;]*m")
@@ -183,6 +184,40 @@ def status_ok(text: str) -> str:
 
 def status_fail(text: str) -> str:
     return paint(text, _BOLD, fg256(203))
+
+
+def read_choice(
+    stdin: TextIO,
+    stdout: TextIO,
+    items: list[str],
+    *,
+    keep: str | None = None,
+) -> str | None:
+    while True:
+        line = stdin.readline()
+        if line == "":
+            return None
+        raw = line.strip().lower()
+        if raw == "" and keep is not None:
+            return keep
+        if raw in {"", "q", "quit"}:
+            return None
+        # Out-of-range digits are FAIL, not startswith.
+        if raw.isdigit():
+            n = int(raw)
+            if 1 <= n <= len(items):
+                return items[n - 1]
+        elif raw in items:
+            return raw
+        else:
+            hits = [item for item in items if item.startswith(raw)]
+            if len(hits) == 1:
+                return hits[0]
+        stdout.write(status_fail(f"FAIL: not a choice: {raw}") + "\n")
+        hint = suggest_choice(raw, items)
+        if hint is not None:
+            stdout.write(f"Did you mean {hint}?\n")
+        stdout.flush()
 
 
 def status_note(text: str) -> str:
