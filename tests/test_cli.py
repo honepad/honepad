@@ -364,6 +364,7 @@ def test_start_unknown_problem_suggests_bank_system(monkeypatch, tmp_path, capsy
     assert "Did you mean bank_system" in out
     assert "NEXT:" in out
     assert "start" in out
+    assert "start --reset" not in out
     assert "Traceback" not in out
     assert load_session() is None
 
@@ -379,6 +380,7 @@ def test_run_unknown_problem_suggests_bank_system(monkeypatch, tmp_path, capsys)
     assert "Did you mean bank_system" in out
     assert "NEXT:" in out
     assert "start" in out
+    assert "start --reset" not in out
     assert "Traceback" not in out
 
 
