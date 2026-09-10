@@ -42,9 +42,12 @@ jobs:
         run: |
           set -euo pipefail
           paths=$(gh pr diff --name-only "$PR" --repo "$REPO")
-          if echo "$paths" | grep -qx 'factory/CONSTITUTION.md' \
-            || echo "$paths" | grep -qx 'factory/scripts/assert-stealth.sh'; then
-            echo "Skip approve/auto-merge: constitution or stealth script in diff"
+          matched=$(echo "$paths" | grep -E \
+            '^(\.github/workflows/|factory/scripts/ci-pytest-shard\.py$|factory/CONSTITUTION\.md$|factory/scripts/assert-stealth\.sh$)' \
+            || true)
+          if [ -n "$matched" ]; then
+            echo "Skip approve/auto-merge: protected path in diff:"
+            echo "$matched"
             exit 0
           fi
           gh pr review --approve "$PR" --repo "$REPO"
