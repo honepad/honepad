@@ -973,3 +973,28 @@ def test_only_the_timer_command_prints_remaining_s(monkeypatch, tmp_path, capsys
     assert "remaining_s" not in capsys.readouterr().out
     assert main(["timer"]) == 0
     assert "remaining_s=" in capsys.readouterr().out
+
+
+def test_honepad_errors_is_shared_and_print_fail_is_not_wrapped() -> None:
+    from honepad import cli, console
+    from honepad.term import HONEPAD_ERRORS
+
+    assert HONEPAD_ERRORS == (
+        KeyError,
+        ValueError,
+        FileNotFoundError,
+        OSError,
+        RuntimeError,
+    )
+    assert cli.HONEPAD_ERRORS is HONEPAD_ERRORS
+    assert console.HONEPAD_ERRORS is HONEPAD_ERRORS
+    assert not hasattr(cli, "_print_fail")
+    assert not hasattr(console, "_print_fail")
+    src = Path(__file__).resolve().parents[1] / "src" / "honepad"
+    cli_src = (src / "cli.py").read_text(encoding="utf-8")
+    console_src = (src / "console.py").read_text(encoding="utf-8")
+    assert "def _print_fail" not in cli_src
+    assert "def _print_fail" not in console_src
+    assert cli_src.count("HONEPAD_ERRORS + (NotImplementedError,)") == 2
+    assert "except HONEPAD_ERRORS as exc:" in cli_src
+    assert "except HONEPAD_ERRORS as exc:" in console_src
