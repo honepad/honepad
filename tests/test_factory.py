@@ -184,6 +184,46 @@ def test_ensure_scala_script_is_executable() -> None:
     assert os.access(path, os.X_OK)
 
 
+def _auto_approve_workflow() -> str:
+    return (ROOT / ".github/workflows/auto-approve.yml").read_text()
+
+
+def test_auto_approve_skip_regex_covers_protected_paths() -> None:
+    text = _auto_approve_workflow()
+    assert (
+        r"^(\.github/workflows/|factory/scripts/ci-pytest-shard\.py$"
+        r"|factory/CONSTITUTION\.md$|factory/scripts/assert-stealth\.sh$)"
+    ) in text
+    assert "Skip approve/auto-merge: protected path in diff:" in text
+    assert "factory/scripts/next-job.sh" not in text
+    assert "factory/scripts/write-ledger.sh" not in text
+
+
+def test_auto_approve_job_if_keeps_actor_and_constitution_title() -> None:
+    text = _auto_approve_workflow()
+    assert "github.actor == 'SebTardif'" in text
+    assert "github.event.pull_request.title != 'chore: amend constitution'" in text
+
+
+def test_auto_approve_ordinary_source_prs_still_approve_and_automerge() -> None:
+    text = _auto_approve_workflow()
+    assert "gh pr review --approve" in text
+    assert "gh pr merge --auto --squash" in text
+
+
+def test_auto_approve_constitution_item_8_names_workflow_and_shard() -> None:
+    text = (ROOT / "factory" / "CONSTITUTION.md").read_text()
+    header = text.splitlines()[2]
+    assert ".github/workflows/" in header
+    assert "factory/scripts/ci-pytest-shard.py" in header
+    assert "factory/CONSTITUTION.md" in header or "this file" in header
+    assert "factory/scripts/assert-stealth.sh" in header
+    item8 = next(line for line in text.splitlines() if line.startswith("8."))
+    assert "No auto-merge" in item8
+    assert ".github/workflows/" in item8
+    assert "factory/scripts/ci-pytest-shard.py" in item8
+
+
 def test_makefile_check_accepts_parked_human_gate() -> None:
     text = (ROOT / "Makefile").read_text()
     assert "factory/scripts/write-ledger.sh --self-test" in text
