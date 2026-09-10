@@ -1,3 +1,4 @@
+import ast
 import io
 import json
 import os
@@ -25,6 +26,7 @@ from honepad.session import (
 )
 from honepad.workspace import workspace_dir, write_workspace
 from honepad.workstub import (
+    _insert_before_python_class_end,
     _java_method,
     class_name_for,
     declares_class,
@@ -4221,6 +4223,144 @@ def test_python_unlock_merge_targets_simulation_not_last_class(
     simulation, _sep, account = body.partition("class Account")
     assert "def top_spenders" in simulation
     assert "def top_spenders" not in account
+    tree = ast.parse(body)
+    assert "top_spenders" in _class_function_names(tree, "Simulation")
+    assert "top_spenders" not in _class_function_names(tree, "Account")
+
+
+def _class_function_names(tree: ast.AST, class_name: str) -> set[str]:
+    node = next(
+        (item for item in tree.body if isinstance(item, ast.ClassDef) and item.name == class_name),
+        None,
+    )
+    assert node is not None
+    return {
+        item.name for item in node.body if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+
+
+def _module_function_names(tree: ast.AST) -> set[str]:
+    return {
+        item.name for item in tree.body if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+    }
+
+
+def test_python_unlock_keeps_new_methods_inside_class_when_helper_follows(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    text = work.read_text(encoding="utf-8")
+    assert "def top_spenders" not in text
+    work.write_text(text.rstrip() + "\n\ndef helper(x): return x + 1\n", encoding="utf-8")
+    ensure_work_copy("bank_system", "python3", reset=False, level=2)
+    body = work.read_text(encoding="utf-8")
+    tree = ast.parse(body)
+    assert "top_spenders" in _class_function_names(tree, "Simulation")
+    assert "top_spenders" not in _module_function_names(tree)
+    assert "helper" in _module_function_names(tree)
+    helper = next(
+        item for item in tree.body if isinstance(item, ast.FunctionDef) and item.name == "helper"
+    )
+    nested = [
+        item.name
+        for item in ast.walk(helper)
+        if isinstance(item, ast.FunctionDef) and item is not helper
+    ]
+    assert "top_spenders" not in nested
+
+
+def test_python_unlock_keeps_new_methods_inside_class_when_main_guard_follows(
+    monkeypatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    text = work.read_text(encoding="utf-8")
+    assert "def top_spenders" not in text
+    work.write_text(
+        text.rstrip() + '\n\nif __name__ == "__main__":\n    pass\n',
+        encoding="utf-8",
+    )
+    ensure_work_copy("bank_system", "python3", reset=False, level=2)
+    body = work.read_text(encoding="utf-8")
+    tree = ast.parse(body)
+    assert "top_spenders" in _class_function_names(tree, "Simulation")
+    assert "top_spenders" not in _module_function_names(tree)
+    guards = [
+        item
+        for item in tree.body
+        if isinstance(item, ast.If)
+        and isinstance(item.test, ast.Compare)
+        and any(isinstance(cmp, ast.Eq) for cmp in item.test.ops)
+    ]
+    assert guards
+    nested = [item.name for item in ast.walk(guards[0]) if isinstance(item, ast.FunctionDef)]
+    assert "top_spenders" not in nested
+
+
+def test_python_unlock_grows_simulation_when_class_is_last(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    text = work.read_text(encoding="utf-8")
+    assert "def top_spenders" not in text
+    ensure_work_copy("bank_system", "python3", reset=False, level=2)
+    body = work.read_text(encoding="utf-8")
+    tree = ast.parse(body)
+    assert "top_spenders" in _class_function_names(tree, "Simulation")
+    assert "top_spenders" not in _module_function_names(tree)
+
+
+def test_insert_before_python_class_end_targets_simulation_not_following_class() -> None:
+    work = (
+        "class Simulation:\n"
+        "    def create_account(self):\n"
+        "        return True\n"
+        "\n"
+        "class Account:\n"
+        "    pass\n"
+    )
+    extra = "    def top_spenders(self, n):\n        return []\n"
+    result = _insert_before_python_class_end(work, extra, "Simulation")
+    tree = ast.parse(result)
+    assert "top_spenders" in _class_function_names(tree, "Simulation")
+    assert "top_spenders" not in _class_function_names(tree, "Account")
+    assert "top_spenders" not in _module_function_names(tree)
+
+
+def test_python_unlock_syntax_error_raises_and_keeps_bytes(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    original = (
+        "class Simulation:\n"
+        "    def create_account(self, timestamp, account_id):\n"
+        "        return ???\n"
+    )
+    work.write_text(original, encoding="utf-8")
+    with pytest.raises(ValueError, match="unparseable"):
+        ensure_work_copy("bank_system", "python3", reset=False, level=2, require_merge=True)
+    assert work.read_text(encoding="utf-8") == original
+    work.write_text(original, encoding="utf-8")
+    code = main(["submit", "bank_system", "--kind", "solution"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL:" in out
+    assert work.read_text(encoding="utf-8") == original
+
+
+def test_insert_before_python_class_end_rejects_unparseable() -> None:
+    with pytest.raises(ValueError, match="unparseable"):
+        _insert_before_python_class_end(
+            "class Simulation:\n    def create_account(self):\n        return ???\n",
+            "    def top_spenders(self, n):\n        return []\n",
+            "Simulation",
+        )
 
 
 def test_ruby_unlock_merge_targets_simulation_not_last_end(
