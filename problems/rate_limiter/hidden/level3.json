@@ -1,0 +1,96 @@
+[
+  {
+    "id": "hid-l3-remaining-readonly",
+    "level": 3,
+    "calls": [
+      {
+        "m": "remaining",
+        "a": [
+          "desk",
+          0
+        ],
+        "e": "3"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "desk",
+          0
+        ],
+        "e": "true"
+      },
+      {
+        "m": "remaining",
+        "a": [
+          "desk",
+          1
+        ],
+        "e": "2"
+      },
+      {
+        "m": "remaining",
+        "a": [
+          "desk",
+          1
+        ],
+        "e": "2"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "desk",
+          1
+        ],
+        "e": "true"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "desk",
+          2
+        ],
+        "e": "true"
+      },
+      {
+        "m": "remaining",
+        "a": [
+          "desk",
+          3
+        ],
+        "e": "0"
+      },
+      {
+        "m": "remaining",
+        "a": [
+          "desk",
+          10
+        ],
+        "e": "3"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "desk",
+          9
+        ],
+        "e": "false"
+      },
+      {
+        "m": "allow",
+        "a": [
+          "desk",
+          10
+        ],
+        "e": "true"
+      },
+      {
+        "m": "remaining",
+        "a": [
+          "desk",
+          10
+        ],
+        "e": "2"
+      }
+    ]
+  }
+]

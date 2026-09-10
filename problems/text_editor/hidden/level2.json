@@ -1,0 +1,21 @@
+[
+  {
+    "id": "hid-l2-move-type",
+    "level": 2,
+    "calls": [
+      {"m": "insert", "a": [0, "ab"], "e": "2"},
+      {"m": "cursor", "a": [], "e": "0"},
+      {"m": "move", "a": [2], "e": "true"},
+      {"m": "type_text", "a": ["cd"], "e": "4"},
+      {"m": "get_text", "a": [], "e": "abcd"},
+      {"m": "cursor", "a": [], "e": "4"},
+      {"m": "move", "a": [1], "e": "true"},
+      {"m": "type_text", "a": ["X"], "e": "5"},
+      {"m": "get_text", "a": [], "e": "aXbcd"},
+      {"m": "cursor", "a": [], "e": "2"},
+      {"m": "move", "a": [-1], "e": "invalid_request"},
+      {"m": "move", "a": [9], "e": "invalid_request"},
+      {"m": "cursor", "a": [], "e": "2"}
+    ]
+  }
+]

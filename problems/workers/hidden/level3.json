@@ -1,0 +1,21 @@
+[
+  {
+    "id": "hid-l3-promote-salary",
+    "level": 3,
+    "calls": [
+      {"m": "add_worker", "a": ["Ada", "Middle Developer", 200], "e": "true"},
+      {"m": "register", "a": ["Ada", 100], "e": "registered"},
+      {"m": "register", "a": ["Ada", 150], "e": "registered"},
+      {"m": "promote", "a": ["Ada", "Senior Developer", 400, 200], "e": "success"},
+      {"m": "register", "a": ["Ada", 180], "e": "registered"},
+      {"m": "register", "a": ["Ada", 220], "e": "registered"},
+      {"m": "register", "a": ["Ada", 220], "e": "registered"},
+      {"m": "register", "a": ["Ada", 250], "e": "registered"},
+      {"m": "calc_salary", "a": ["Ada", 0, 300], "e": "30000"},
+      {"m": "get", "a": ["Ada"], "e": "120"},
+      {"m": "top_n_workers", "a": [3, "Senior Developer"], "e": "Ada(30)"},
+      {"m": "top_n_workers", "a": [3, "Middle Developer"], "e": ""},
+      {"m": "promote", "a": ["ghost", "X", 1, 1], "e": "invalid_request"}
+    ]
+  }
+]

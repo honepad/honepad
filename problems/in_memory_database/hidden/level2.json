@@ -1,0 +1,73 @@
+[
+  {
+    "id": "hid-l2-scan-order",
+    "level": 2,
+    "calls": [
+      {
+        "m": "set",
+        "a": [
+          "desk",
+          "zeta",
+          "z"
+        ],
+        "e": ""
+      },
+      {
+        "m": "set",
+        "a": [
+          "desk",
+          "alpha",
+          "a"
+        ],
+        "e": ""
+      },
+      {
+        "m": "set",
+        "a": [
+          "desk",
+          "mu",
+          "m"
+        ],
+        "e": ""
+      },
+      {
+        "m": "scan",
+        "a": [
+          "desk"
+        ],
+        "e": "alpha(a), mu(m), zeta(z)"
+      },
+      {
+        "m": "scan_by_prefix",
+        "a": [
+          "desk",
+          ""
+        ],
+        "e": "alpha(a), mu(m), zeta(z)"
+      },
+      {
+        "m": "scan_by_prefix",
+        "a": [
+          "desk",
+          "z"
+        ],
+        "e": "zeta(z)"
+      },
+      {
+        "m": "scan",
+        "a": [
+          "ghost"
+        ],
+        "e": ""
+      },
+      {
+        "m": "scan_by_prefix",
+        "a": [
+          "ghost",
+          ""
+        ],
+        "e": ""
+      }
+    ]
+  }
+]

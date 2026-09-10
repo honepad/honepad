@@ -1,0 +1,17 @@
+[
+  {
+    "id": "hid-l2-top-n-position",
+    "level": 2,
+    "calls": [
+      {"m": "add_worker", "a": ["Zed", "Junior Developer", 100], "e": "true"},
+      {"m": "add_worker", "a": ["Ann", "Junior Developer", 100], "e": "true"},
+      {"m": "add_worker", "a": ["Mo", "Middle Developer", 200], "e": "true"},
+      {"m": "register", "a": ["Zed", 10], "e": "registered"},
+      {"m": "register", "a": ["Zed", 40], "e": "registered"},
+      {"m": "top_n_workers", "a": [5, "Junior Developer"], "e": "Zed(30), Ann(0)"},
+      {"m": "top_n_workers", "a": [1, "Junior Developer"], "e": "Zed(30)"},
+      {"m": "top_n_workers", "a": [3, "Middle Developer"], "e": "Mo(0)"},
+      {"m": "top_n_workers", "a": [3, "Senior Developer"], "e": ""}
+    ]
+  }
+]

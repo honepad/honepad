@@ -1,0 +1,84 @@
+[
+  {
+    "id": "hid-l3-merge-capacity",
+    "level": 3,
+    "calls": [
+      {
+        "m": "add_user",
+        "a": [
+          "keep",
+          40
+        ],
+        "e": "true"
+      },
+      {
+        "m": "add_user",
+        "a": [
+          "drop",
+          30
+        ],
+        "e": "true"
+      },
+      {
+        "m": "add_file_by",
+        "a": [
+          "keep",
+          "/k.txt",
+          15
+        ],
+        "e": "25"
+      },
+      {
+        "m": "add_file_by",
+        "a": [
+          "drop",
+          "/d.txt",
+          10
+        ],
+        "e": "20"
+      },
+      {
+        "m": "add_file_by",
+        "a": [
+          "keep",
+          "/too.big",
+          30
+        ],
+        "e": ""
+      },
+      {
+        "m": "merge_user",
+        "a": [
+          "keep",
+          "drop"
+        ],
+        "e": "45"
+      },
+      {
+        "m": "add_file_by",
+        "a": [
+          "keep",
+          "/after.txt",
+          40
+        ],
+        "e": "5"
+      },
+      {
+        "m": "add_user",
+        "a": [
+          "keep",
+          10
+        ],
+        "e": "false"
+      },
+      {
+        "m": "merge_user",
+        "a": [
+          "keep",
+          "ghost"
+        ],
+        "e": ""
+      }
+    ]
+  }
+]
