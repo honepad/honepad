@@ -255,3 +255,41 @@ def test_makefile_check_accepts_parked_human_gate() -> None:
         check=False,
     )
     assert result.returncode == 0
+
+
+def _publish_pypi_workflow() -> str:
+    return (ROOT / ".github/workflows/publish-pypi.yml").read_text()
+
+
+def test_publish_pypi_job_if_gates_dispatch_to_main() -> None:
+    text = _publish_pypi_workflow()
+    assert "workflow_dispatch:" in text
+    assert "workflow_call" not in text
+    assert "(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')" in text
+    assert "startsWith(github.ref, 'refs/tags/')" in text
+    old_if = "github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')"
+    assert old_if not in text
+
+
+def test_publish_pypi_reads_version_and_asserts_tag() -> None:
+    text = _publish_pypi_workflow()
+    assert "HONEPAD_VERSION" in text
+    assert "tomllib" in text
+    assert 'tag="${GITHUB_REF_NAME#v}"' in text
+    assert "tag $tag != version $ver" in text
+    assert "dist/honepad-${ver}-py3-none-any.whl" in text
+    assert "dist/honepad-${ver}.tar.gz" in text
+
+
+def test_publish_pypi_dispatch_smokes_before_build() -> None:
+    text = _publish_pypi_workflow()
+    assert 'python -m pip install -e ".[dev]"' in text
+    assert (
+        "python -m pytest tests/test_packaging.py tests/test_hidden.py tests/test_session.py -q"
+        in text
+    )
+    assert "python -m honepad.cli run bank_system --lang python3 --level 4" in text
+    header = "\n".join(text.splitlines()[:4]).lower()
+    assert "tests already ran" not in header
+    assert "pyproject.toml" in header
+    assert "smoke" in header
