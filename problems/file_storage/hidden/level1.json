@@ -1,0 +1,85 @@
+[
+  {
+    "id": "hid-l1-copy-overwrite",
+    "level": 1,
+    "calls": [
+      {
+        "m": "add_file",
+        "a": [
+          "/src.txt",
+          12
+        ],
+        "e": "true"
+      },
+      {
+        "m": "add_file",
+        "a": [
+          "/src.txt",
+          12
+        ],
+        "e": "false"
+      },
+      {
+        "m": "copy_file",
+        "a": [
+          "/src.txt",
+          "/dst.txt"
+        ],
+        "e": "12"
+      },
+      {
+        "m": "copy_file",
+        "a": [
+          "/missing",
+          "/dst.txt"
+        ],
+        "e": ""
+      },
+      {
+        "m": "copy_file",
+        "a": [
+          "/src.txt",
+          "/src.txt"
+        ],
+        "e": "12"
+      },
+      {
+        "m": "add_file",
+        "a": [
+          "/old.txt",
+          5
+        ],
+        "e": "true"
+      },
+      {
+        "m": "copy_file",
+        "a": [
+          "/src.txt",
+          "/old.txt"
+        ],
+        "e": "12"
+      },
+      {
+        "m": "get_file_size",
+        "a": [
+          "/old.txt"
+        ],
+        "e": "12"
+      },
+      {
+        "m": "delete_file",
+        "a": [
+          "/dst.txt"
+        ],
+        "e": "12"
+      },
+      {
+        "m": "get_file_size",
+        "a": [
+          "/dst.txt"
+        ],
+        "e": ""
+      }
+    ]
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "hid-l1-two-topics",
+    "level": 1,
+    "calls": [
+      {"m": "subscribe", "a": ["hid-a", "u1"], "e": "true"},
+      {"m": "subscribe", "a": ["hid-b", "u1"], "e": "true"},
+      {"m": "subscribe", "a": ["hid-a", "u2"], "e": "true"},
+      {"m": "publish", "a": ["hid-b", "one"], "e": "1"},
+      {"m": "publish", "a": ["hid-a", "two"], "e": "2"},
+      {"m": "inbox", "a": ["u1"], "e": "hid-b:one, hid-a:two"},
+      {"m": "inbox", "a": ["u2"], "e": "hid-a:two"},
+      {"m": "unsubscribe", "a": ["hid-a", "u2"], "e": "true"},
+      {"m": "unsubscribe", "a": ["hid-a", "u2"], "e": "false"},
+      {"m": "publish", "a": ["hid-a", "three"], "e": "1"},
+      {"m": "inbox", "a": ["u2"], "e": "hid-a:two"},
+      {"m": "inbox", "a": ["u1"], "e": "hid-b:one, hid-a:two, hid-a:three"}
+    ]
+  }
+]

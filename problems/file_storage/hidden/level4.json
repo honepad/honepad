@@ -1,0 +1,84 @@
+[
+  {
+    "id": "hid-l4-restore-skip-taken",
+    "level": 4,
+    "calls": [
+      {
+        "m": "add_user",
+        "a": [
+          "alice",
+          100
+        ],
+        "e": "true"
+      },
+      {
+        "m": "add_user",
+        "a": [
+          "bob",
+          80
+        ],
+        "e": "true"
+      },
+      {
+        "m": "add_file_by",
+        "a": [
+          "alice",
+          "/shared.txt",
+          10
+        ],
+        "e": "90"
+      },
+      {
+        "m": "backup_user",
+        "a": [
+          "alice"
+        ],
+        "e": "1"
+      },
+      {
+        "m": "delete_file",
+        "a": [
+          "/shared.txt"
+        ],
+        "e": "10"
+      },
+      {
+        "m": "add_file_by",
+        "a": [
+          "bob",
+          "/shared.txt",
+          15
+        ],
+        "e": "65"
+      },
+      {
+        "m": "restore_user",
+        "a": [
+          "alice"
+        ],
+        "e": "0"
+      },
+      {
+        "m": "get_file_size",
+        "a": [
+          "/shared.txt"
+        ],
+        "e": "15"
+      },
+      {
+        "m": "backup_user",
+        "a": [
+          "ghost"
+        ],
+        "e": ""
+      },
+      {
+        "m": "restore_user",
+        "a": [
+          "ghost"
+        ],
+        "e": ""
+      }
+    ]
+  }
+]

@@ -1,0 +1,21 @@
+[
+  {
+    "id": "ps-l1-spec",
+    "level": 1,
+    "calls": [
+      {"m": "subscribe", "a": ["alerts", "c1"], "e": "true"},
+      {"m": "subscribe", "a": ["alerts", "c1"], "e": "false"},
+      {"m": "subscribe", "a": ["alerts", "c2"], "e": "true"},
+      {"m": "publish", "a": ["alerts", "up"], "e": "2"},
+      {"m": "inbox", "a": ["c1"], "e": "alerts:up"},
+      {"m": "inbox", "a": ["c2"], "e": "alerts:up"},
+      {"m": "unsubscribe", "a": ["alerts", "c1"], "e": "true"},
+      {"m": "unsubscribe", "a": ["alerts", "c1"], "e": "false"},
+      {"m": "publish", "a": ["alerts", "down"], "e": "1"},
+      {"m": "inbox", "a": ["c1"], "e": "alerts:up"},
+      {"m": "inbox", "a": ["c2"], "e": "alerts:up, alerts:down"},
+      {"m": "inbox", "a": ["ghost"], "e": ""},
+      {"m": "publish", "a": ["none", "x"], "e": "0"}
+    ]
+  }
+]

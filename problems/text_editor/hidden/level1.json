@@ -1,0 +1,20 @@
+[
+  {
+    "id": "hid-l1-mid-erase",
+    "level": 1,
+    "calls": [
+      {"m": "insert", "a": [0, "abcd"], "e": "4"},
+      {"m": "get_text", "a": [], "e": "abcd"},
+      {"m": "length", "a": [], "e": "4"},
+      {"m": "erase", "a": [1, 2], "e": "bc"},
+      {"m": "get_text", "a": [], "e": "ad"},
+      {"m": "insert", "a": [1, "XY"], "e": "4"},
+      {"m": "get_text", "a": [], "e": "aXYd"},
+      {"m": "insert", "a": [5, "z"], "e": "invalid_request"},
+      {"m": "erase", "a": [0, 0], "e": "invalid_request"},
+      {"m": "erase", "a": [2, 3], "e": "invalid_request"},
+      {"m": "get_text", "a": [], "e": "aXYd"},
+      {"m": "length", "a": [], "e": "4"}
+    ]
+  }
+]

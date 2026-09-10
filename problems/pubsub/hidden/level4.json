@@ -1,0 +1,23 @@
+[
+  {
+    "id": "hid-l4-retain-last-wins",
+    "level": 4,
+    "calls": [
+      {"m": "retain", "a": ["hid-t", "old"], "e": ""},
+      {"m": "subscribe", "a": ["hid-t", "a"], "e": "true"},
+      {"m": "inbox", "a": ["a"], "e": "hid-t:old"},
+      {"m": "retain", "a": ["hid-t", "new"], "e": ""},
+      {"m": "inbox", "a": ["a"], "e": "hid-t:old"},
+      {"m": "subscribe", "a": ["hid-t", "b"], "e": "true"},
+      {"m": "inbox", "a": ["b"], "e": "hid-t:new"},
+      {"m": "publish", "a": ["hid-t", "live"], "e": "2"},
+      {"m": "inbox", "a": ["a"], "e": "hid-t:old, hid-t:live"},
+      {"m": "inbox", "a": ["b"], "e": "hid-t:new, hid-t:live"},
+      {"m": "peek", "a": ["a"], "e": "hid-t:old"},
+      {"m": "ack", "a": ["a", 1], "e": "1"},
+      {"m": "peek", "a": ["a"], "e": "hid-t:live"},
+      {"m": "list_topics", "a": [], "e": "hid-t"},
+      {"m": "subscribers", "a": ["hid-t"], "e": "a, b"}
+    ]
+  }
+]

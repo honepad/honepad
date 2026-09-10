@@ -1,0 +1,17 @@
+[
+  {
+    "id": "ps-l2-spec",
+    "level": 2,
+    "calls": [
+      {"m": "subscribe", "a": ["news", "bob"], "e": "true"},
+      {"m": "subscribe", "a": ["alerts", "ann"], "e": "true"},
+      {"m": "subscribe", "a": ["news", "ann"], "e": "true"},
+      {"m": "list_topics", "a": [], "e": "alerts, news"},
+      {"m": "subscribers", "a": ["news"], "e": "ann, bob"},
+      {"m": "subscribers", "a": ["alerts"], "e": "ann"},
+      {"m": "subscribers", "a": ["none"], "e": ""},
+      {"m": "unsubscribe", "a": ["alerts", "ann"], "e": "true"},
+      {"m": "list_topics", "a": [], "e": "news"}
+    ]
+  }
+]

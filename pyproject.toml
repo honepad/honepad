@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "honepad"
-version = "0.0.1"
+version = "0.0.2"
 description = "Reserved."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -22,7 +22,7 @@ honepad = "honepad.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-honepad = ["py.typed"]
+honepad = ["py.typed", "_data/**"]
 
 [tool.ruff]
 line-length = 100

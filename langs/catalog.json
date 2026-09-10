@@ -7,7 +7,9 @@
     "inventory",
     "rate_limiter",
     "gpu_scheduler",
-    "load_balancer"
+    "load_balancer",
+    "pubsub",
+    "text_editor"
   ],
   "required_ids": [
     "clojure",

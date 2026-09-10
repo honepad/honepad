@@ -1,0 +1,17 @@
+[
+  {
+    "id": "ps-l4-spec",
+    "level": 4,
+    "calls": [
+      {"m": "retain", "a": ["news", "hello"], "e": ""},
+      {"m": "subscribe", "a": ["news", "c1"], "e": "true"},
+      {"m": "inbox", "a": ["c1"], "e": "news:hello"},
+      {"m": "publish", "a": ["news", "live"], "e": "1"},
+      {"m": "inbox", "a": ["c1"], "e": "news:hello, news:live"},
+      {"m": "retain", "a": ["news", "later"], "e": ""},
+      {"m": "inbox", "a": ["c1"], "e": "news:hello, news:live"},
+      {"m": "subscribe", "a": ["news", "c2"], "e": "true"},
+      {"m": "inbox", "a": ["c2"], "e": "news:later"}
+    ]
+  }
+]

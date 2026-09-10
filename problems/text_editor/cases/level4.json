@@ -1,0 +1,20 @@
+[
+  {
+    "id": "te-l4-spec",
+    "level": 4,
+    "calls": [
+      {"m": "insert", "a": [0, "hello world"], "e": "11"},
+      {"m": "select", "a": [6, 11], "e": "true"},
+      {"m": "cut", "a": [], "e": "world"},
+      {"m": "get_text", "a": [], "e": "hello "},
+      {"m": "length", "a": [], "e": "6"},
+      {"m": "paste", "a": [], "e": "11"},
+      {"m": "get_text", "a": [], "e": "hello world"},
+      {"m": "select", "a": [0, 5], "e": "true"},
+      {"m": "copy_sel", "a": [], "e": "hello"},
+      {"m": "move", "a": [11], "e": "true"},
+      {"m": "paste", "a": [], "e": "16"},
+      {"m": "get_text", "a": [], "e": "hello worldhello"}
+    ]
+  }
+]

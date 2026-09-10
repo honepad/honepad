@@ -1,0 +1,70 @@
+[
+  {
+    "id": "hid-l1-two-jobs",
+    "level": 1,
+    "calls": [
+      {
+        "m": "add_gpu",
+        "a": [
+          "hid-g1",
+          8
+        ],
+        "e": "true"
+      },
+      {
+        "m": "add_gpu",
+        "a": [
+          "hid-g1",
+          8
+        ],
+        "e": "false"
+      },
+      {
+        "m": "add_gpu",
+        "a": [
+          "hid-g2",
+          0
+        ],
+        "e": "invalid_request"
+      },
+      {
+        "m": "submit_job",
+        "a": [
+          "hid-j1",
+          4
+        ],
+        "e": "true"
+      },
+      {
+        "m": "submit_job",
+        "a": [
+          "hid-j1",
+          4
+        ],
+        "e": "false"
+      },
+      {
+        "m": "submit_job",
+        "a": [
+          "hid-j2",
+          0
+        ],
+        "e": "invalid_request"
+      },
+      {
+        "m": "status",
+        "a": [
+          "hid-j1"
+        ],
+        "e": "queued"
+      },
+      {
+        "m": "status",
+        "a": [
+          "hid-missing"
+        ],
+        "e": ""
+      }
+    ]
+  }
+]

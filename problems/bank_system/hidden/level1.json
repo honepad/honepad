@@ -1,0 +1,116 @@
+[
+  {
+    "id": "hid-l1-three-accounts",
+    "level": 1,
+    "calls": [
+      {
+        "m": "create_account",
+        "a": [
+          1,
+          "desk-a"
+        ],
+        "e": true
+      },
+      {
+        "m": "create_account",
+        "a": [
+          2,
+          "desk-b"
+        ],
+        "e": true
+      },
+      {
+        "m": "create_account",
+        "a": [
+          3,
+          "desk-a"
+        ],
+        "e": false
+      },
+      {
+        "m": "deposit",
+        "a": [
+          4,
+          "desk-a",
+          200
+        ],
+        "e": 200
+      },
+      {
+        "m": "deposit",
+        "a": [
+          5,
+          "desk-b",
+          50
+        ],
+        "e": 50
+      },
+      {
+        "m": "deposit",
+        "a": [
+          6,
+          "ghost",
+          10
+        ],
+        "e": null
+      },
+      {
+        "m": "transfer",
+        "a": [
+          7,
+          "desk-a",
+          "desk-c",
+          80
+        ],
+        "e": null
+      },
+      {
+        "m": "create_account",
+        "a": [
+          8,
+          "desk-c"
+        ],
+        "e": true
+      },
+      {
+        "m": "transfer",
+        "a": [
+          9,
+          "desk-a",
+          "desk-c",
+          80
+        ],
+        "e": 120
+      },
+      {
+        "m": "transfer",
+        "a": [
+          10,
+          "desk-a",
+          "desk-a",
+          10
+        ],
+        "e": null
+      },
+      {
+        "m": "transfer",
+        "a": [
+          11,
+          "desk-b",
+          "desk-c",
+          80
+        ],
+        "e": null
+      },
+      {
+        "m": "deposit",
+        "a": [
+          12,
+          "desk-c",
+          20
+        ],
+        "e": 100
+      }
+    ]
+  }
+]
