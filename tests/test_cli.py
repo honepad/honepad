@@ -364,6 +364,7 @@ def test_start_unknown_problem_suggests_bank_system(monkeypatch, tmp_path, capsy
     assert "Did you mean bank_system" in out
     assert "NEXT:" in out
     assert "start" in out
+    assert "start --reset" not in out
     assert "Traceback" not in out
     assert load_session() is None
 
@@ -379,6 +380,7 @@ def test_run_unknown_problem_suggests_bank_system(monkeypatch, tmp_path, capsys)
     assert "Did you mean bank_system" in out
     assert "NEXT:" in out
     assert "start" in out
+    assert "start --reset" not in out
     assert "Traceback" not in out
 
 
@@ -607,6 +609,16 @@ def test_run_rejects_level_outside_problem_range(monkeypatch, tmp_path, capsys) 
         assert "1.." in out
         assert "LOCKED" not in out
         assert "UNLOCKED" not in out
+
+
+def test_run_level_out_of_range_prints_next(monkeypatch, tmp_path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "missing.json"))
+    code = main(["run", "workers", "--level", "5", "--kind", "solution"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "has levels 1..4" in out
+    assert "NEXT:" in out
+    assert "omit --level" in out
 
 
 def test_start_rejects_level_above_problem_max(monkeypatch, tmp_path, capsys) -> None:

@@ -15,6 +15,7 @@ from honepad.runner import (
     _RUNNERS,
     COMPILE_TIMEOUT_S,
     RUN_TIMEOUT_S,
+    _values_differ,
     compile_fail,
     report_from_proc,
     run,
@@ -1325,9 +1326,27 @@ def test_report_from_proc_rejects_non_object_json() -> None:
         report_from_proc(proc, "bank_system", "java", 1)
 
 
+def test_values_differ_does_not_treat_bool_as_int() -> None:
+    assert _values_differ(False, 0)
+    assert _values_differ(True, 1)
+    assert not _values_differ(0, 0)
+    assert not _values_differ(True, True)
+    assert _values_differ(False, True)
+    assert _values_differ(None, 0)
+    assert not _values_differ("0", "0")
+
+
 def test_report_from_proc_rejects_non_object_failed_rows() -> None:
     proc = subprocess.CompletedProcess(
         ["adapter"], 0, stdout='{"passed": 0, "failed": [1]}\n', stderr=""
+    )
+    with pytest.raises(RuntimeError, match="invalid JSON"):
+        report_from_proc(proc, "bank_system", "java", 1)
+
+
+def test_report_from_proc_rejects_incomplete_failed_rows() -> None:
+    proc = subprocess.CompletedProcess(
+        ["adapter"], 0, stdout='{"passed": 0, "failed": [{"case": "x"}]}\n', stderr=""
     )
     with pytest.raises(RuntimeError, match="invalid JSON"):
         report_from_proc(proc, "bank_system", "java", 1)

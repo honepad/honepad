@@ -295,27 +295,27 @@ def _prompt_choice(
         status_note("NOTE: pick a number, or a name or its first letters. q cancels.") + "\n"
     )
     stdout.flush()
-    line = stdin.readline()
-    if line == "":
-        return None
-    raw = line.strip().lower()
-    if raw == "" and keep is not None:
-        return keep
-    if raw in {"", "q", "quit"}:
-        return None
-    if raw.isdigit() and 1 <= int(raw) <= len(items):
-        return items[int(raw) - 1]
-    if raw in items:
-        return raw
-    hits = [item for item in items if item.startswith(raw)]
-    if len(hits) == 1:
-        return hits[0]
-    stdout.write(status_fail(f"FAIL: not a choice: {raw}") + "\n")
-    hint = suggest_choice(raw, items)
-    if hint is not None:
-        stdout.write(f"Did you mean {hint}?\n")
-    stdout.flush()
-    return None
+    while True:
+        line = stdin.readline()
+        if line == "":
+            return None
+        raw = line.strip().lower()
+        if raw == "" and keep is not None:
+            return keep
+        if raw in {"", "q", "quit"}:
+            return None
+        if raw.isdigit() and 1 <= int(raw) <= len(items):
+            return items[int(raw) - 1]
+        if raw in items:
+            return raw
+        hits = [item for item in items if item.startswith(raw)]
+        if len(hits) == 1:
+            return hits[0]
+        stdout.write(status_fail(f"FAIL: not a choice: {raw}") + "\n")
+        hint = suggest_choice(raw, items)
+        if hint is not None:
+            stdout.write(f"Did you mean {hint}?\n")
+        stdout.flush()
 
 
 def _switch_session(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> int:

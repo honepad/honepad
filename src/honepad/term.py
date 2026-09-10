@@ -309,10 +309,24 @@ def _is_session_file_fail(text: str) -> bool:
     return str(session_path()) in text
 
 
+def _invalid_problem_query(text: str) -> str:
+    return text.split("invalid problem", 1)[1].lstrip(" :").strip("'\"")
+
+
+def _print_invalid_problem_hint(text: str) -> None:
+    from honepad.catalog import problems, suggest_choice
+
+    hint = suggest_choice(_invalid_problem_query(text), problems())
+    if hint is not None:
+        print(f"Did you mean {hint}?")
+
+
 def print_fail(exc: BaseException) -> None:
     print(status_fail(f"FAIL: {exc}"))
     text = str(exc)
     if _is_session_file_fail(text):
+        if "invalid problem" in text:
+            _print_invalid_problem_hint(text)
         print(session_fail_next())
         return
     if text in {"javac not on PATH", "java not on PATH"}:
@@ -325,13 +339,12 @@ def print_fail(exc: BaseException) -> None:
         print(start_next())
         return
     if text.startswith("invalid problem"):
-        from honepad.catalog import problems, suggest_choice
-
-        query = text[len("invalid problem") :].lstrip(" :").strip("'\"")
-        hint = suggest_choice(query, problems())
-        if hint is not None:
-            print(f"Did you mean {hint}?")
+        _print_invalid_problem_hint(text)
         print(start_next())
+        return
+    if " has levels 1.." in text:
+        top = text.rsplit("1..", 1)[-1]
+        print(f"NEXT: omit --level, or pass --level 1..{top}")
         return
     if not text.startswith("unknown language:"):
         return

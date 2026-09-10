@@ -1,9 +1,33 @@
 """Workers L4 double-pay windows."""
 
+import importlib.util
+
+from honepad.catalog import repo_root
 from honepad.cli import main
 from honepad.session import ensure_work_copy, max_level
 from honepad.traces import load_cases
 from honepad.workstub import methods_through_level
+
+
+def _wk_solution_class():
+    path = repo_root() / "langs" / "python3" / "problems" / "workers" / "solution.py"
+    spec = importlib.util.spec_from_file_location("honepad_wk_solution", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.Simulation
+
+
+def _replay_wk_cases(cls, level: int) -> list[str]:
+    failed: list[str] = []
+    for case in load_cases("workers", level):
+        sim = cls()
+        for row in case["calls"]:
+            got = getattr(sim, row["m"])(*row["a"])
+            if got != row["e"]:
+                failed.append(f"{case['id']} {row['m']} {row['a']}: {got!r} != {row['e']!r}")
+                break
+    return failed
 
 
 def test_workers_max_level_is_4() -> None:
@@ -41,3 +65,24 @@ def test_workers_l4_work_has_set_double_pay(monkeypatch, tmp_path) -> None:
     assert "def set_double_pay" in work.read_text(encoding="utf-8")
     php = ensure_work_copy("workers", "php", reset=True, level=4)
     assert "set_double_pay" in php.read_text(encoding="utf-8")
+
+
+def test_workers_calc_salary_must_honor_double_pay() -> None:
+    official = _wk_solution_class()
+
+    class Naive(official):
+        def calc_salary(self, worker_id: str, start_timestamp: int, end_timestamp: int) -> str:
+            worker = self.workers.get(worker_id)
+            if worker is None:
+                return ""
+            total = 0
+            for session_start, session_end, rate, _pos in worker.finished:
+                lo = max(session_start, start_timestamp)
+                hi = min(session_end, end_timestamp)
+                if hi > lo:
+                    total += (hi - lo) * rate
+            return str(total)
+
+    failed = _replay_wk_cases(Naive, 4)
+    assert failed
+    assert any(row.startswith("wk-l4-spec") for row in failed)
