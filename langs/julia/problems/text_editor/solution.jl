@@ -1,3 +1,5 @@
+import Base: length
+
 mutable struct Simulation
     buf::String
     pos::Int
