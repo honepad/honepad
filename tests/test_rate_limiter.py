@@ -1,9 +1,33 @@
 """Rate limiter public-practice problem."""
 
+import importlib.util
+
+from honepad.catalog import repo_root
 from honepad.cli import main
 from honepad.session import max_level
 from honepad.traces import load_cases
 from honepad.workstub import methods_through_level
+
+
+def _rl_solution_class():
+    path = repo_root() / "langs" / "python3" / "problems" / "rate_limiter" / "solution.py"
+    spec = importlib.util.spec_from_file_location("honepad_rl_solution", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.Simulation
+
+
+def _replay_rl_cases(cls, level: int) -> list[str]:
+    failed: list[str] = []
+    for case in load_cases("rate_limiter", level):
+        sim = cls()
+        for row in case["calls"]:
+            got = getattr(sim, row["m"])(*row["a"])
+            if got != row["e"]:
+                failed.append(f"{case['id']} {row['m']} {row['a']}: {got!r} != {row['e']!r}")
+                break
+    return failed
 
 
 def test_rate_limiter_max_level_is_4() -> None:
@@ -32,3 +56,22 @@ def test_rate_limiter_l1_work_hides_later_methods(monkeypatch, tmp_path) -> None
     assert "def configure" not in text
     assert "def remaining" not in text
     assert "def allow_weighted" not in text
+
+
+def test_rate_limiter_allow_weighted_must_honor_cost() -> None:
+    official = _rl_solution_class()
+
+    class Naive(official):
+        def allow_weighted(self, key: str, cost: int, timestamp: int) -> str:
+            if cost <= 0:
+                return "invalid_request"
+            item = self._state(key)
+            self._used_at(item, timestamp, persist=True)
+            if item.used + 1 > item.limit:
+                return "false"
+            item.used += 1
+            return "true"
+
+    failed = _replay_rl_cases(Naive, 4)
+    assert failed
+    assert any(row.startswith("rl-l4-spec") for row in failed)
