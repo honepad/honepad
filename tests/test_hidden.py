@@ -71,9 +71,11 @@ def test_submit_hidden_load_error_is_fail_not_traceback(
 
     monkeypatch.setattr("honepad.cli.load_hidden_cases", boom)
     assert main(["submit", "workers", "--kind", "solution", "--confirm", "y"]) == 1
-    out = capsys.readouterr().out
-    assert "FAIL:" in out
-    assert "Traceback" not in out
+    captured = capsys.readouterr()
+    captured = captured.out + captured.err
+    assert "FAIL:" in captured
+    assert "Traceback" not in captured
+    assert "hidden.json: bad" in captured
     session = load_session()
     assert session is not None
     assert session["unlocked"] == 1
