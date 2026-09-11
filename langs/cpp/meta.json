@@ -27,19 +27,32 @@
         "tool": [
           "c++",
           "g++",
-          "clang++"
+          "clang++",
+          "cl"
         ],
         "tool_error": "c++ compiler not found",
-        "argv": [
-          "{{tool}}",
-          "-std=c++17",
-          "-O0",
-          "adapter.cpp",
-          "ctor.cpp",
-          "solution.cpp",
-          "-o",
-          "run"
-        ],
+        "argv_by_tool": {
+          "cl": [
+            "{{tool}}",
+            "/nologo",
+            "/EHsc",
+            "/std:c++17",
+            "adapter.cpp",
+            "ctor.cpp",
+            "solution.cpp",
+            "/Fe:run.exe"
+          ],
+          "*": [
+            "{{tool}}",
+            "-std=c++17",
+            "-O0",
+            "adapter.cpp",
+            "ctor.cpp",
+            "solution.cpp",
+            "-o",
+            "run"
+          ]
+        },
         "fail": "c++ compile failed"
       }
     ],
@@ -51,7 +64,8 @@
       [
         "c++",
         "g++",
-        "clang++"
+        "clang++",
+        "cl"
       ]
     ]
   }

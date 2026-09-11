@@ -250,19 +250,19 @@ jobs:
         include:
           - os: ubuntu-latest
             label: linux
-            timeout: 15
+            timeout: 20
             wsl: false
           - os: macos-latest
             label: macos
-            timeout: 15
+            timeout: 20
             wsl: false
           - os: windows-2022
             label: windows
-            timeout: 15
+            timeout: 20
             wsl: false
           - os: windows-2022
             label: wsl
-            timeout: 25
+            timeout: 35
             wsl: true
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
@@ -276,6 +276,28 @@ jobs:
         if: ${{ !matrix.wsl }}
         with:
           python-version: "3.12"
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        if: ${{ !matrix.wsl }}
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: ${{ !matrix.wsl }}
+        with:
+          go-version: "1.26"
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        if: ${{ !matrix.wsl }}
+        with:
+          dotnet-version: "8.0.x"
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        if: ${{ !matrix.wsl }}
+        with:
+          node-version: "22"
+      - uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        if: ${{ !matrix.wsl && runner.os == 'Windows' }}
+      - name: Install g++
+        if: ${{ !matrix.wsl && runner.os == 'Linux' }}
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends g++
       - name: Update WSL platform
         if: matrix.wsl
         shell: pwsh
@@ -316,6 +338,22 @@ jobs:
           TERM: dumb
         run: |
           set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            openjdk-21-jdk-headless golang-go g++ ca-certificates curl xz-utils
+          curl -fsSL https://nodejs.org/dist/v22.20.0/node-v22.20.0-linux-x64.tar.xz \
+            -o /tmp/node.tar.xz
+          sudo tar -C /usr/local --strip-components=1 -xJf /tmp/node.tar.xz
+          curl -fsSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+          bash /tmp/dotnet-install.sh --channel 8.0 --install-dir "$HOME/.dotnet"
+          export PATH="$HOME/.dotnet:$PATH"
+          export DOTNET_ROOT="$HOME/.dotnet"
+          javac -version
+          go version
+          node -v
+          c++ --version | head -1
+          dotnet --version
           python3 -m venv /tmp/honepad-venv
           /tmp/honepad-venv/bin/pip install --require-hashes -r requirements-dev.txt
           /tmp/honepad-venv/bin/pip install --no-deps --no-build-isolation -e .

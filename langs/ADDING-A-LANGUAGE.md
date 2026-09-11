@@ -63,7 +63,10 @@ The traces file is appended to `argv`, so the adapter is called as
 lands, `write` generates files from a template, `steps` build, and `argv` runs
 the artifact. Here `argv` names `{{cases}}` itself, because its position differs
 per toolchain. Never `go run` / `cargo run` / `dotnet run`: those rebuild on
-every replay, and a test guards against them.
+every replay, and a test guards against them. On Windows the runner looks
+for `run.exe` when `argv` says `{{tmp}}/run`. Use `argv_by_tool` when a
+compiler needs different flags (`cl` vs `g++`). Longest prefix wins, so
+`clang++` does not pick the `cl` line.
 
 ## Tokens
 

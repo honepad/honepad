@@ -186,6 +186,19 @@ def compile_fail(src: Path, proc: subprocess.CompletedProcess[str], fallback: st
     return RuntimeError(f"{src}: {proc.stderr or proc.stdout or fallback}")
 
 
+def windows_artifact(path: str) -> str:
+    """On Windows, ``go build -o run`` writes ``run.exe``. Use that file."""
+    if os.name != "nt":
+        return path
+    if os.path.isfile(path):
+        return path
+    _root, ext = os.path.splitext(path)
+    exe = path if ext.lower() == ".exe" else path + ".exe"
+    if os.path.isfile(exe):
+        return exe
+    return path
+
+
 def run_compiled(
     problem: str,
     lang_id: str,
@@ -201,6 +214,8 @@ def run_compiled(
         cases_path = tmpdir / "cases.json"
         cases_path.write_text(json.dumps(cases), encoding="utf-8")
         argv = prepare(tmpdir, str(cases_path))
+        if argv:
+            argv = [windows_artifact(argv[0]), *argv[1:]]
         proc = run_prepare_cmd(argv, tmpdir, lang_id, timeout=RUN_TIMEOUT_S, src=src)
     return report_from_proc(proc, problem, lang_id, level, cases=cases)
 
