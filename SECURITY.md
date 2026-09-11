@@ -11,7 +11,7 @@ to reproduce the issue (version or commit, steps, and impact).
 
 ## Design notes
 
-honepad is a local CLI. It runs practice traces from this tree against
+Honepad is a local CLI. It runs practice traces from this tree against
 a work file on the operator's machine. It does not talk to a remote
 interview service and it does not ship live interview items.
 

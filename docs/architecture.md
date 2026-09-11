@@ -1,6 +1,6 @@
 # Architecture
 
-honepad is a local Python CLI. It replays public practice traces
+Honepad is a local Python CLI. It replays public practice traces
 against a work file on the operator's machine. It does not talk to a
 remote interview service.
 

@@ -1,4 +1,4 @@
-# honepad
+# Honepad
 
 Local CLI for public practice problems.
 
@@ -9,7 +9,7 @@ Local CLI for public practice problems.
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/honepad/honepad/badge)](https://securityscorecards.dev/viewer/?uri=github.com/honepad/honepad)
 [![FOSSA](https://app.fossa.com/api/projects/custom%2B62586%2Fgithub.com%2Fhonepad%2Fhonepad.svg?type=shield&issueType=license)](https://app.fossa.com/projects/custom%2B62586%2Fgithub.com%2Fhonepad%2Fhonepad?ref=badge_shield&issueType=license)
 
-![honepad live console](demo/demo.gif)
+![Honepad live console](demo/demo.gif)
 
 Timed desks. You implement methods, run public tests, and unlock the
 next level. Python 3, Java, C#, Go, JavaScript, TypeScript, and C++

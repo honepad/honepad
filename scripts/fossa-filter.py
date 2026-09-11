@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import sys
 
-# honepad has no runtime third-party deps. These hits are discovered
+# Honepad has no runtime third-party deps. These hits are discovered
 # text inside dev pins (pytest/ruff/build), not declared product
 # licenses. Pygments is BSD-2-Clause; setuptools is MIT; ruff is MIT.
 KNOWN_FALSE_POSITIVES: dict[str, set[str]] = {
