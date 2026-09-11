@@ -1,0 +1,12 @@
+exclude = [
+  "localhost",
+  "127\\.0\\.0\\.1",
+  "file://",
+  "github\\.com/.*/compare/.*v.*\\.\\.\\..*v",
+  "github\\.com/.*/releases/tag/.*v\\d",
+]
+
+exclude_path = ["CHANGELOG.md"]
+
+max_retries = 5
+retry_wait_time = 3

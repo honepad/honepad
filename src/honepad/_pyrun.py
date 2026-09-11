@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             sink.flush()
         except OSError:
-            pass
+            pass  # sink already closed
         try:
             capture.flush()
             capture.seek(0)
@@ -60,7 +60,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             sink.close()
         except OSError:
-            pass
+            pass  # sink already closed
         capture.close()
     if captured and report is not None:
         text = captured.decode("utf-8", errors="replace")

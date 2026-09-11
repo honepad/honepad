@@ -384,7 +384,7 @@ def run_python(
             try:
                 cases_path.unlink()
             except OSError:
-                pass
+                pass  # leftover HONEPAD_CASES tmp
     return report_from_proc(proc, problem, "python3", level, cases=resolved)
 
 

@@ -18,6 +18,24 @@ updates:
           - "minor"
           - "patch"
 
+  - package-ecosystem: npm
+    directory: /ci/npm
+    schedule:
+      interval: weekly
+    rebase-strategy: auto
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "deps"
+    groups:
+      npm-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

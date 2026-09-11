@@ -9,6 +9,8 @@ Current `main`. The first announced release will be 0.1.0. Do not retag
 - python3 CLI on Linux, macOS, native Windows, and WSL
 - Hidden traces through level 4 on the public desks
 - Community files for a later public flip
+- Hash-pinned CI installs, tag-only PyPI upload, lychee, stale,
+  semantic PR titles, actionlint, zizmor, and test summaries
 
 ## [0.0.2] - 2026-09-09
 
