@@ -3001,6 +3001,37 @@ def test_submit_does_not_unlock_when_clock_expires_during_run(
     assert load_session()["unlocked"] == 1
 
 
+def test_submit_does_not_unlock_when_clock_expires_during_hidden_run(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    started = int(load_session()["started_at"])
+    clock["now"] = started + 89 * 60
+    real_run = __import__("honepad.cli", fromlist=["run"]).run
+    calls = {"n": 0}
+
+    def _run_expire_on_hidden(*args: object, **kwargs: object):
+        calls["n"] += 1
+        if calls["n"] >= 2:
+            clock["now"] = started + 91 * 60
+        return real_run(*args, **kwargs)
+
+    monkeypatch.setattr("honepad.cli.run", _run_expire_on_hidden)
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED" not in out
+    assert "TIME UP" in out
+    assert load_session()["unlocked"] == 1
+
+
 def test_submit_without_class_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0

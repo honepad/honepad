@@ -6,6 +6,8 @@ import json
 import shutil
 from pathlib import Path
 
+import pytest
+
 from honepad.catalog import repo_root
 from honepad.cli import main
 from honepad.runner import run
@@ -259,10 +261,100 @@ def test_submit_hidden_fail_does_not_unlock(monkeypatch, tmp_path: Path, capsys)
     assert "expected=" not in out
     assert "TIME UP" in out
     assert "DEBRIEF:" in out
+    assert "last through LEVEL 1 passed=0 failed=1" in out
     session = load_session()
     assert session is not None
     assert session["unlocked"] == 1
+    assert session["last_run"]["passed"] == 0
+    assert session["last_run"]["failed"] == 1
+
+
+def test_submit_last_level_hidden_fail_does_not_mark_cleared(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "workers",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 4,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "honepad.cli.load_hidden_cases",
+        lambda *_a, **_k: [
+            {
+                "id": "hid-fail",
+                "level": 4,
+                "calls": [{"m": "get", "a": ["missing"], "e": "999"}],
+            }
+        ],
+    )
+    assert main(["submit", "workers", "--kind", "solution", "--confirm", "y"]) == 1
+    out = capsys.readouterr().out
+    assert "DONE" not in out
+    assert "TIME UP" not in out
+    session = load_session()
+    assert session is not None
+    assert session.get("cleared") is not True
+    assert session["last_run"]["passed"] == 0
     assert session["last_run"]["failed"] >= 1
+
+
+@pytest.mark.parametrize("expired", (False, True), ids=("live", "expired"))
+def test_submit_work_hidden_fail_records_last_run(
+    monkeypatch, tmp_path: Path, capsys, expired: bool
+) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    if expired:
+        session_file.write_text(
+            json.dumps(
+                {
+                    "problem": "workers",
+                    "lang": "python3",
+                    "started_at": 1_700_000_000,
+                    "minutes": 90,
+                    "unlocked": 1,
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+    else:
+        assert main(["start", "workers", "python3", "--no-console"]) == 0
+        capsys.readouterr()
+    _copy_official_python_work("workers")
+    monkeypatch.setattr(
+        "honepad.cli.load_hidden_cases",
+        lambda *_a, **_k: [
+            {
+                "id": "hid-fail",
+                "level": 1,
+                "calls": [{"m": "get", "a": ["missing"], "e": "999"}],
+            }
+        ],
+    )
+    assert main(["submit", "workers", "--kind", "work", "--confirm", "y"]) == 1
+    out = capsys.readouterr().out
+    assert "UNLOCKED" not in out
+    session = load_session()
+    assert session is not None
+    assert session["unlocked"] == 1
+    assert session["last_run"]["passed"] == 0
+    assert session["last_run"]["failed"] == 1
+    if expired:
+        assert "TIME UP" in out
+        assert "last through LEVEL 1 passed=0 failed=1" in out
+    else:
+        assert "TIME UP" not in out
 
 
 def test_submit_solution_runs_hidden_and_can_unlock(monkeypatch, tmp_path: Path, capsys) -> None:

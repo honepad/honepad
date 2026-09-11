@@ -518,6 +518,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                     f"failed={len(hidden_report.failed)}"
                 )
                 if session is not None and same:
+                    left = remaining_s(int(session["started_at"]), int(session["minutes"]))
                     record_last_run(
                         session,
                         level=hidden_report.level,
