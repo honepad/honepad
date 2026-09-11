@@ -20,3 +20,17 @@ interview service and it does not ship live interview items.
 | Public practice only | Traces live under `problems/*/cases/`. No live items. |
 | Reports stay private | GitHub Security Advisories, not public issues |
 | Supply chain | Dependabot, CodeQL, Scorecard, secret scanning |
+
+## Verifying a GitHub Release
+
+Each `v*` GitHub Release should include the wheel, the sdist, a
+CycloneDX SBOM, and SLSA provenance (`.intoto.jsonl`). After
+downloading an artifact:
+
+```bash
+gh attestation verify honepad-0.1.0-py3-none-any.whl \
+  --repo honepad/honepad
+```
+
+PyPI installs use Trusted Publishing. GitHub Release assets are the
+signed copies you can check locally.
