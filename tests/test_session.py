@@ -2097,10 +2097,14 @@ def test_start_retired_lang_resets_unlock_and_names_the_old_level(
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
     assert main(["start", "bank_system", "python3", "--no-console"]) == 0
     out = capsys.readouterr().out
+    leftover = session_file.parent / "work" / "bank_system" / "gone"
     assert "NOTE:" in out
     assert "gone" in out
     assert "retired" in out
     assert "LEVEL 3" in out
+    assert "leftover work stays in" in out
+    assert str(leftover) in out
+    assert "starting python3 at LEVEL 1" in out
     session = load_session()
     assert session is not None
     assert session["lang"] == "python3"

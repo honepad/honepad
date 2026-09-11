@@ -524,6 +524,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                         level=hidden_report.level,
                         passed=hidden_report.passed,
                         failed=len(hidden_report.failed),
+                        hidden=True,
                     )
                 if hidden_report.failed:
                     fail = hidden_report.failed[0]
@@ -550,7 +551,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             print_fail(exc)
             if session is not None and same:
                 left = remaining_s(int(session["started_at"]), int(session["minutes"]))
-                record_last_run(session, level=level, passed=0, failed=1)
+                record_last_run(session, level=level, passed=0, failed=1, hidden=True)
             if kind == "work":
                 _print_work_notes(args.problem, lang)
             hidden_ok = False

@@ -224,6 +224,7 @@ def test_submit_hidden_load_error_is_fail_not_traceback(
     assert session["unlocked"] == 1
     assert session["last_run"]["failed"] >= 1
     assert session["last_run"]["passed"] == 0
+    assert session["last_run"]["hidden"] is True
 
 
 def test_submit_work_hidden_exception_prints_work_notes(
@@ -284,12 +285,13 @@ def test_submit_hidden_fail_does_not_unlock(monkeypatch, tmp_path: Path, capsys)
     assert "expected=" not in out
     assert "TIME UP" in out
     assert "DEBRIEF:" in out
-    assert "last through LEVEL 1 passed=0 failed=1" in out
+    assert "last hidden through LEVEL 1 passed=0 failed=1" in out
     session = load_session()
     assert session is not None
     assert session["unlocked"] == 1
     assert session["last_run"]["passed"] == 0
     assert session["last_run"]["failed"] == 1
+    assert session["last_run"]["hidden"] is True
 
 
 def test_submit_last_level_hidden_fail_does_not_mark_cleared(
@@ -329,6 +331,7 @@ def test_submit_last_level_hidden_fail_does_not_mark_cleared(
     assert session.get("cleared") is not True
     assert session["last_run"]["passed"] == 0
     assert session["last_run"]["failed"] >= 1
+    assert session["last_run"]["hidden"] is True
 
 
 @pytest.mark.parametrize("expired", (False, True), ids=("live", "expired"))
@@ -373,9 +376,10 @@ def test_submit_work_hidden_fail_records_last_run(
     assert session["unlocked"] == 1
     assert session["last_run"]["passed"] == 0
     assert session["last_run"]["failed"] == 1
+    assert session["last_run"]["hidden"] is True
     if expired:
         assert "TIME UP" in out
-        assert "last through LEVEL 1 passed=0 failed=1" in out
+        assert "last hidden through LEVEL 1 passed=0 failed=1" in out
     else:
         assert "TIME UP" not in out
 
