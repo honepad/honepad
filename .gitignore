@@ -9,3 +9,5 @@ build/
 .DS_Store
 .pr-preflight-passed
 src/honepad/_data/
+node_modules/
+.lycheecache

@@ -54,12 +54,13 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: |
           set -euo pipefail
-          python -m pip install -e ".[dev]"
+          python -m pip install --require-hashes -r requirements-dev.txt
+          python -m pip install --no-deps --no-build-isolation -e .
           python -m pytest tests/test_packaging.py tests/test_hidden.py tests/test_session.py -q
           python -m honepad.cli run bank_system --lang python3 --level 4
       - name: Build
         run: |
-          python -m pip install build
+          python -m pip install --require-hashes -r requirements-dev.txt
           python -m build
       - name: Dist names match version
         run: |
@@ -68,4 +69,5 @@ jobs:
           test -f "dist/honepad-${ver}-py3-none-any.whl"
           test -f "dist/honepad-${ver}.tar.gz"
       - name: Upload
+        if: startsWith(github.ref, 'refs/tags/')
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1

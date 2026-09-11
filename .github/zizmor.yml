@@ -1,0 +1,8 @@
+rules:
+  dangerous-triggers:
+    ignore:
+      - dependabot-auto-merge.yml
+  unpinned-uses:
+    config:
+      policies:
+        "*": hash-pin

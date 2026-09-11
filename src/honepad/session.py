@@ -131,7 +131,7 @@ def _replace_text(dest: Path, text: str) -> None:
         try:
             os.unlink(tmp_name)
         except OSError:
-            pass
+            pass  # leftover tmp from a failed atomic replace
         raise
 
 
@@ -348,7 +348,7 @@ def save_session(session: dict[str, Any], path: Path | None = None) -> Path:
         try:
             os.unlink(tmp_name)
         except OSError:
-            pass
+            pass  # leftover tmp from a failed atomic replace
         raise
     return target
 

@@ -77,13 +77,30 @@ def test_ci_compat_covers_linux_macos_windows_and_wsl() -> None:
 
 
 def test_dev_ruff_pin_matches_ci() -> None:
+    lint = (ROOT / "requirements-lint.txt").read_text()
+    dev = (ROOT / "requirements-dev.txt").read_text()
     ci = (ROOT / ".github/workflows/ci.yml").read_text()
     pyproject = (ROOT / "pyproject.toml").read_text()
     match = re.search(r"ruff==([0-9]+\.[0-9]+\.[0-9]+)", pyproject)
     assert match is not None
     pin = f"ruff=={match.group(1)}"
-    assert pin in ci
+    assert pin in lint
+    assert pin in dev
+    assert "--require-hashes" in ci
     assert "ruff>=" not in pyproject
+
+
+def test_publish_uploads_only_from_a_version_tag() -> None:
+    text = (ROOT / ".github/workflows/publish-pypi.yml").read_text()
+    assert "if: startsWith(github.ref, 'refs/tags/')" in text
+    assert "gh-action-pypi-publish" in text
+
+
+def test_dependabot_auto_merge_keeps_workflow_read() -> None:
+    text = (ROOT / ".github/workflows/dependabot-auto-merge.yml").read_text()
+    head = text.split("jobs:", 1)[0]
+    assert "contents: read" in head
+    assert "contents: write" not in head
 
 
 def test_ci_test_job_splits_apt_install() -> None:
@@ -480,7 +497,8 @@ def test_publish_pypi_reads_version_and_asserts_tag() -> None:
 
 def test_publish_pypi_dispatch_smokes_before_build() -> None:
     text = _publish_pypi_workflow()
-    assert 'python -m pip install -e ".[dev]"' in text
+    assert "python -m pip install --require-hashes -r requirements-dev.txt" in text
+    assert "python -m pip install --no-deps --no-build-isolation -e ." in text
     assert (
         "python -m pytest tests/test_packaging.py tests/test_hidden.py tests/test_session.py -q"
         in text

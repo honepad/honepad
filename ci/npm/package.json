@@ -1,0 +1,7 @@
+{
+  "name": "honepad-ci-npm",
+  "private": true,
+  "dependencies": {
+    "coffeescript": "2.7.0"
+  }
+}
