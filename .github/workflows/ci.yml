@@ -204,7 +204,13 @@ jobs:
           npm ci --prefix ci/npm --ignore-scripts
           echo "$PWD/ci/npm/node_modules/.bin" >> "$GITHUB_PATH"
       - name: Pytest shard
-        run: python3 factory/scripts/ci-pytest-shard.py --run ${{ matrix.shard }} -- -n 2 --durations=15 --junitxml=junit-${{ matrix.shard }}.xml
+        run: |
+          set -euo pipefail
+          extra=( -n 2 --durations=15 --junitxml=junit-${{ matrix.shard }}.xml )
+          if [ "${{ matrix.shard }}" = unit ]; then
+            extra+=( --cov=honepad --cov-fail-under=80 --cov-report=term )
+          fi
+          python3 factory/scripts/ci-pytest-shard.py --run ${{ matrix.shard }} -- "${extra[@]}"
       - uses: test-summary/action@37b508cfee6d4d080eedd00b5bb240a6a784a6a5 # v2
         if: always()
         continue-on-error: true
