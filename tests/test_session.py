@@ -3236,6 +3236,20 @@ def test_start_unparseable_work_prints_reset_next(monkeypatch, tmp_path: Path, c
     assert len(next_lines) == 1
 
 
+def test_run_missing_work_prints_one_reset_next(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    capsys.readouterr()
+    work_src("bank_system", "python3").unlink()
+    assert main(["run", "bank_system", "--kind", "work"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "work file missing" in out
+    next_lines = [line for line in out.splitlines() if "NEXT:" in line]
+    assert len(next_lines) == 1
+    assert "start --reset" in next_lines[0]
+
+
 def test_python_syntax_error_includes_line_or_token(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0

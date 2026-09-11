@@ -384,7 +384,7 @@ def print_fail(exc: BaseException) -> None:
         top = text.rsplit("1..", 1)[-1]
         print(f"NEXT: omit --level, or pass --level 1..{top}")
         return
-    if "unparseable" in text or "missing class" in text or "work file" in text:
+    if is_work_reset_fail(text):
         print(work_reset_next())
         return
     if not text.startswith("unknown language:"):
@@ -397,6 +397,10 @@ def print_fail(exc: BaseException) -> None:
     if hint is not None:
         print(f"Did you mean {hint}?")
     print(f"NEXT: {invocation()} langs")
+
+
+def is_work_reset_fail(text: str) -> bool:
+    return "unparseable" in text or "missing class" in text or "work file" in text
 
 
 def work_reset_next() -> str:
