@@ -3232,8 +3232,8 @@ def test_start_unparseable_work_prints_reset_next(monkeypatch, tmp_path: Path, c
     assert "FAIL:" in out
     assert "unparseable" in out
     next_lines = [line for line in out.splitlines() if "NEXT:" in line]
-    assert next_lines
-    assert "start --reset" in next_lines[0]
+    assert next_lines == [line for line in next_lines if "start --reset" in line]
+    assert len(next_lines) == 1
 
 
 def test_python_syntax_error_includes_line_or_token(monkeypatch, tmp_path: Path, capsys) -> None:
