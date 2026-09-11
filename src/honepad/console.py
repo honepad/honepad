@@ -151,7 +151,7 @@ def cmd_vscode(args: argparse.Namespace) -> int:
 def _reload_session(session: dict[str, Any], stdout: TextIO | None = None) -> dict[str, Any]:
     try:
         loaded = load_session()
-    except ValueError as exc:
+    except HONEPAD_ERRORS as exc:
         if stdout is not None:
             stdout.write(status_fail(f"FAIL: {exc}") + "\n")
             stdout.write(session_fail_next() + "\n")

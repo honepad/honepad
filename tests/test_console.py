@@ -19,6 +19,7 @@ from honepad.console import (
     _confirm_unlock,
     _next_char,
     _read_choice,
+    _reload_session,
     dispatch,
     loop_console,
     render_banner,
@@ -295,6 +296,37 @@ def test_loop_console_corrupt_session_json_fails_closed(monkeypatch, tmp_path: P
     assert "NEXT:" in out
     assert "start --reset" in out
     assert "OK: quit" in out
+
+
+def test_reload_session_unreadable_is_fail_not_traceback(monkeypatch, tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    session = load_session()
+    assert session is not None
+    session_file.chmod(0o000)
+    stdout = io.StringIO()
+    try:
+        kept = _reload_session(session, stdout)
+    finally:
+        session_file.chmod(0o644)
+    out = stdout.getvalue()
+    assert kept is session
+    assert "FAIL:" in out
+    assert "Traceback" not in out
+    assert "NEXT:" in out
 
 
 def test_color_disabled_without_tty(monkeypatch) -> None:

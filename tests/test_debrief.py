@@ -41,6 +41,42 @@ def test_submit_time_up_prints_debrief(monkeypatch, tmp_path: Path, capsys) -> N
     assert saved["last_run"]["failed"] == 0
 
 
+def test_submit_hidden_load_error_on_time_up_still_prints_debrief(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def boom(*_a, **_k):
+        raise ValueError("hidden.json: bad")
+
+    monkeypatch.setattr("honepad.cli.load_hidden_cases", boom)
+    assert main(["submit", "bank_system", "--kind", "solution", "--confirm", "y"]) == 1
+    out = capsys.readouterr().out
+    assert "FAIL:" in out
+    assert "hidden.json: bad" in out
+    assert "TIME UP" in out
+    assert "DEBRIEF: bank_system python3 LEVEL 1/4" in out
+    saved = load_session()
+    assert saved is not None
+    assert saved["unlocked"] == 1
+    assert saved["last_run"]["failed"] >= 1
+    assert saved["last_run"]["passed"] == 0
+
+
 def test_debrief_command_does_not_restart_clock(monkeypatch, tmp_path: Path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
@@ -85,6 +121,35 @@ def test_debrief_mid_session_keeps_clock(monkeypatch, tmp_path: Path, capsys) ->
     again = load_session()
     assert again is not None
     assert int(again["started_at"]) == started
+
+
+def test_debrief_unreadable_session_is_fail_not_traceback(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "workers",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    session_file.chmod(0o000)
+    try:
+        assert main(["debrief"]) == 1
+    finally:
+        session_file.chmod(0o644)
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert "FAIL:" in out
+    assert "Traceback" not in out
 
 
 def test_debrief_without_session_fails(monkeypatch, tmp_path: Path, capsys) -> None:

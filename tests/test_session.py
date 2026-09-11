@@ -2062,14 +2062,49 @@ def test_load_session_resolves_unique_prefix_lang(monkeypatch, tmp_path: Path) -
     assert session["problem"] == "bank_system"
 
 
-def test_start_replaces_non_prefix_unknown_session_lang(monkeypatch, tmp_path: Path) -> None:
+def test_start_replaces_non_prefix_unknown_session_lang(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
     session_file = _write_lang_session(tmp_path, "gone")
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
     assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert "retired" in out
+    assert "gone" in out
     session = load_session()
     assert session is not None
     assert session["lang"] == "python3"
     assert session["problem"] == "bank_system"
+
+
+def test_start_retired_lang_resets_unlock_and_names_the_old_level(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = tmp_path / "session.json"
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "gone",
+                "started_at": int(time.time()),
+                "minutes": 90,
+                "unlocked": 3,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert "NOTE:" in out
+    assert "gone" in out
+    assert "retired" in out
+    assert "LEVEL 3" in out
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["unlocked"] == 1
 
 
 def test_start_resumes_unique_prefix_session_unlock(monkeypatch, tmp_path: Path) -> None:

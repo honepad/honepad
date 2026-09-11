@@ -20,6 +20,38 @@ def _copy_official_python_work(problem: str) -> None:
     shutil.copyfile(src, dest)
 
 
+def test_hidden_methods_stay_inside_unlocked_public_api() -> None:
+    from honepad.catalog import problems
+    from honepad.session import max_level
+    from honepad.workstub import methods_through_level
+
+    for problem in problems():
+        for n in range(1, max_level(problem) + 1):
+            allowed = methods_through_level(problem, n, "snake")
+            for case in load_hidden_cases(problem, n):
+                used = {str(call["m"]) for call in case["calls"]}
+                assert used <= allowed, (problem, n, case["id"], used - allowed)
+
+
+def test_hook_runners_accept_cases_kwarg() -> None:
+    import inspect
+
+    from honepad.runner import _HOOK_RUNNERS
+
+    assert _HOOK_RUNNERS
+    for name, fn in _HOOK_RUNNERS.items():
+        assert "cases" in inspect.signature(fn).parameters, name
+
+
+def test_ambient_honepad_cases_does_not_hijack_public_python(monkeypatch, tmp_path: Path) -> None:
+    bogus = tmp_path / "empty.json"
+    bogus.write_text("[]\n", encoding="utf-8")
+    monkeypatch.setenv("HONEPAD_CASES", str(bogus))
+    report = run("bank_system", "python3", 1, "solution")
+    assert report.ok, report.failed
+    assert report.passed > 0
+
+
 def test_every_catalog_problem_has_hidden_l1_and_l4() -> None:
     from honepad.catalog import problems
     from honepad.session import max_level
@@ -188,6 +220,8 @@ def test_submit_hidden_load_error_is_fail_not_traceback(
     session = load_session()
     assert session is not None
     assert session["unlocked"] == 1
+    assert session["last_run"]["failed"] >= 1
+    assert session["last_run"]["passed"] == 0
 
 
 def test_submit_hidden_fail_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -223,9 +257,12 @@ def test_submit_hidden_fail_does_not_unlock(monkeypatch, tmp_path: Path, capsys)
     assert "hidden through LEVEL" in out
     assert "999" not in out
     assert "expected=" not in out
+    assert "TIME UP" in out
+    assert "DEBRIEF:" in out
     session = load_session()
     assert session is not None
     assert session["unlocked"] == 1
+    assert session["last_run"]["failed"] >= 1
 
 
 def test_submit_solution_runs_hidden_and_can_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
