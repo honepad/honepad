@@ -41,6 +41,7 @@ from honepad.term import (
     dim,
     format_clock,
     invocation,
+    is_work_reset_fail,
     paint_spec,
     print_complete,
     print_fail,
@@ -463,7 +464,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         print_fail(exc)
         if kind is not None and lang is not None:
             _print_run_source(args.problem, lang, kind)
-        if _is_work_file_problem(exc):
+        if _is_work_file_problem(exc) and not is_work_reset_fail(str(exc)):
             print(work_reset_next())
         if lang is not None and (kind == "work" or _is_work_file_problem(exc)):
             _print_work_notes(args.problem, lang)
