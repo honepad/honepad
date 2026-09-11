@@ -3,3 +3,50 @@
 Local CLI for public practice problems.
 
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14574/badge)](https://www.bestpractices.dev/projects/14574)
+
+Timed desks. You implement methods, run public tests, and unlock the
+next level. 38 language runners work on Linux. The python3 CLI also
+runs on macOS, native Windows, and Windows WSL.
+
+This tree ships public practice problems only. It does not include
+live assessment items. It is not affiliated with any interview vendor.
+
+## Install
+
+```bash
+pip install honepad
+```
+
+From a clone:
+
+```bash
+git clone https://github.com/honepad/honepad.git
+cd honepad
+python3 -m venv .venv
+.venv/bin/pip install -e ".[dev]"
+```
+
+## Start a desk
+
+```bash
+honepad start bank_system python3
+```
+
+That opens a live console. `1` runs public tests. `2` submits and
+unlocks the next level. `q` quits.
+
+`honepad langs` lists catalog languages. The last column is `runner`
+or `no-runner`.
+
+## Scope
+
+38 runners on Ubuntu CI. The python3 CLI is also proven on macOS,
+native Windows, and WSL.
+
+Catalog ids without a runner: `objc`, `vb`, `angular-ts`,
+`react-js`, `react-ts`, `vue-js`, `vue-ts`, `mysql`, `postgresql`,
+`mssql`, `hack`, `mongodb`.
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).

@@ -14,7 +14,7 @@ test: ## pytest
 	bash factory/scripts/ensure-scala.sh
 	python3 -m pytest
 
-stealth: ## stealth metadata
+stealth: ## launch metadata
 	bash factory/scripts/assert-stealth.sh honepad/honepad
 
 check: ## local gate

@@ -1,7 +1,7 @@
 # Agents
 
 > **Human contributors:** This file is for AI coding assistants.
-> You can safely ignore it. See CONTRIBUTING.md instead.
+> You can safely ignore it. See README.md and CONTRIBUTING.md instead.
 
 Python 3.10+. Local gate before every commit is `make check`:
 
@@ -25,12 +25,10 @@ Every commit needs `git commit -s`.
 
 Parent session is the outer loop. Read `factory/WORK_SOURCES.md` and run `factory/scripts/next-job.sh`. Do not ask whether to continue. One ready PR at a time. Children return only the block in `factory/CHILD_REPORT.md`.
 
-## Stealth
+## Launch
 
-Public for hosted Actions. Empty GitHub description, no topics, no
-FUNDING. README is a one-line description plus the OpenSSF Best
-Practices badge. Do not run `/oss-announce`. See
-`factory/CONSTITUTION.md`.
+The repo is public. Keep GitHub About, topics, and the README start
+path in sync. See `factory/CONSTITUTION.md`.
 
 ## Language packs
 
