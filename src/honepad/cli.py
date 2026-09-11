@@ -666,8 +666,9 @@ def _print_run_source(problem: str, lang: str, kind: str) -> None:
 
 def _print_time_up(session: dict[str, Any]) -> None:
     print(status_fail("TIME UP: the clock ran out. Next level stays locked."))
-    print(status_note("NOTE: q then honepad start starts a new clock and keeps your work."))
+    print(status_note("NOTE: honepad start starts a new clock and keeps your work."))
     print(format_debrief(session))
+    print(f"NEXT: {invocation()} start")
 
 
 def _print_work_notes(problem: str, lang: str) -> None:
@@ -729,6 +730,9 @@ def cmd_debrief(_args: argparse.Namespace) -> int:
             print(f"NEXT: {invocation()} start")
             return 1
         print(format_debrief(session))
+        left = remaining_s(int(session["started_at"]), int(session["minutes"]))
+        if left == 0:
+            print(f"NEXT: {invocation()} start")
     except HONEPAD_ERRORS as exc:
         print_fail(exc)
         return 1

@@ -9,6 +9,7 @@ from pathlib import Path
 from honepad.catalog import repo_root
 from honepad.cli import main
 from honepad.session import format_debrief, load_session, remaining_s, save_session, work_src
+from honepad.term import invocation
 
 
 def test_submit_time_up_prints_debrief(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -35,6 +36,8 @@ def test_submit_time_up_prints_debrief(monkeypatch, tmp_path: Path, capsys) -> N
     assert "used 90m left 0m" in out
     assert "last hidden through LEVEL 1 passed=" in out
     assert "remaining_s=" not in out
+    assert "NEXT:" in out
+    assert "start" in out
     saved = load_session()
     assert saved is not None
     assert saved["unlocked"] == 1
@@ -74,6 +77,8 @@ def test_submit_hidden_load_error_on_time_up_still_prints_debrief(
     assert "TIME UP" in out
     assert "DEBRIEF: bank_system python3 LEVEL 1/4" in out
     assert "last hidden through LEVEL 1 passed=0 failed=" in out
+    assert "NEXT:" in out
+    assert "start" in out
     saved = load_session()
     assert saved is not None
     assert saved["unlocked"] == 1
@@ -106,6 +111,7 @@ def test_debrief_command_does_not_restart_clock(monkeypatch, tmp_path: Path, cap
     assert "used 90m left 0m" in out
     assert "last through LEVEL 2 passed=4 failed=1" in out
     assert "remaining_s=" not in out
+    assert f"NEXT: {invocation()} start" in out
     after = json.loads(session_file.read_text(encoding="utf-8"))
     assert after["started_at"] == before["started_at"]
     assert remaining_s(int(after["started_at"]), int(after["minutes"])) == 0
@@ -123,6 +129,7 @@ def test_debrief_mid_session_keeps_clock(monkeypatch, tmp_path: Path, capsys) ->
     assert "DEBRIEF: workers python3 LEVEL 1/4" in out
     assert "last run: none" in out
     assert "remaining_s=" not in out
+    assert "NEXT:" not in out
     again = load_session()
     assert again is not None
     assert int(again["started_at"]) == started
@@ -286,6 +293,8 @@ def test_time_up_after_public_run_does_not_say_hidden(monkeypatch, tmp_path: Pat
     assert "TIME UP" in out
     assert "last through LEVEL 1 passed=" in out
     assert "last hidden through" not in out
+    assert "NEXT:" in out
+    assert "start" in out
     saved = load_session()
     assert saved is not None
     assert saved["last_run"].get("hidden") is not True

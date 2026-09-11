@@ -1794,7 +1794,9 @@ def test_expired_run_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> Non
     assert through
     assert "UNLOCKED" not in out
     assert "TIME UP" in out
-    assert "q then" in out
+    assert "NEXT:" in out
+    assert "start" in out
+    assert "q then" not in out
     assert load_session()["unlocked"] == 1
 
 
