@@ -379,7 +379,7 @@ def test_play_firework_redraws_when_color_forced(monkeypatch, capsys) -> None:
     assert "*" in out
     assert "\x1b[" in out
     assert "\x1b[15A" in out
-    assert slept == [0.04, 0.04, 0.04, 0.35]
+    assert slept == [0.04, 0.04, 0.04, 1.2]
 
 
 def test_print_complete_plays_firework_when_color_forced(monkeypatch, capsys) -> None:
@@ -1330,7 +1330,7 @@ def test_console_last_level_submit_skips_unlock_prompt(monkeypatch, tmp_path: Pa
     done_idx = out.find("DONE: bank_system python3")
     assert done_idx != -1
     after = out[done_idx:]
-    assert "2 replay" in after
+    assert "2 replay" not in after
     assert "pass all traces to finish" not in after.lower()
     assert "NOTE: local submit" in out
     assert "NOTE: replay" not in out
@@ -1340,6 +1340,28 @@ def test_console_last_level_submit_skips_unlock_prompt(monkeypatch, tmp_path: Pa
     assert "NOTE: replay. Same work-file test." in replay_out
     assert "NOTE: local submit" not in replay_out
     assert "Unlock?" not in replay_out
+
+
+def test_first_l4_win_drops_leftover_submit(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    _write_python_solution(tmp_path)
+    session = load_session()
+    assert session is not None
+    session["unlocked"] = 4
+    save_session(session)
+    capsys.readouterr()
+    stdin = _pipe_stdin(b"22q")
+    stdout = io.StringIO()
+    try:
+        code = loop_console(session, stdin=stdin, stdout=stdout, live=True)
+    finally:
+        stdin.close()
+    out = stdout.getvalue() + capsys.readouterr().out
+    assert code == 0
+    assert "DONE: bank_system python3" in out
+    assert "still complete" not in out
+    assert "NOTE: replay" not in out
 
 
 def test_banner_notes_extra_java_sources(monkeypatch, tmp_path: Path) -> None:

@@ -316,7 +316,7 @@ def play_firework(*, frames: int = _FIREWORK_FRAMES, delay_s: float = _FIREWORK_
             if delay_s > 0:
                 time.sleep(delay_s)
         if delay_s > 0:
-            time.sleep(max(delay_s, 0.35))
+            time.sleep(max(delay_s, 1.2))
     finally:
         stream.write("\033[?25h")
         stream.flush()

@@ -266,12 +266,19 @@ def loop_console(
                             stdout.flush()
                             continue
             stdout.write("\n")
+            was_cleared = bool(session.get("cleared"))
             last = dispatch(choice, session, stdout, stdin)
             session = _reload_session(session, stdout)
-            stdout.write("\n")
-            stdout.write(render_banner(session) + "\n")
             shown = _banner_key(session)
             shown_menu[0] = True
+            if bool(session.get("cleared")) and not was_cleared:
+                # Leave the firework and DONE on screen. Reprinting the
+                # menu here scrolled the win off the tape. Drop leftover
+                # keys so a second 2 does not start a silent replay.
+                _drain_pending(stdin)
+                continue
+            stdout.write("\n")
+            stdout.write(render_banner(session) + "\n")
     except KeyboardInterrupt:
         stdout.write("\nOK: quit\n")
         stdout.flush()
