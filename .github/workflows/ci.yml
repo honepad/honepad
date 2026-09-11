@@ -185,9 +185,87 @@ jobs:
         if: matrix.shard == 'unit'
         run: python3 factory/scripts/check-human-gate.py
 
+  compat:
+    name: Compat (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: ${{ matrix.timeout }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            label: linux
+            timeout: 15
+            wsl: false
+          - os: macos-latest
+            label: macos
+            timeout: 15
+            wsl: false
+          - os: windows-2022
+            label: windows
+            timeout: 15
+            wsl: false
+          - os: windows-2022
+            label: wsl
+            timeout: 25
+            wsl: true
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        if: ${{ !matrix.wsl }}
+        with:
+          python-version: "3.12"
+      - name: Update WSL platform
+        if: matrix.wsl
+        shell: pwsh
+        continue-on-error: true
+        run: wsl.exe --update --web-download
+      - name: Setup WSL
+        if: matrix.wsl
+        id: setup_wsl
+        continue-on-error: true
+        uses: Vampire/setup-wsl@d1da7f2c0322a5ee4f24975344f67fc0f5baf364 # v7.0.0
+        with:
+          distribution: Ubuntu-24.04
+          update: false
+          additional-packages: python3 python3-pip python3-venv
+      - name: Wait before WSL retry
+        if: ${{ matrix.wsl && steps.setup_wsl.outcome == 'failure' }}
+        shell: pwsh
+        run: Start-Sleep -Seconds 45
+      - name: Retry WSL setup
+        if: ${{ matrix.wsl && steps.setup_wsl.outcome == 'failure' }}
+        uses: Vampire/setup-wsl@d1da7f2c0322a5ee4f24975344f67fc0f5baf364 # v7.0.0
+        with:
+          distribution: Ubuntu-24.04
+          update: false
+          additional-packages: python3 python3-pip python3-venv
+      - name: Install and test (native)
+        if: ${{ !matrix.wsl }}
+        env:
+          TERM: dumb
+        run: |
+          python -m pip install -e ".[dev]"
+          python -m pytest tests/test_os_compat.py -q --tb=short
+      - name: Install and test (WSL)
+        if: matrix.wsl
+        shell: wsl-bash {0}
+        env:
+          TERM: dumb
+        run: |
+          set -euo pipefail
+          python3 -m venv /tmp/honepad-venv
+          /tmp/honepad-venv/bin/pip install -e ".[dev]"
+          /tmp/honepad-venv/bin/python -m pytest tests/test_os_compat.py -q --tb=short
+
   ci:
     name: CI
-    needs: [stealth, lint, test]
+    needs: [stealth, lint, test, compat]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -201,3 +279,4 @@ jobs:
           test "${{ needs.stealth.result }}" = success
           test "${{ needs.lint.result }}" = success
           test "${{ needs.test.result }}" = success
+          test "${{ needs.compat.result }}" = success

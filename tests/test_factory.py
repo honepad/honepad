@@ -61,7 +61,19 @@ def test_ci_does_not_rebuild_on_push_to_main() -> None:
     assert "push:" not in on_block
     assert "tags:" not in on_block
     assert "name: CI" in text
-    assert "needs: [stealth, lint, test]" in text
+    assert "needs: [stealth, lint, test, compat]" in text
+
+
+def test_ci_compat_covers_linux_macos_windows_and_wsl() -> None:
+    text = (ROOT / ".github/workflows/ci.yml").read_text()
+    assert "name: Compat (${{ matrix.label }})" in text
+    assert "ubuntu-latest" in text
+    assert "macos-latest" in text
+    assert "windows-2022" in text
+    assert "Ubuntu-24.04" in text
+    assert "label: wsl" in text
+    assert "Vampire/setup-wsl@" in text
+    assert "tests/test_os_compat.py" in text
 
 
 def test_dev_ruff_pin_matches_ci() -> None:
