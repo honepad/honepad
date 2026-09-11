@@ -7,7 +7,7 @@ Local CLI for public practice problems.
 [![License](https://img.shields.io/github/license/honepad/honepad)](https://github.com/honepad/honepad/blob/main/LICENSE)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14574/badge)](https://www.bestpractices.dev/projects/14574)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/honepad/honepad/badge)](https://securityscorecards.dev/viewer/?uri=github.com/honepad/honepad)
-[![FOSSA](https://github.com/honepad/honepad/actions/workflows/fossa.yml/badge.svg?event=push)](https://github.com/honepad/honepad/actions/workflows/fossa.yml)
+[![FOSSA](https://app.fossa.com/api/projects/custom%2B62586%2Fgithub.com%2Fhonepad%2Fhonepad.svg?type=shield&issueType=license)](https://app.fossa.com/projects/custom%2B62586%2Fgithub.com%2Fhonepad%2Fhonepad?ref=badge_shield&issueType=license)
 
 ![honepad live console](demo/demo.gif)
 
