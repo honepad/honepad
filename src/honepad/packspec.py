@@ -17,7 +17,7 @@ Two kinds cover every pack:
 
 ``hook``
     The escape hatch for a pack that is neither, naming a Python runner by key.
-    Only Python 3 uses it: honepad imports that pack in a child interpreter
+    Only Python 3 uses it: Honepad imports that pack in a child interpreter
     rather than shelling out to an adapter.
 
 Tokens substituted in argv entries and in ``write`` bodies:

@@ -12,6 +12,7 @@
 
 ## [Unreleased]
 
+- Use Honepad as the display name in English sentences
 - Python 3, Java, C#, Go, JavaScript, TypeScript, and C++ desks
   on Linux, macOS, native Windows, and WSL
 - VHS live-console demo on the README

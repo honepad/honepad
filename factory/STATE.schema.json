@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "honepad factory STATE",
+  "title": "Honepad factory STATE",
   "type": "object",
   "required": ["schema_version", "next_work_source", "stealth_mode"],
   "properties": {
