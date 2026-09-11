@@ -549,7 +549,10 @@ def cmd_run(args: argparse.Namespace) -> int:
         except HONEPAD_ERRORS + (NotImplementedError,) as exc:
             print_fail(exc)
             if session is not None and same:
+                left = remaining_s(int(session["started_at"]), int(session["minutes"]))
                 record_last_run(session, level=level, passed=0, failed=1)
+            if kind == "work":
+                _print_work_notes(args.problem, lang)
             hidden_ok = False
     if not hidden_ok:
         if (
@@ -559,9 +562,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             and left == 0
             and int(session["unlocked"]) < max_level(str(session["problem"]))
         ):
-            print(status_fail("TIME UP: the clock ran out. Next level stays locked."))
-            print(status_note("NOTE: q then honepad start starts a new clock and keeps your work."))
-            print(format_debrief(session))
+            _print_time_up(session)
         return 1
     may_unlock = bool(getattr(args, "unlock", False))
     if practice and session is not None and kind in ("solution", "work"):
@@ -591,9 +592,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 _print_work_notes(args.problem, lang)
             return 0
         if left == 0:
-            print(status_fail("TIME UP: the clock ran out. Next level stays locked."))
-            print(status_note("NOTE: q then honepad start starts a new clock and keeps your work."))
-            print(format_debrief(session))
+            _print_time_up(session)
             if kind == "work":
                 _print_work_notes(args.problem, lang)
             return 0
@@ -662,6 +661,12 @@ def _print_run_source(problem: str, lang: str, kind: str) -> None:
         print(f"SRC: {spec_src(lang, problem, kind, spec)}")
     except HONEPAD_ERRORS:
         return
+
+
+def _print_time_up(session: dict[str, Any]) -> None:
+    print(status_fail("TIME UP: the clock ran out. Next level stays locked."))
+    print(status_note("NOTE: q then honepad start starts a new clock and keeps your work."))
+    print(format_debrief(session))
 
 
 def _print_work_notes(problem: str, lang: str) -> None:

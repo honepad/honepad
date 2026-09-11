@@ -226,6 +226,29 @@ def test_submit_hidden_load_error_is_fail_not_traceback(
     assert session["last_run"]["passed"] == 0
 
 
+def test_submit_work_hidden_exception_prints_work_notes(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "workers", "python3", "--no-console"]) == 0
+    capsys.readouterr()
+    _copy_official_python_work("workers")
+    real_run = __import__("honepad.cli", fromlist=["run"]).run
+    calls = {"n": 0}
+
+    def _run_raise_on_hidden(*args: object, **kwargs: object):
+        calls["n"] += 1
+        if calls["n"] >= 2:
+            raise RuntimeError("hidden adapter failed")
+        return real_run(*args, **kwargs)
+
+    monkeypatch.setattr("honepad.cli.run", _run_raise_on_hidden)
+    assert main(["submit", "workers", "--kind", "work", "--confirm", "y"]) == 1
+    out = capsys.readouterr().out
+    assert "WORK:" in out
+    assert out.count("WORK:") >= 1
+
+
 def test_submit_hidden_fail_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
