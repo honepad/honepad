@@ -2111,6 +2111,39 @@ def test_start_retired_lang_resets_unlock_and_names_the_old_level(
     assert session["unlocked"] == 1
 
 
+def test_start_retired_dotdot_lang_does_not_print_escaped_work_path(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = tmp_path / "session.json"
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "../evil",
+                "started_at": int(time.time()),
+                "minutes": 90,
+                "unlocked": 2,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert "NOTE:" in out
+    assert "retired" in out
+    assert "/work/../" not in out
+    assert "work/bank_system/../" not in out
+    assert "\\work\\.." not in out
+    assert str(session_file.parent / "work" / "bank_system" / "../evil") not in out
+    assert "starting python3 at LEVEL 1" in out
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["unlocked"] == 1
+
+
 def test_start_resumes_unique_prefix_session_unlock(monkeypatch, tmp_path: Path) -> None:
     session_file = tmp_path / "session.json"
     session_file.write_text(

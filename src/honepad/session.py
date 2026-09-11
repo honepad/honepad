@@ -387,10 +387,13 @@ def ensure_session(
         session = new_session(problem, lang, duration)
         save_session(session)
         if retired is not None:
-            try:
-                leftover = work_src(retired.problem, retired.lang)
-            except (KeyError, ValueError):
-                leftover = session_path().parent / "work" / retired.problem / retired.lang
+            if _single_segment(retired.lang):
+                try:
+                    leftover = work_src(retired.problem, retired.lang)
+                except (KeyError, ValueError):
+                    leftover = session_path().parent / "work" / retired.problem / retired.lang
+            else:
+                leftover = retired.lang
             sys.stdout.write(
                 f"NOTE: your {retired.lang} session is retired "
                 f"({retired.lang} was removed, was LEVEL {retired.unlocked}); "
