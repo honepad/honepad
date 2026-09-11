@@ -74,6 +74,28 @@ def test_ci_compat_covers_linux_macos_windows_and_wsl() -> None:
     assert "label: wsl" in text
     assert "Vampire/setup-wsl@" in text
     assert "tests/test_os_compat.py" in text
+    assert "actions/setup-java@" in text
+    assert "actions/setup-go@" in text
+    assert "actions/setup-dotnet@" in text
+    assert "actions/setup-node@" in text
+    assert "ilammy/msvc-dev-cmd@" in text
+    assert "node-v22.20.0-linux-x64.tar.xz" in text
+
+
+def test_compat_tests_name_the_core_langs() -> None:
+    text = (ROOT / "tests" / "test_os_compat.py").read_text()
+    for lang in (
+        "python3",
+        "java",
+        "csharp",
+        "go",
+        "javascript",
+        "typescript",
+        "cpp",
+    ):
+        assert f'"{lang}"' in text
+    readme = (ROOT / "README.md").read_text()
+    assert "Python 3, Java, C#, Go, JavaScript, TypeScript, and C++" in readme
 
 
 def test_dev_ruff_pin_matches_ci() -> None:
@@ -144,7 +166,8 @@ def test_dependabot_auto_merge_keeps_workflow_read() -> None:
 
 def test_ci_test_job_splits_apt_install() -> None:
     text = (ROOT / ".github/workflows/ci.yml").read_text()
-    assert text.count("sudo apt-get update") == 1
+    job = text[text.index("  test:\n") : text.index("  compat:\n")]
+    assert job.count("sudo apt-get update") == 1
     assert "sudo apt-get update && sudo apt-get install -y lua5.4" not in text
     wanted = {
         "lua5.4",

@@ -147,6 +147,23 @@ def test_step_argv_picks_the_variant_for_the_resolved_tool() -> None:
     assert packspec.step_argv(step, ctx, ["/usr/bin/dmd"]) == ["/usr/bin/dmd", "-of=run"]
 
 
+def test_step_argv_prefers_the_longest_tool_prefix() -> None:
+    step = {
+        "argv_by_tool": {
+            "cl": ["{{tool}}", "/Fe:run.exe"],
+            "clang++": ["{{tool}}", "-o", "run"],
+            "*": ["{{tool}}", "-o", "run"],
+        }
+    }
+    ctx = packspec.context("cpp", class_name="Simulation", src=Path("/w/s.cpp"))
+    assert packspec.step_argv(step, ctx, ["/usr/bin/clang++"]) == [
+        "/usr/bin/clang++",
+        "-o",
+        "run",
+    ]
+    assert packspec.step_argv(step, ctx, ["cl.exe"]) == ["cl.exe", "/Fe:run.exe"]
+
+
 def test_step_argv_needs_a_fallback_when_nothing_matches() -> None:
     step = {"argv_by_tool": {"gdc": ["{{tool}}"]}}
     ctx = packspec.context("d", class_name="Simulation", src=Path("/w/s.d"))

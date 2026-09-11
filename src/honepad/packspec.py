@@ -269,9 +269,11 @@ def step_argv(step: dict[str, Any], ctx: dict[str, str], tool: list[str]) -> lis
     if table is None:
         return render_argv(list(step["argv"]), ctx, tool)
     name = Path(tool[0]).name.lower() if tool else ""
-    for key, argv in table.items():
-        if key != "*" and name.startswith(key):
-            return render_argv(list(argv), ctx, tool)
+    # Longest prefix wins so ``clang++`` does not pick the ``cl`` flags.
+    matches = [(len(key), key) for key in table if key != "*" and name.startswith(key)]
+    if matches:
+        _length, key = max(matches)
+        return render_argv(list(table[key]), ctx, tool)
     if "*" not in table:
         raise ValueError(f"argv_by_tool has no match for {name} and no '*' fallback")
     return render_argv(list(table["*"]), ctx, tool)

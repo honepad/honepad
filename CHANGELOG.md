@@ -12,6 +12,8 @@
 
 ## [Unreleased]
 
+- Python 3, Java, C#, Go, JavaScript, TypeScript, and C++ desks
+  on Linux, macOS, native Windows, and WSL
 - VHS live-console demo on the README
 - README badges for PyPI, Release, License, and Scorecard
 - release-please on `main` with tag-time PyPI publish

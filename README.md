@@ -12,8 +12,9 @@ Local CLI for public practice problems.
 ![honepad live console](demo/demo.gif)
 
 Timed desks. You implement methods, run public tests, and unlock the
-next level. 38 language runners work on Linux. The python3 CLI also
-runs on macOS, native Windows, and Windows WSL.
+next level. Python 3, Java, C#, Go, JavaScript, TypeScript, and C++
+run on Linux, macOS, native Windows, and Windows WSL. The other
+language runners are tested on Ubuntu Linux.
 
 This tree ships public practice problems only. It does not include
 live assessment items. It is not affiliated with any interview vendor.
@@ -66,8 +67,15 @@ or `no-runner`.
 
 ## Scope
 
-38 runners on Ubuntu CI. The python3 CLI is also proven on macOS,
-native Windows, and WSL.
+These seven languages have a runner on Linux, macOS, native Windows,
+and WSL: Python 3, Java, C#, Go, JavaScript, TypeScript, and C++.
+
+Install the matching toolchain on that machine: a JDK for Java
+(`javac` and `java`), `dotnet` for C#, `go` for Go, `node` for
+JavaScript and TypeScript, and a C++ compiler (`c++`, `g++`,
+`clang++`, or MSVC `cl`) for C++.
+
+The other 31 runners are tested on Ubuntu CI.
 
 Catalog ids without a runner: `objc`, `vb`, `angular-ts`,
 `react-js`, `react-ts`, `vue-js`, `vue-ts`, `mysql`, `postgresql`,
