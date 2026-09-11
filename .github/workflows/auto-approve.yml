@@ -41,6 +41,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
           set -euo pipefail
           paths=$(gh pr diff --name-only "$PR" --repo "$REPO")
@@ -53,12 +55,13 @@ jobs:
             exit 0
           fi
           gh pr review --approve "$PR" --repo "$REPO"
-          case "${{ github.head_ref }}" in
+          case "$HEAD_REF" in
             release-please*) echo "Skip auto-merge: release PR"; exit 0 ;;
           esac
-          if echo "${{ join(github.event.pull_request.labels.*.name, ',') }}" \
-            | grep -q 'autorelease: pending'; then
-            echo "Skip auto-merge: autorelease pending"
-            exit 0
-          fi
+          case ",$PR_LABELS," in
+            *",autorelease: pending,"*)
+              echo "Skip auto-merge: autorelease pending"
+              exit 0
+              ;;
+          esac
           gh pr merge --auto --squash "$PR" --repo "$REPO"
