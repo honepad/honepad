@@ -50,18 +50,39 @@ def _copy_official_work(problem: str, lang: str) -> None:
 def _skip_if_missing(lang: str) -> None:
     missing = missing_tools(lang)
     if missing:
-        pytest.skip(f"{lang}: {missing[0]} not on PATH")
+        msg = f"{lang}: {missing[0]} not on PATH"
+        if os.environ.get("CI"):
+            pytest.fail(msg)
+        pytest.skip(msg)
+
+
+def test_skip_if_missing_fails_in_ci(monkeypatch) -> None:
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setattr(f"{__name__}.missing_tools", lambda _lang: ["javac"])
+    with pytest.raises(pytest.fail.Exception, match="java: javac not on PATH"):
+        _skip_if_missing("java")
+
+
+def test_skip_if_missing_skips_without_ci(monkeypatch) -> None:
+    monkeypatch.delenv("CI", raising=False)
+    monkeypatch.setattr(f"{__name__}.missing_tools", lambda _lang: ["javac"])
+    with pytest.raises(pytest.skip.Exception, match="java: javac not on PATH"):
+        _skip_if_missing("java")
 
 
 def test_compat_host_is_supported() -> None:
-    assert host_kind() in {"linux", "darwin", "windows", "wsl"}
+    kind = host_kind()
+    assert kind in {"linux", "darwin", "windows", "wsl"}
+    if os.environ.get("WSL_DISTRO_NAME") or Path("/proc/sys/fs/binfmt_misc/WSLInterop").exists():
+        assert kind == "wsl"
 
 
 def test_langs_lists_core_langs(capsys) -> None:
     assert main(["langs"]) == 0
     out = capsys.readouterr().out
+    ids = {line.split()[0] for line in out.splitlines() if line.strip()}
     for lang in CORE_LANGS:
-        assert lang in out
+        assert lang in ids
 
 
 @pytest.mark.parametrize("lang", CORE_LANGS)
@@ -90,17 +111,42 @@ def test_work_submit_core_lang(lang: str, monkeypatch, tmp_path: Path, capsys) -
     assert load_session()["unlocked"] == 2
 
 
-def test_windows_artifact_uses_exe_when_the_bare_name_is_missing(tmp_path: Path) -> None:
+def test_windows_artifact_keeps_dotted_stem_exe(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr("honepad.runner.os.name", "nt")
+    bare = tmp_path / "run.out"
+    dotted_exe = tmp_path / "run.out.exe"
+    wrong = tmp_path / "run.exe"
+    dotted_exe.write_bytes(b"x")
+    wrong.write_bytes(b"y")
+    assert windows_artifact(str(bare)) == str(dotted_exe)
+
+
+def test_windows_artifact_uses_exe_when_the_bare_name_is_missing(
+    tmp_path: Path, monkeypatch
+) -> None:
+    monkeypatch.setattr("honepad.runner.os.name", "nt")
     bare = tmp_path / "run"
     exe = tmp_path / "run.exe"
     exe.write_text("x", encoding="utf-8")
-    expected = str(exe) if os.name == "nt" else str(bare)
-    assert windows_artifact(str(bare)) == expected
+    assert windows_artifact(str(bare)) == str(exe)
 
 
 def test_windows_artifact_keeps_an_existing_bare_file(tmp_path: Path) -> None:
     bare = tmp_path / "run"
     bare.write_text("x", encoding="utf-8")
+    assert windows_artifact(str(bare)) == str(bare)
+
+
+def test_windows_artifact_keeps_existing_exe(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr("honepad.runner.os.name", "nt")
+    exe = tmp_path / "run.exe"
+    exe.write_bytes(b"x")
+    assert windows_artifact(str(exe)) == str(exe)
+
+
+def test_windows_artifact_returns_original_when_neither_exists(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr("honepad.runner.os.name", "nt")
+    bare = tmp_path / "run"
     assert windows_artifact(str(bare)) == str(bare)
 
 

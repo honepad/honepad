@@ -66,20 +66,24 @@ def test_ci_does_not_rebuild_on_push_to_main() -> None:
 
 def test_ci_compat_covers_linux_macos_windows_and_wsl() -> None:
     text = (ROOT / ".github/workflows/ci.yml").read_text()
-    assert "name: Compat (${{ matrix.label }})" in text
-    assert "ubuntu-latest" in text
-    assert "macos-latest" in text
-    assert "windows-2022" in text
-    assert "Ubuntu-24.04" in text
-    assert "label: wsl" in text
-    assert "Vampire/setup-wsl@" in text
-    assert "tests/test_os_compat.py" in text
-    assert "actions/setup-java@" in text
-    assert "actions/setup-go@" in text
-    assert "actions/setup-dotnet@" in text
-    assert "actions/setup-node@" in text
-    assert "ilammy/msvc-dev-cmd@" in text
-    assert "node-v22.20.0-linux-x64.tar.xz" in text
+    job = text[text.index("  compat:\n") : text.index("  ci:\n")]
+    assert "name: Compat (${{ matrix.label }})" in job
+    assert "label: linux" in job
+    assert "label: macos" in job
+    assert "label: windows" in job
+    assert "label: wsl" in job
+    assert "ubuntu-latest" in job
+    assert "macos-latest" in job
+    assert "windows-2022" in job
+    assert "Ubuntu-24.04" in job
+    assert "Vampire/setup-wsl@" in job
+    assert "tests/test_os_compat.py" in job
+    assert "actions/setup-java@" in job
+    assert "actions/setup-go@" in job
+    assert "actions/setup-dotnet@" in job
+    assert "actions/setup-node@" in job
+    assert "ilammy/msvc-dev-cmd@" in job
+    assert "node-v22.20.0-linux-x64.tar.xz" in job
 
 
 def test_compat_tests_name_the_core_langs() -> None:
