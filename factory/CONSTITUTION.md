@@ -2,7 +2,7 @@
 
 Immutable. Changing this file requires a PR titled `chore: amend constitution`. Auto-merge is skipped for that title and for diffs that touch `.github/workflows/`, `factory/scripts/ci-pytest-shard.py`, `factory/CONSTITUTION.md`, or `factory/scripts/assert-stealth.sh`.
 
-1. **Stealth until the drop-stealth gate.** Empty GitHub description, no topics, no FUNDING, README is `# honepad` / `Not ready.` Stealth is a job inside `ci.yml` and a `needs:` of aggregator `CI`.
+1. **Stealth until the drop-stealth gate.** Empty GitHub description, no topics, no FUNDING. README is a one-line description plus the OpenSSF Best Practices badge. Stealth is a job inside `ci.yml` and a `needs:` of aggregator `CI`.
 2. **Not a CodeSignal scrape.** Public practice traces only. No live assessment text.
 3. **Apache-2.0.** DCO on every commit (`git commit -s`). No CLA.
 4. **Independent org.** `honepad/honepad` only.
