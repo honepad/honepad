@@ -90,6 +90,17 @@ def test_dev_ruff_pin_matches_ci() -> None:
     assert "ruff>=" not in pyproject
 
 
+def test_homebrew_and_scoop_wait_for_release_assets() -> None:
+    brew = (ROOT / ".github/workflows/publish-homebrew.yml").read_text()
+    scoop = (ROOT / ".github/workflows/publish-scoop.yml").read_text()
+    assert "scripts/wait_for_release_asset.py" in brew
+    assert "scripts/wait_for_release_asset.py" in scoop
+    assert "honepad-${{ steps.ver.outputs.version }}.tar.gz" in brew
+    assert "honepad-${{ steps.ver.outputs.version }}-py3-none-any.whl" in scoop
+    assert "timeout-minutes: 15" in brew
+    assert "timeout-minutes: 15" in scoop
+
+
 def test_publish_uploads_only_from_a_version_tag() -> None:
     text = (ROOT / ".github/workflows/publish-pypi.yml").read_text()
     assert "github.event_name == 'workflow_call'" in text
@@ -111,7 +122,7 @@ def test_release_please_python_package() -> None:
     man = (ROOT / ".release-please-manifest.json").read_text()
     wf = (ROOT / ".github/workflows/release-please.yml").read_text()
     assert '"release-type": "python"' in cfg
-    assert '".": "0.1.0"' in man
+    assert '".": "0.1.1"' in man
     assert "googleapis/release-please-action@" in wf
     assert "uses: ./.github/workflows/publish-pypi.yml" in wf
 
@@ -404,10 +415,13 @@ def test_auto_approve_skip_regex_covers_protected_paths() -> None:
     assert "factory/scripts/write-ledger.sh" not in text
 
 
-def test_auto_approve_job_if_keeps_actor_and_constitution_title() -> None:
+def test_auto_approve_job_if_keeps_actor_and_release_app_token() -> None:
     text = _auto_approve_workflow()
     assert "github.actor == 'SebTardif'" in text
-    assert "github.event.pull_request.title != 'chore: amend constitution'" in text
+    assert "startsWith(github.head_ref, 'release-please')" in text
+    assert "create-github-app-token@" in text
+    assert "github-actions[bot]" in text
+    assert "steps.app-token.outputs.token || secrets.GITHUB_TOKEN" in text
 
 
 def test_auto_approve_ordinary_source_prs_still_approve_and_automerge() -> None:
