@@ -10,7 +10,7 @@ Set Width 960
 Set Height 640
 Set Padding 16
 Set Theme "Catppuccin Mocha"
-Set TypingSpeed 22ms
+Set TypingSpeed 40ms
 Set CursorBlink false
 Set Framerate 25
 
@@ -22,39 +22,40 @@ Enter
 Sleep 400ms
 Show
 
-Sleep 900ms
+Sleep 1400ms
 Type "honepad start"
 Enter
-Sleep 1500ms
+Sleep 2200ms
 Type "python3"
 Enter
-Sleep 1500ms
+Sleep 2000ms
 Type "bank"
 Enter
-Sleep 2200ms
-Type "1"
 Sleep 2800ms
+Type "1"
+Sleep 3500ms
 Type "2"
-Sleep 350ms
+Sleep 500ms
 Type "y"
-Sleep 3200ms
+Sleep 4000ms
 
 Hide
 Type "1"
-Sleep 2500ms
+Sleep 2800ms
 Type "2"
-Sleep 350ms
+Sleep 400ms
 Type "y"
-Sleep 3000ms
-Type "1"
-Sleep 2500ms
-Type "2"
-Sleep 350ms
-Type "y"
-Sleep 3000ms
-Show
-
+Sleep 3200ms
 Type "1"
 Sleep 2800ms
 Type "2"
-Sleep 7s
+Sleep 400ms
+Type "y"
+Sleep 3200ms
+Show
+
+Sleep 800ms
+Type "1"
+Sleep 3500ms
+Type "2"
+Sleep 5.5s
