@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.1](https://github.com/honepad/honepad/compare/v0.1.0...v0.1.1) (2026-09-11)
+
+
+### Documentation
+
+* add VHS live-console demo ([#250](https://github.com/honepad/honepad/issues/250)) ([a1036f2](https://github.com/honepad/honepad/commit/a1036f2ffed3aca1d9755368e99a418051ab3da0))
+* retake VHS demo as start, pick, run, L4 win ([#252](https://github.com/honepad/honepad/issues/252)) ([7308e87](https://github.com/honepad/honepad/commit/7308e87744d783077471a6fe280de1c7e9a6c810))
+* slow the VHS demo and hold the L4 win ([#253](https://github.com/honepad/honepad/issues/253)) ([c416c8f](https://github.com/honepad/honepad/commit/c416c8f40575cc42a969cae46aef2833a75015b7))
+* use the live FOSSA license badge ([#258](https://github.com/honepad/honepad/issues/258)) ([c895521](https://github.com/honepad/honepad/commit/c89552196171967b06940f800b189349fc8344b9))
+
 ## [Unreleased]
 
 - VHS live-console demo on the README
