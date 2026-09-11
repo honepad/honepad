@@ -498,7 +498,7 @@ def test_publish_pypi_reads_version_and_asserts_tag() -> None:
 def test_publish_pypi_dispatch_smokes_before_build() -> None:
     text = _publish_pypi_workflow()
     assert "python -m pip install --require-hashes -r requirements-dev.txt" in text
-    assert "python -m pip install --no-deps --no-index -e ." in text
+    assert "python -m pip install --no-deps --no-build-isolation -e ." in text
     assert (
         "python -m pytest tests/test_packaging.py tests/test_hidden.py tests/test_session.py -q"
         in text

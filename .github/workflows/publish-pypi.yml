@@ -55,7 +55,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --require-hashes -r requirements-dev.txt
-          python -m pip install --no-deps --no-index -e .
+          python -m pip install --no-deps --no-build-isolation -e .
           python -m pytest tests/test_packaging.py tests/test_hidden.py tests/test_session.py -q
           python -m honepad.cli run bank_system --lang python3 --level 4
       - name: Build
