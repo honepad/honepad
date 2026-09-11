@@ -11,9 +11,34 @@ from __future__ import annotations
 import json
 import sys
 
-# honepad has no runtime third-party deps. Keep this map for the
-# occasional discovered license on a tool pin, not to hide copyleft.
-KNOWN_FALSE_POSITIVES: dict[str, set[str]] = {}
+# honepad has no runtime third-party deps. These hits are discovered
+# text inside dev pins (pytest/ruff/build), not declared product
+# licenses. Pygments is BSD-2-Clause; setuptools is MIT; ruff is MIT.
+KNOWN_FALSE_POSITIVES: dict[str, set[str]] = {
+    "pygments": {
+        "LGPL-2.1-or-later",
+        "LGPL-2.1-only",
+        "LGPL-3.0-only",
+        "GPL-3.0-only",
+        "GPL-3.0-or-later",
+        "GPL-2.0-or-later",
+        "GPL-2.0-only",
+        "GPL-2.0-with-autoconf-exception",
+        "MPL-2.0",
+        "MPL-1.1",
+        "CPL-1.0",
+        "gpl-2.0-plus WITH guile-exception-2.0",
+        "lgpl-2.1 WITH qt-lgpl-exception-1.1",
+    },
+    "setuptools": {
+        "LGPL-3.0-or-later",
+        "LGPL-3.0-only",
+        "MPL-2.0",
+    },
+    "ruff": {
+        "GPL-2.0-only",
+    },
+}
 
 
 def extract_package(issue: dict) -> str:
