@@ -340,14 +340,14 @@ def test_color_disabled_without_tty(monkeypatch) -> None:
 
 def test_firework_launch_starts_low() -> None:
     rows = firework_frame(0)
-    assert len(rows) == 11
+    assert len(rows) == 15
     hits = [i for i, row in enumerate(rows) if "*" in row]
     assert hits
     assert hits[0] > len(rows) // 2
 
 
 def test_firework_burst_spreads() -> None:
-    rows = firework_frame(6)
+    rows = firework_frame(8)
     spark_rows = [row for row in rows if "*" in row or "+" in row]
     assert len(spark_rows) >= 4
     cols: list[int] = []
@@ -378,8 +378,8 @@ def test_play_firework_redraws_when_color_forced(monkeypatch, capsys) -> None:
     out = capsys.readouterr().out
     assert "*" in out
     assert "\x1b[" in out
-    assert "\x1b[11A" in out
-    assert slept == [0.04, 0.04, 0.04]
+    assert "\x1b[15A" in out
+    assert slept == [0.04, 0.04, 0.04, 0.35]
 
 
 def test_print_complete_plays_firework_when_color_forced(monkeypatch, capsys) -> None:
@@ -389,7 +389,7 @@ def test_print_complete_plays_firework_when_color_forced(monkeypatch, capsys) ->
     print_complete("bank_system", "java", levels=4, passed=19)
     out = capsys.readouterr().out
     assert "*" in out
-    assert "\x1b[11A" in out
+    assert "\x1b[15A" in out
     done = out.find("DONE: bank_system java")
     assert done != -1
     assert out.find("*") < done
@@ -407,7 +407,7 @@ def test_print_complete_rerun_skips_firework(monkeypatch, capsys) -> None:
     assert "OK: bank_system java still complete" in out
     assert "DONE:" not in out
     assert "*" not in out
-    assert "\x1b[11A" not in out
+    assert "\x1b[15A" not in out
     assert slept == []
     assert "all 4 levels, 19 traces" in out
     assert "in_memory_database java" in out
@@ -420,8 +420,8 @@ def test_print_complete_stays_plain_without_color(monkeypatch, capsys) -> None:
     monkeypatch.setattr("honepad.term.time.sleep", slept.append)
     print_complete("bank_system", "java", levels=4, passed=19)
     out = capsys.readouterr().out
-    assert out.startswith("DONE: bank_system java")
-    assert "\x1b[11A" not in out
+    assert out.lstrip().startswith("DONE: bank_system java")
+    assert "\x1b[15A" not in out
     assert slept == []
 
 
