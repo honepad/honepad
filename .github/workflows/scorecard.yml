@@ -1,9 +1,12 @@
-# Weekly cron plus dispatch. Do not add a product compile on push to main.
+# Weekly cron plus dispatch. Push on main refreshes the public
+# viewer; this job is a security scan, not a product compile.
 name: Scorecard
 
 on:
   schedule:
     - cron: "30 1 * * 1"
+  push:
+    branches: [main]
   workflow_dispatch:
 
 concurrency:

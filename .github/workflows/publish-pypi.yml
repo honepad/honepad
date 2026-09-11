@@ -1,5 +1,7 @@
 # Publish to PyPI from a version tag that equals pyproject.toml.
 # workflow_dispatch is main-only and runs the smoke first.
+# skip_pypi attests the tag tree and uploads GitHub Release assets
+# without calling PyPI (used to backfill a tag that already published).
 # workflow_call is used by release-please after it creates a tag
 # (GITHUB_TOKEN tags do not fire this file on their own).
 # Do not add a product compile on push to main.
@@ -12,10 +14,24 @@ on:
         description: "Release tag (e.g. v0.1.1)"
         required: true
         type: string
+      skip_pypi:
+        description: "Attest and upload GitHub Release assets without publishing to PyPI"
+        required: false
+        type: boolean
+        default: false
   push:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach assets to (empty = current ref)"
+        required: false
+        type: string
+      skip_pypi:
+        description: "Attest and upload GitHub Release assets without publishing to PyPI"
+        type: boolean
+        default: false
 
 concurrency:
   group: publish-pypi-${{ inputs.tag || github.ref }}
@@ -39,7 +55,8 @@ jobs:
       id-token: write
       attestations: write
     env:
-      PUBLISH: ${{ github.event_name == 'workflow_call' || startsWith(github.ref, 'refs/tags/') }}
+      PUBLISH: ${{ github.event_name == 'workflow_call' || startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.tag != '') }}
+      SKIP_PYPI: ${{ inputs.skip_pypi == true }}
       TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
@@ -65,7 +82,7 @@ jobs:
           ver="$HONEPAD_VERSION"
           [ "$tag" = "$ver" ] || { echo "tag $tag != version $ver"; exit 1; }
       - name: Smoke
-        if: github.event_name == 'workflow_dispatch'
+        if: github.event_name == 'workflow_dispatch' && env.SKIP_PYPI != 'true'
         run: |
           set -euo pipefail
           python -m pip install --require-hashes -r requirements-dev.txt
@@ -83,7 +100,7 @@ jobs:
           test -f "dist/honepad-${ver}-py3-none-any.whl"
           test -f "dist/honepad-${ver}.tar.gz"
       - name: Upload
-        if: env.PUBLISH == 'true'
+        if: env.PUBLISH == 'true' && env.SKIP_PYPI != 'true'
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
       - name: Attest build provenance
         if: env.PUBLISH == 'true'
@@ -116,7 +133,16 @@ jobs:
             )
             rm -rf "$tmpdir"
           done
-          gh release upload "$TAG" attestation-bundles/*.intoto.jsonl --clobber
+          shopt -s nullglob
+          bundles=(attestation-bundles/*.intoto.jsonl)
+          [ "${#bundles[@]}" -gt 0 ] || {
+            echo "no provenance bundles downloaded"
+            exit 1
+          }
+          gh release upload "$TAG" \
+            "dist/honepad-${HONEPAD_VERSION}-py3-none-any.whl" \
+            "dist/honepad-${HONEPAD_VERSION}.tar.gz" \
+            attestation-bundles/*.intoto.jsonl --clobber
       - name: SBOM
         if: env.PUBLISH == 'true'
         uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0.20.10
