@@ -51,8 +51,7 @@ bot commits and merge commits.
 ## Pull requests
 
 Use the pull request template. Commits on `main` squash through the
-required checks (`CI`, `DCO`). The README may carry the OpenSSF Best
-Practices badge. Do not add topics, FUNDING, or other badges.
+required checks (`CI`, `DCO`). Start with [README.md](README.md).
 
 Traces in `problems/*/cases/` are the contract. A language pack is
 done when those traces pass. This tree ships public practice traces
