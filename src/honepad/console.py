@@ -91,6 +91,7 @@ def render_banner(session: dict[str, Any], now: int | None = None) -> str:
             status_note("NOTE: a new clock is quit then start (keeps work). 3 deletes the file.")
         )
         lines.append(format_debrief(session, now=now))
+        lines.append(f"NEXT: {invocation()} start")
     return "\n".join(lines)
 
 

@@ -1794,7 +1794,9 @@ def test_expired_run_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> Non
     assert through
     assert "UNLOCKED" not in out
     assert "TIME UP" in out
-    assert "q then" in out
+    assert "NEXT:" in out
+    assert "start" in out
+    assert "q then" not in out
     assert load_session()["unlocked"] == 1
 
 
@@ -2097,10 +2099,47 @@ def test_start_retired_lang_resets_unlock_and_names_the_old_level(
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
     assert main(["start", "bank_system", "python3", "--no-console"]) == 0
     out = capsys.readouterr().out
+    leftover = session_file.parent / "work" / "bank_system" / "gone"
     assert "NOTE:" in out
     assert "gone" in out
     assert "retired" in out
     assert "LEVEL 3" in out
+    assert "leftover work stays in" in out
+    assert str(leftover) in out
+    assert "starting python3 at LEVEL 1" in out
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "python3"
+    assert session["unlocked"] == 1
+
+
+def test_start_retired_dotdot_lang_does_not_print_escaped_work_path(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = tmp_path / "session.json"
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "../evil",
+                "started_at": int(time.time()),
+                "minutes": 90,
+                "unlocked": 2,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert "NOTE:" in out
+    assert "retired" in out
+    assert "/work/../" not in out
+    assert "work/bank_system/../" not in out
+    assert "\\work\\.." not in out
+    assert str(session_file.parent / "work" / "bank_system" / "../evil") not in out
+    assert "starting python3 at LEVEL 1" in out
     session = load_session()
     assert session is not None
     assert session["lang"] == "python3"
@@ -2998,6 +3037,70 @@ def test_submit_does_not_unlock_when_clock_expires_during_run(
     out = capsys.readouterr().out
     assert "UNLOCKED" not in out
     assert "TIME UP" in out
+    assert load_session()["unlocked"] == 1
+
+
+def test_submit_does_not_unlock_when_clock_expires_during_hidden_run(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    started = int(load_session()["started_at"])
+    clock["now"] = started + 89 * 60
+    real_run = __import__("honepad.cli", fromlist=["run"]).run
+    calls = {"n": 0}
+
+    def _run_expire_on_hidden(*args: object, **kwargs: object):
+        calls["n"] += 1
+        if calls["n"] >= 2:
+            clock["now"] = started + 91 * 60
+        return real_run(*args, **kwargs)
+
+    monkeypatch.setattr("honepad.cli.run", _run_expire_on_hidden)
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 0
+    out = capsys.readouterr().out
+    assert "UNLOCKED" not in out
+    assert "TIME UP" in out
+    assert load_session()["unlocked"] == 1
+
+
+def test_submit_time_up_when_hidden_run_expires_then_raises(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    started = int(load_session()["started_at"])
+    clock["now"] = started + 89 * 60
+    real_run = __import__("honepad.cli", fromlist=["run"]).run
+    calls = {"n": 0}
+
+    def _run_expire_then_raise(*args: object, **kwargs: object):
+        calls["n"] += 1
+        if calls["n"] >= 2:
+            clock["now"] = started + 91 * 60
+            raise RuntimeError("hidden adapter timed out")
+        return real_run(*args, **kwargs)
+
+    monkeypatch.setattr("honepad.cli.run", _run_expire_then_raise)
+    assert main(["submit", "bank_system", "--kind", "solution"]) == 1
+    out = capsys.readouterr().out
+    assert "UNLOCKED" not in out
+    assert "TIME UP" in out
+    assert "DEBRIEF:" in out
     assert load_session()["unlocked"] == 1
 
 

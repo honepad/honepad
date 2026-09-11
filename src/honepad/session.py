@@ -258,25 +258,38 @@ def load_session(
     return loaded
 
 
-def _parse_last_run(raw: Any) -> dict[str, int] | None:
+def _parse_last_run(raw: Any) -> dict[str, Any] | None:
     if not isinstance(raw, dict):
         return None
     try:
-        return {
+        parsed: dict[str, Any] = {
             "level": int(raw["level"]),
             "passed": int(raw["passed"]),
             "failed": int(raw["failed"]),
         }
     except (KeyError, TypeError, ValueError, OverflowError):
         return None
+    if raw.get("hidden") is True:
+        parsed["hidden"] = True
+    return parsed
 
 
-def record_last_run(session: dict[str, Any], *, level: int, passed: int, failed: int) -> None:
-    session["last_run"] = {
+def record_last_run(
+    session: dict[str, Any],
+    *,
+    level: int,
+    passed: int,
+    failed: int,
+    hidden: bool = False,
+) -> None:
+    last_run: dict[str, Any] = {
         "level": int(level),
         "passed": int(passed),
         "failed": int(failed),
     }
+    if hidden:
+        last_run["hidden"] = True
+    session["last_run"] = last_run
     save_session(session)
 
 
@@ -294,8 +307,9 @@ def format_debrief(session: dict[str, Any], now: int | None = None) -> str:
     ]
     last = session.get("last_run")
     if isinstance(last, dict) and {"level", "passed", "failed"} <= last.keys():
+        kind = "last hidden through" if last.get("hidden") else "last through"
         lines.append(
-            f"last through LEVEL {last['level']} passed={last['passed']} failed={last['failed']}"
+            f"{kind} LEVEL {last['level']} passed={last['passed']} failed={last['failed']}"
         )
     else:
         lines.append("last run: none")
@@ -373,9 +387,17 @@ def ensure_session(
         session = new_session(problem, lang, duration)
         save_session(session)
         if retired is not None:
+            if _single_segment(retired.lang):
+                try:
+                    leftover = work_src(retired.problem, retired.lang)
+                except (KeyError, ValueError):
+                    leftover = session_path().parent / "work" / retired.problem / retired.lang
+            else:
+                leftover = retired.lang
             sys.stdout.write(
                 f"NOTE: your {retired.lang} session is retired "
                 f"({retired.lang} was removed, was LEVEL {retired.unlocked}); "
+                f"leftover work stays in {leftover}; "
                 f"starting {lang} at LEVEL 1.\n"
             )
         return session

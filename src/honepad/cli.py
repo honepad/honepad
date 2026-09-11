@@ -499,6 +499,14 @@ def cmd_run(args: argparse.Namespace) -> int:
             print(status_note(f"NOTE: {len(report.failed) - 1} more failing cases not shown."))
         if kind == "work":
             _print_work_notes(args.problem, lang)
+        if (
+            practice
+            and session is not None
+            and kind in ("solution", "work", "stub")
+            and left == 0
+            and int(session["unlocked"]) < max_level(str(session["problem"]))
+        ):
+            _print_time_up(session)
         return 1
     if report.passed == 0:
         print(status_fail("FAIL: no cases"))
@@ -518,11 +526,13 @@ def cmd_run(args: argparse.Namespace) -> int:
                     f"failed={len(hidden_report.failed)}"
                 )
                 if session is not None and same:
+                    left = remaining_s(int(session["started_at"]), int(session["minutes"]))
                     record_last_run(
                         session,
                         level=hidden_report.level,
                         passed=hidden_report.passed,
                         failed=len(hidden_report.failed),
+                        hidden=True,
                     )
                 if hidden_report.failed:
                     fail = hidden_report.failed[0]
@@ -548,7 +558,10 @@ def cmd_run(args: argparse.Namespace) -> int:
         except HONEPAD_ERRORS + (NotImplementedError,) as exc:
             print_fail(exc)
             if session is not None and same:
-                record_last_run(session, level=level, passed=0, failed=1)
+                left = remaining_s(int(session["started_at"]), int(session["minutes"]))
+                record_last_run(session, level=level, passed=0, failed=1, hidden=True)
+            if kind == "work":
+                _print_work_notes(args.problem, lang)
             hidden_ok = False
     if not hidden_ok:
         if (
@@ -558,9 +571,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             and left == 0
             and int(session["unlocked"]) < max_level(str(session["problem"]))
         ):
-            print(status_fail("TIME UP: the clock ran out. Next level stays locked."))
-            print(status_note("NOTE: q then honepad start starts a new clock and keeps your work."))
-            print(format_debrief(session))
+            _print_time_up(session)
         return 1
     may_unlock = bool(getattr(args, "unlock", False))
     if practice and session is not None and kind in ("solution", "work"):
@@ -590,9 +601,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 _print_work_notes(args.problem, lang)
             return 0
         if left == 0:
-            print(status_fail("TIME UP: the clock ran out. Next level stays locked."))
-            print(status_note("NOTE: q then honepad start starts a new clock and keeps your work."))
-            print(format_debrief(session))
+            _print_time_up(session)
             if kind == "work":
                 _print_work_notes(args.problem, lang)
             return 0
@@ -663,6 +672,13 @@ def _print_run_source(problem: str, lang: str, kind: str) -> None:
         return
 
 
+def _print_time_up(session: dict[str, Any]) -> None:
+    print(status_fail("TIME UP: the clock ran out. Next level stays locked."))
+    print(status_note("NOTE: honepad start starts a new clock and keeps your work."))
+    print(format_debrief(session))
+    print(f"NEXT: {invocation()} start")
+
+
 def _print_work_notes(problem: str, lang: str) -> None:
     print(work_line(work_src(problem, lang)))
     extra = extra_work_note(problem, lang)
@@ -722,6 +738,9 @@ def cmd_debrief(_args: argparse.Namespace) -> int:
             print(f"NEXT: {invocation()} start")
             return 1
         print(format_debrief(session))
+        left = remaining_s(int(session["started_at"]), int(session["minutes"]))
+        if left == 0:
+            print(f"NEXT: {invocation()} start")
     except HONEPAD_ERRORS as exc:
         print_fail(exc)
         return 1
@@ -871,8 +890,8 @@ def build_parser() -> argparse.ArgumentParser:
         "debrief",
         help="print unlock and last-run recap",
         description=(
-            "Print unlocked level, minutes used, and the last public run. "
-            "Does not restart the clock."
+            "Print unlocked level, minutes used, and the last run "
+            "(public or hidden). Does not restart the clock."
         ),
     )
     debrief.set_defaults(func=cmd_debrief)

@@ -110,6 +110,8 @@ def test_banner_time_up_when_remaining_zero() -> None:
     assert "DEBRIEF: bank_system java LEVEL 1/4" in text
     assert "last run: none" in text
     assert "remaining_s=" not in text
+    assert "NEXT:" in text
+    assert "start" in text
 
 
 def test_banner_done_at_last_level_even_when_clock_is_zero() -> None:
