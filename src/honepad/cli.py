@@ -499,6 +499,14 @@ def cmd_run(args: argparse.Namespace) -> int:
             print(status_note(f"NOTE: {len(report.failed) - 1} more failing cases not shown."))
         if kind == "work":
             _print_work_notes(args.problem, lang)
+        if (
+            practice
+            and session is not None
+            and kind in ("solution", "work", "stub")
+            and left == 0
+            and int(session["unlocked"]) < max_level(str(session["problem"]))
+        ):
+            _print_time_up(session)
         return 1
     if report.passed == 0:
         print(status_fail("FAIL: no cases"))

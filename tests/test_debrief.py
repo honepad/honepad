@@ -60,6 +60,32 @@ def test_submit_time_up_prints_debrief(monkeypatch, tmp_path: Path, capsys) -> N
     assert saved["last_run"]["hidden"] is True
 
 
+def test_submit_public_fail_on_time_up_still_prints_debrief(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    assert main(["submit", "bank_system", "--kind", "stub", "--confirm", "y"]) == 1
+    out = capsys.readouterr().out
+    assert "TIME UP" in out
+    assert "DEBRIEF:" in out
+    assert "NEXT:" in out
+    assert "UNLOCKED" not in out
+
+
 def test_submit_hidden_load_error_on_time_up_still_prints_debrief(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:
