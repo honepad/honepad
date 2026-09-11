@@ -27,7 +27,10 @@ Parent session is the outer loop. Read `factory/WORK_SOURCES.md` and run `factor
 
 ## Stealth
 
-Public for hosted Actions. Empty description, no topics, no FUNDING, README stays `# honepad` / `Not ready.` Do not run `/oss-announce`. See `factory/CONSTITUTION.md`.
+Public for hosted Actions. Empty GitHub description, no topics, no
+FUNDING. README is a one-line description plus the OpenSSF Best
+Practices badge. Do not run `/oss-announce`. See
+`factory/CONSTITUTION.md`.
 
 ## Language packs
 

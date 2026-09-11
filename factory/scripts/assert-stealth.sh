@@ -67,8 +67,13 @@ fi
 
 echo "DO: scan local tree if cwd is a git checkout"
 if [[ -f README.md ]]; then
-  if grep -Eiq 'shields.io|img.shields|badge|\[ci\]|scorecard|bestpractices.dev' README.md; then
+  if grep -Eiq 'shields.io|img.shields|\[ci\]|scorecard' README.md; then
     echo "FAIL: README has badges or CI marketing"
+    leaks=$((leaks + 1))
+  fi
+  if grep -Eiq 'badge' README.md \
+    && ! grep -Fq 'bestpractices.dev/projects/' README.md; then
+    echo "FAIL: README has a non-OpenSSF badge"
     leaks=$((leaks + 1))
   fi
   if grep -Eiq 'agent skills|getting started|install|quickstart' README.md; then

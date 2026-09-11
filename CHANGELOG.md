@@ -11,6 +11,7 @@ Current `main`. The first announced release will be 0.1.0. Do not retag
 - Community files for a later public flip
 - Hash-pinned CI installs, tag-only PyPI upload, lychee, stale,
   semantic PR titles, actionlint, zizmor, and test summaries
+- OpenSSF Best Practices passing badge (project 14574)
 
 ## [0.0.2] - 2026-09-09
 
