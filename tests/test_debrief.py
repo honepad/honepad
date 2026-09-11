@@ -6,10 +6,23 @@ import json
 import shutil
 from pathlib import Path
 
+import pytest
+
 from honepad.catalog import repo_root
-from honepad.cli import main
+from honepad.cli import build_parser, main
 from honepad.session import format_debrief, load_session, remaining_s, save_session, work_src
 from honepad.term import invocation
+
+
+def test_debrief_help_names_last_run_not_only_public(capsys) -> None:
+    parser = build_parser()
+    with pytest.raises(SystemExit) as excinfo:
+        parser.parse_args(["debrief", "-h"])
+    assert excinfo.value.code == 0
+    out = capsys.readouterr().out
+    assert "last run" in out.lower()
+    assert "public or hidden" in out.lower()
+    assert "last public run" not in out.lower()
 
 
 def test_submit_time_up_prints_debrief(monkeypatch, tmp_path: Path, capsys) -> None:

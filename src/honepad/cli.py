@@ -882,8 +882,8 @@ def build_parser() -> argparse.ArgumentParser:
         "debrief",
         help="print unlock and last-run recap",
         description=(
-            "Print unlocked level, minutes used, and the last public run. "
-            "Does not restart the clock."
+            "Print unlocked level, minutes used, and the last run "
+            "(public or hidden). Does not restart the clock."
         ),
     )
     debrief.set_defaults(func=cmd_debrief)
