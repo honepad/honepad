@@ -10,8 +10,9 @@
 - Leftover catalog ids (`objc`, `vb`, frontend, SQL, `hack`,
   `mongodb`) only if the owner asks for that language
 - `good first issue` and `help wanted` once real newcomers show up
+- Homebrew tap and Scoop bucket stay current on each GitHub Release
 
 ## Later
 
-- Fuzzing
-- Extra distribution channels
+- A Windows portable archive (needed before a winget package)
+- OpenSSF Gold is not a goal (solo maintainer)

@@ -7,6 +7,7 @@ Local CLI for public practice problems.
 [![License](https://img.shields.io/github/license/honepad/honepad)](https://github.com/honepad/honepad/blob/main/LICENSE)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14574/badge)](https://www.bestpractices.dev/projects/14574)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/honepad/honepad/badge)](https://securityscorecards.dev/viewer/?uri=github.com/honepad/honepad)
+[![FOSSA](https://github.com/honepad/honepad/actions/workflows/fossa.yml/badge.svg?event=push)](https://github.com/honepad/honepad/actions/workflows/fossa.yml)
 
 ![honepad live console](demo/demo.gif)
 
@@ -22,6 +23,25 @@ live assessment items. It is not affiliated with any interview vendor.
 ```bash
 pip install honepad
 ```
+
+Homebrew (tap, then trust on Homebrew 6+):
+
+```bash
+brew tap honepad/tap
+brew trust honepad/tap
+brew install honepad/tap/honepad
+```
+
+Scoop (add the org bucket first):
+
+```powershell
+scoop bucket add honepad https://github.com/honepad/scoop-bucket
+scoop install honepad/honepad
+```
+
+`pip` is the primary channel. Homebrew and Scoop install the same
+PyPI/GitHub Release wheel. There is no winget package yet (that
+needs a Windows portable archive).
 
 From a clone:
 

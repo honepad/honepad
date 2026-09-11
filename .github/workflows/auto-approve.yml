@@ -20,17 +20,18 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+    # Same-repo heads only. Approve SebTardif PRs and App-authored
+    # release-please PRs (GITHUB_TOKEN can review those). Auto-merge
+    # is gated later and still skips release PRs.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.user.login != 'github-actions[bot]' &&
       !github.event.pull_request.draft &&
-      !contains(github.event.pull_request.labels.*.name, 'autorelease: pending') &&
-      !startsWith(github.event.pull_request.title, 'release:') &&
-      !startsWith(github.event.pull_request.title, 'chore(release)') &&
-      !startsWith(github.head_ref, 'release-please') &&
-      !startsWith(github.event.pull_request.title, 'publish') &&
-      github.event.pull_request.title != 'chore: amend constitution' &&
-      github.actor == 'SebTardif'
+      (
+        github.actor == 'SebTardif' ||
+        startsWith(github.head_ref, 'release-please') ||
+        contains(github.event.pull_request.labels.*.name, 'autorelease: pending')
+      )
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
         with:
@@ -40,6 +41,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.head_ref }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
           set -euo pipefail
           paths=$(gh pr diff --name-only "$PR" --repo "$REPO")
@@ -52,4 +55,13 @@ jobs:
             exit 0
           fi
           gh pr review --approve "$PR" --repo "$REPO"
+          case "$HEAD_REF" in
+            release-please*) echo "Skip auto-merge: release PR"; exit 0 ;;
+          esac
+          case ",$PR_LABELS," in
+            *",autorelease: pending,"*)
+              echo "Skip auto-merge: autorelease pending"
+              exit 0
+              ;;
+          esac
           gh pr merge --auto --squash "$PR" --repo "$REPO"
