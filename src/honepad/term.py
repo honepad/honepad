@@ -249,11 +249,11 @@ def start_next() -> str:
     return f"NEXT: {invocation()} start bank_system java"
 
 
-_FIREWORK_W = 25
-_FIREWORK_H = 11
-_FIREWORK_FRAMES = 14
-_FIREWORK_DELAY_S = 0.04
-_FIREWORK_LAUNCH = 4
+_FIREWORK_W = 41
+_FIREWORK_H = 15
+_FIREWORK_FRAMES = 20
+_FIREWORK_DELAY_S = 0.08
+_FIREWORK_LAUNCH = 5
 _FIREWORK_COLORS = (196, 214, 220, 81, 213, 203)
 
 
@@ -315,6 +315,8 @@ def play_firework(*, frames: int = _FIREWORK_FRAMES, delay_s: float = _FIREWORK_
             height = len(lines)
             if delay_s > 0:
                 time.sleep(delay_s)
+        if delay_s > 0:
+            time.sleep(max(delay_s, 0.35))
     finally:
         stream.write("\033[?25h")
         stream.flush()
@@ -324,6 +326,7 @@ def print_complete(
     problem: str, lang: str, *, levels: int, passed: int, first: bool = True
 ) -> None:
     if first:
+        print()
         play_firework()
         print(status_unlock(f"DONE: {problem} {lang}"))
     else:
