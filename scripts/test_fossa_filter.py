@@ -41,6 +41,29 @@ def test_empty_issues():
     assert "0 issue(s)" in out
 
 
+def test_dev_pin_false_positives_filtered():
+    issues = [
+        {
+            "revisionId": "pip+pygments$2.19.0",
+            "license": "GPL-3.0-only",
+            "type": "policy_flag",
+        },
+        {
+            "revisionId": "pip+setuptools$80.0.0",
+            "license": "MPL-2.0",
+            "type": "policy_flag",
+        },
+        {
+            "revisionId": "pip+ruff$0.16.6",
+            "license": "GPL-2.0-only",
+            "type": "policy_flag",
+        },
+    ]
+    rc, out = run_filter(issues)
+    assert rc == 0, f"Expected 0, got {rc}: {out}"
+    assert "3 issue(s)" in out
+
+
 def test_genuine_issue_not_filtered():
     issues = [
         {
@@ -70,6 +93,7 @@ def test_usage_exit_2():
 
 if __name__ == "__main__":
     test_empty_issues()
+    test_dev_pin_false_positives_filtered()
     test_genuine_issue_not_filtered()
     test_extract_package_from_revision_id()
     test_usage_exit_2()
