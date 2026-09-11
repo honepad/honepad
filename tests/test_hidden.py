@@ -283,6 +283,7 @@ def test_submit_hidden_fail_does_not_unlock(monkeypatch, tmp_path: Path, capsys)
     assert "hidden through LEVEL" in out
     assert "999" not in out
     assert "expected=" not in out
+    assert "PASS" not in out
     assert "TIME UP" in out
     assert "DEBRIEF:" in out
     assert "last hidden through LEVEL 1 passed=0 failed=1" in out
@@ -326,6 +327,7 @@ def test_submit_last_level_hidden_fail_does_not_mark_cleared(
     out = capsys.readouterr().out
     assert "DONE" not in out
     assert "TIME UP" not in out
+    assert "PASS" not in out
     session = load_session()
     assert session is not None
     assert session.get("cleared") is not True
@@ -366,6 +368,7 @@ def test_run_last_level_work_hidden_fail_does_not_mark_cleared(
     assert main(["run", "workers", "--kind", "work"]) == 1
     out = capsys.readouterr().out
     assert "DONE" not in out
+    assert "PASS" not in out
     session = load_session()
     assert session is not None
     assert session.get("cleared") is not True
@@ -408,6 +411,7 @@ def test_submit_work_hidden_fail_records_last_run(
     assert main(["submit", "workers", "--kind", "work", "--confirm", "y"]) == 1
     out = capsys.readouterr().out
     assert "UNLOCKED" not in out
+    assert "PASS" not in out
     session = load_session()
     assert session is not None
     assert session["unlocked"] == 1
@@ -419,6 +423,20 @@ def test_submit_work_hidden_fail_records_last_run(
         assert "last hidden through LEVEL 1 passed=0 failed=1" in out
     else:
         assert "TIME UP" not in out
+
+
+def test_run_mid_level_work_prints_submit_next(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "workers", "python3", "--no-console"]) == 0
+    capsys.readouterr()
+    _copy_official_python_work("workers")
+    assert main(["run", "workers", "--kind", "work"]) == 0
+    out = capsys.readouterr().out
+    assert "NOTE: still LEVEL 1. 2 submit unlocks the next level." in out
+    next_lines = [line for line in out.splitlines() if "NEXT:" in line]
+    assert next_lines
+    assert "submit" in next_lines[0]
+    assert "workers" in next_lines[0]
 
 
 def test_submit_solution_runs_hidden_and_can_unlock(monkeypatch, tmp_path: Path, capsys) -> None:

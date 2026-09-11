@@ -822,6 +822,27 @@ def test_vscode_needs_both_args(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "vscode bank_system java" in out
 
 
+def test_console_unparseable_work_prints_reset_next(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    capsys.readouterr()
+    session_file = tmp_path / "session.json"
+    data = json.loads(session_file.read_text(encoding="utf-8"))
+    data["unlocked"] = 2
+    session_file.write_text(json.dumps(data) + "\n", encoding="utf-8")
+    work_src("bank_system", "python3").write_text(
+        "class Simulation:\n    def (\n", encoding="utf-8"
+    )
+    code = main(["console"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL:" in out
+    assert "unparseable" in out
+    next_lines = [line for line in out.splitlines() if "NEXT:" in line]
+    assert len(next_lines) == 1
+    assert "start --reset" in next_lines[0]
+
+
 def test_console_unimplemented_lang_fails(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["console", "bank_system", "vb"]) == 1

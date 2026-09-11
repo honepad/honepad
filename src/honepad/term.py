@@ -384,6 +384,9 @@ def print_fail(exc: BaseException) -> None:
         top = text.rsplit("1..", 1)[-1]
         print(f"NEXT: omit --level, or pass --level 1..{top}")
         return
+    if "unparseable" in text or "missing class" in text or "work file" in text:
+        print(work_reset_next())
+        return
     if not text.startswith("unknown language:"):
         return
     from honepad.catalog import languages, suggest_language

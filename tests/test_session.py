@@ -3216,6 +3216,26 @@ def test_submit_comment_method_name_still_merges_python(
     assert "def top_spenders(self" in after
 
 
+def test_start_unparseable_work_prints_reset_next(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    capsys.readouterr()
+    session_file = tmp_path / "session.json"
+    data = json.loads(session_file.read_text(encoding="utf-8"))
+    data["unlocked"] = 2
+    session_file.write_text(json.dumps(data) + "\n", encoding="utf-8")
+    work = work_src("bank_system", "python3")
+    work.write_text("class Simulation:\n    def (\n", encoding="utf-8")
+    code = main(["start", "bank_system", "python3", "--no-console"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL:" in out
+    assert "unparseable" in out
+    next_lines = [line for line in out.splitlines() if "NEXT:" in line]
+    assert next_lines == [line for line in next_lines if "start --reset" in line]
+    assert len(next_lines) == 1
+
+
 def test_python_syntax_error_includes_line_or_token(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0

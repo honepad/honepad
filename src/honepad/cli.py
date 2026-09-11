@@ -513,7 +513,6 @@ def cmd_run(args: argparse.Namespace) -> int:
         if kind == "work":
             _print_work_notes(args.problem, lang)
         return 1
-    print(render_pass(report.problem, report.lang, report.level, report.passed))
     hidden_ok = True
     if _wants_hidden(
         kind,
@@ -578,6 +577,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         ):
             _print_time_up(session)
         return 1
+    print(render_pass(report.problem, report.lang, report.level, report.passed))
     may_unlock = bool(getattr(args, "unlock", False))
     if practice and session is not None and kind in ("solution", "work"):
         nxt = int(session["unlocked"]) + 1
@@ -647,6 +647,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 f"NOTE: still LEVEL {session['unlocked']}. 2 submit unlocks the next level."
             )
         )
+        print(f"NEXT: {invocation()} submit {session['problem']}")
         if kind == "work":
             _print_work_notes(args.problem, lang)
         return 0
