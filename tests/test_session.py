@@ -3068,7 +3068,11 @@ def test_submit_does_not_unlock_when_clock_expires_during_hidden_run(
     out = capsys.readouterr().out
     assert "UNLOCKED" not in out
     assert "TIME UP" in out
-    assert load_session()["unlocked"] == 1
+    assert "DEBRIEF:" in out
+    assert "last hidden through LEVEL" in out
+    saved = load_session()
+    assert saved["unlocked"] == 1
+    assert saved["last_run"]["hidden"] is True
 
 
 def test_submit_time_up_when_hidden_run_expires_then_raises(
@@ -3101,7 +3105,10 @@ def test_submit_time_up_when_hidden_run_expires_then_raises(
     assert "UNLOCKED" not in out
     assert "TIME UP" in out
     assert "DEBRIEF:" in out
-    assert load_session()["unlocked"] == 1
+    assert "last hidden through LEVEL" in out
+    saved = load_session()
+    assert saved["unlocked"] == 1
+    assert saved["last_run"]["hidden"] is True
 
 
 def test_submit_without_class_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
