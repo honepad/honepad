@@ -4,6 +4,7 @@ exclude = [
   "file://",
   "github\\.com/.*/compare/.*v.*\\.\\.\\..*v",
   "github\\.com/.*/releases/tag/.*v\\d",
+  "app\\.fossa\\.com/api/projects/.*\\.svg",
 ]
 
 exclude_path = ["CHANGELOG.md"]

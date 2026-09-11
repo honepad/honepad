@@ -48,10 +48,22 @@ git commit -s
 The sign-off email is `git config user.email`. The DCO workflow skips
 bot commits and merge commits.
 
+## Coding standards
+
+- Python 3.10+. Format and lint with ruff (`ruff check`, `ruff format`).
+- New behavior needs a test in the same change. Traces in
+  `problems/*/cases/` are the contract for a language pack.
+- Do not add a language by editing Python. Add `langs/<id>/meta.json`,
+  an adapter, and stubs. See [langs/ADDING-A-LANGUAGE.md](langs/ADDING-A-LANGUAGE.md).
+- Public copy: "practice problems", not "traces". No interview-vendor
+  affiliation.
+
 ## Pull requests
 
 Use the pull request template. Commits on `main` squash through the
-required checks (`CI`, `DCO`). Start with [README.md](README.md).
+required check `CI`. DCO is enforced by workflow, not as a required
+check. Start with [README.md](README.md).
+
 
 Traces in `problems/*/cases/` are the contract. A language pack is
 done when those traces pass. This tree ships public practice traces

@@ -1,0 +1,92 @@
+# Rewrite honepad/scoop-bucket from a published GitHub Release wheel.
+# Does not compile the product. Soft-skip when the App token is unset.
+name: Publish Scoop bucket
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semver without tag prefix (e.g. 0.1.0). Empty = latest.
+        required: false
+        type: string
+        default: ""
+
+concurrency:
+  group: publish-scoop-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Update scoop-bucket
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Resolve version
+        id: ver
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_VERSION}" ]; then
+            ver="${INPUT_VERSION#v}"
+          else
+            tag=$(gh release view --json tagName --jq .tagName --repo "${{ github.repository }}")
+            ver="${tag#v}"
+          fi
+          echo "version=${ver}" >> "$GITHUB_OUTPUT"
+      - name: Hash the release wheel
+        id: hash
+        run: |
+          set -euo pipefail
+          url="https://github.com/honepad/honepad/releases/download/v${{ steps.ver.outputs.version }}/honepad-${{ steps.ver.outputs.version }}-py3-none-any.whl"
+          curl -fsSL -o wheel.whl "$url"
+          echo "sha256=$(sha256sum wheel.whl | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+      - name: Check App credentials
+        id: check-key
+        run: |
+          if [ -z "${{ vars.AUTO_APPROVE_CLIENT_ID }}" ]; then
+            echo "AUTO_APPROVE_CLIENT_ID unset, skipping bucket push"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        if: steps.check-key.outputs.skip != 'true'
+        id: app-token
+        with:
+          client-id: ${{ vars.AUTO_APPROVE_CLIENT_ID }}
+          private-key: ${{ secrets.AUTO_APPROVE_PRIVATE_KEY }}
+          owner: honepad
+          repositories: scoop-bucket
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.check-key.outputs.skip != 'true'
+        with:
+          repository: honepad/scoop-bucket
+          token: ${{ steps.app-token.outputs.token }}
+          path: scoop-bucket
+      - name: Rewrite manifest and push
+        if: steps.check-key.outputs.skip != 'true'
+        working-directory: scoop-bucket
+        run: |
+          set -euo pipefail
+          mkdir -p bucket
+          python3 ../scripts/update-scoop-manifest.py \
+            --version "${{ steps.ver.outputs.version }}" \
+            --sha256 "${{ steps.hash.outputs.sha256 }}" \
+            --output bucket/honepad.json
+          git config user.name "honepad-release[bot]"
+          git config user.email "321573620+honepad-release[bot]@users.noreply.github.com"
+          git add bucket/honepad.json
+          git diff --cached --quiet && exit 0
+          git commit -m "honepad ${{ steps.ver.outputs.version }}"
+          git push
