@@ -92,8 +92,28 @@ def test_dev_ruff_pin_matches_ci() -> None:
 
 def test_publish_uploads_only_from_a_version_tag() -> None:
     text = (ROOT / ".github/workflows/publish-pypi.yml").read_text()
-    assert "if: startsWith(github.ref, 'refs/tags/')" in text
+    assert "github.event_name == 'workflow_call'" in text
+    assert "startsWith(github.ref, 'refs/tags/')" in text
     assert "gh-action-pypi-publish" in text
+    assert "attest-build-provenance" in text
+    assert ".intoto.jsonl" in text
+
+
+def test_ci_docs_only_skips_shards() -> None:
+    text = (ROOT / ".github/workflows/ci.yml").read_text()
+    assert "dorny/paths-filter@" in text
+    assert "needs.changes.outputs.code == 'true'" in text
+    assert "!startsWith(github.head_ref, 'release-please')" in text
+
+
+def test_release_please_python_package() -> None:
+    cfg = (ROOT / "release-please-config.json").read_text()
+    man = (ROOT / ".release-please-manifest.json").read_text()
+    wf = (ROOT / ".github/workflows/release-please.yml").read_text()
+    assert '"release-type": "python"' in cfg
+    assert '".": "0.1.0"' in man
+    assert "googleapis/release-please-action@" in wf
+    assert "uses: ./.github/workflows/publish-pypi.yml" in wf
 
 
 def test_dependabot_auto_merge_keeps_workflow_read() -> None:
@@ -478,18 +498,17 @@ def _publish_pypi_workflow() -> str:
 def test_publish_pypi_job_if_gates_dispatch_to_main() -> None:
     text = _publish_pypi_workflow()
     assert "workflow_dispatch:" in text
-    assert "workflow_call" not in text
+    assert "workflow_call:" in text
     assert "(github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')" in text
     assert "startsWith(github.ref, 'refs/tags/')" in text
-    old_if = "github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')"
-    assert old_if not in text
+    assert "github.event_name == 'workflow_call'" in text
 
 
 def test_publish_pypi_reads_version_and_asserts_tag() -> None:
     text = _publish_pypi_workflow()
     assert "HONEPAD_VERSION" in text
     assert "tomllib" in text
-    assert 'tag="${GITHUB_REF_NAME#v}"' in text
+    assert 'tag="${TAG#v}"' in text
     assert "tag $tag != version $ver" in text
     assert "dist/honepad-${ver}-py3-none-any.whl" in text
     assert "dist/honepad-${ver}.tar.gz" in text

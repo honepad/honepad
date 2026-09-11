@@ -2,7 +2,11 @@
 
 Local CLI for public practice problems.
 
+[![PyPI](https://img.shields.io/pypi/v/honepad?logo=pypi&logoColor=white)](https://pypi.org/project/honepad/)
+[![Release](https://img.shields.io/github/v/release/honepad/honepad?logo=github&sort=semver)](https://github.com/honepad/honepad/releases/latest)
+[![License](https://img.shields.io/github/license/honepad/honepad)](https://github.com/honepad/honepad/blob/main/LICENSE)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14574/badge)](https://www.bestpractices.dev/projects/14574)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/honepad/honepad/badge)](https://securityscorecards.dev/viewer/?uri=github.com/honepad/honepad)
 
 Timed desks. You implement methods, run public tests, and unlock the
 next level. 38 language runners work on Linux. The python3 CLI also

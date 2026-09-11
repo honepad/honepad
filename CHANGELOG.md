@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- README badges for PyPI, Release, License, and Scorecard
+- release-please on `main` with tag-time PyPI publish
+- SLSA provenance and CycloneDX SBOM on GitHub Releases
+- Docs-only PRs skip the language shards and OS compat matrix
+
 ## [0.1.0] - 2026-09-11
 
 First announced release.
