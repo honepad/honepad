@@ -92,7 +92,7 @@ def _toolchain_note(lang_id: str, has_runner: bool) -> str:
 def cmd_default(_args: argparse.Namespace) -> int:
     try:
         session = load_session()
-    except ValueError as exc:
+    except HONEPAD_ERRORS as exc:
         print_fail(exc)
         return 1
     if session is None:
@@ -506,6 +506,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             _print_work_notes(args.problem, lang)
         return 1
     print(render_pass(report.problem, report.lang, report.level, report.passed))
+    hidden_ok = True
     if _wants_hidden(kind, bool(getattr(args, "unlock", False))):
         try:
             hidden = load_hidden_cases(args.problem, level)
@@ -516,6 +517,13 @@ def cmd_run(args: argparse.Namespace) -> int:
                     f"{hidden_report.level} passed={hidden_report.passed} "
                     f"failed={len(hidden_report.failed)}"
                 )
+                if session is not None and same:
+                    record_last_run(
+                        session,
+                        level=hidden_report.level,
+                        passed=hidden_report.passed,
+                        failed=len(hidden_report.failed),
+                    )
                 if hidden_report.failed:
                     fail = hidden_report.failed[0]
                     naming = str(language(lang)["naming"])
@@ -536,10 +544,24 @@ def cmd_run(args: argparse.Namespace) -> int:
                     )
                     if kind == "work":
                         _print_work_notes(args.problem, lang)
-                    return 1
+                    hidden_ok = False
         except HONEPAD_ERRORS + (NotImplementedError,) as exc:
             print_fail(exc)
-            return 1
+            if session is not None and same:
+                record_last_run(session, level=level, passed=0, failed=1)
+            hidden_ok = False
+    if not hidden_ok:
+        if (
+            practice
+            and session is not None
+            and kind in ("solution", "work")
+            and left == 0
+            and int(session["unlocked"]) < max_level(str(session["problem"]))
+        ):
+            print(status_fail("TIME UP: the clock ran out. Next level stays locked."))
+            print(status_note("NOTE: q then honepad start starts a new clock and keeps your work."))
+            print(format_debrief(session))
+        return 1
     may_unlock = bool(getattr(args, "unlock", False))
     if practice and session is not None and kind in ("solution", "work"):
         nxt = int(session["unlocked"]) + 1
@@ -695,14 +717,14 @@ def _unlocked_at_last_level(problem: str) -> bool:
 def cmd_debrief(_args: argparse.Namespace) -> int:
     try:
         session = load_session()
-    except ValueError as exc:
+        if session is None:
+            print(status_fail("FAIL: no session"))
+            print(f"NEXT: {invocation()} start")
+            return 1
+        print(format_debrief(session))
+    except HONEPAD_ERRORS as exc:
         print_fail(exc)
         return 1
-    if session is None:
-        print(status_fail("FAIL: no session"))
-        print(f"NEXT: {invocation()} start")
-        return 1
-    print(format_debrief(session))
     return 0
 
 
@@ -716,7 +738,7 @@ def cmd_timer(args: argparse.Namespace) -> int:
         else:
             minutes = require_minutes(args.minutes)
             started = int(time.time())
-    except ValueError as exc:
+    except HONEPAD_ERRORS as exc:
         print_fail(exc)
         return 1
     if session is not None:

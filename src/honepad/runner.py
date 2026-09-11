@@ -18,7 +18,7 @@ import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from honepad import packspec
 from honepad.catalog import language, repo_root
@@ -366,6 +366,8 @@ def run_python(
         cases_path = Path(raw)
         cases_path.write_text(json.dumps(resolved), encoding="utf-8")
         env["HONEPAD_CASES"] = str(cases_path)
+    else:
+        env.pop("HONEPAD_CASES", None)
     try:
         proc = subprocess.run(
             argv,
@@ -386,7 +388,17 @@ def run_python(
     return report_from_proc(proc, problem, "python3", level, cases=resolved)
 
 
-_HOOK_RUNNERS: dict[str, Callable[[str, int, str], Report]] = {"python": run_python}
+class RunHook(Protocol):
+    def __call__(
+        self,
+        problem: str,
+        level: int,
+        kind: str = "solution",
+        cases: list[dict[str, Any]] | None = None,
+    ) -> Report: ...
+
+
+_HOOK_RUNNERS: dict[str, RunHook] = {"python": run_python}
 
 
 # --------------------------------------------------------------------------

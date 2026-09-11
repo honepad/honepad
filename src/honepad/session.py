@@ -190,6 +190,16 @@ def remaining_s(started_at: int, minutes: int, now: int | None = None) -> int:
     return left if left > 0 else 0
 
 
+class RetiredLanguage(Exception):
+    """Stored session lang is gone from the catalog; start a new desk."""
+
+    def __init__(self, lang: str, unlocked: int, problem: str) -> None:
+        self.lang = lang
+        self.unlocked = unlocked
+        self.problem = problem
+        super().__init__(lang)
+
+
 def load_session(
     path: Path | None = None, *, replace_lang: str | None = None
 ) -> dict[str, Any] | None:
@@ -228,7 +238,7 @@ def load_session(
             resolved = resolve_language_token(replace_lang)
             if resolved is None:
                 raise ValueError(f"unknown language: {replace_lang}") from exc
-            return None
+            raise RetiredLanguage(lang, unlocked, problem) from exc
         else:
             raise ValueError(f"{target}: unknown language: {lang}") from exc
     top = max_level(problem)
@@ -352,11 +362,22 @@ def ensure_session(
     minutes: int | None = None,
     reset: bool = False,
 ) -> dict[str, Any]:
-    current = None if reset else load_session(replace_lang=lang)
+    retired: RetiredLanguage | None = None
+    try:
+        current = None if reset else load_session(replace_lang=lang)
+    except RetiredLanguage as exc:
+        retired = exc
+        current = None
     duration = 90 if minutes is None else minutes
     if current is None or current.get("problem") != problem:
         session = new_session(problem, lang, duration)
         save_session(session)
+        if retired is not None:
+            sys.stdout.write(
+                f"NOTE: your {retired.lang} session is retired "
+                f"({retired.lang} was removed, was LEVEL {retired.unlocked}); "
+                f"starting {lang} at LEVEL 1.\n"
+            )
         return session
     current.pop("clock_restarted", None)
     current.pop("clock_now_minutes", None)
