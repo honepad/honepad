@@ -116,6 +116,14 @@ def test_release_please_python_package() -> None:
     assert "uses: ./.github/workflows/publish-pypi.yml" in wf
 
 
+def test_readme_embeds_vhs_demo() -> None:
+    readme = (ROOT / "README.md").read_text()
+    assert "demo/demo.gif" in readme
+    assert (ROOT / "demo/demo.gif").is_file()
+    assert (ROOT / "demo/demo.tape").is_file()
+    assert (ROOT / "demo/setup.sh").is_file()
+
+
 def test_dependabot_auto_merge_keeps_workflow_read() -> None:
     text = (ROOT / ".github/workflows/dependabot-auto-merge.yml").read_text()
     head = text.split("jobs:", 1)[0]

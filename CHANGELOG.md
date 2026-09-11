@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- VHS live-console demo on the README
 - README badges for PyPI, Release, License, and Scorecard
 - release-please on `main` with tag-time PyPI publish
 - SLSA provenance and CycloneDX SBOM on GitHub Releases

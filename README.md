@@ -8,6 +8,8 @@ Local CLI for public practice problems.
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/14574/badge)](https://www.bestpractices.dev/projects/14574)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/honepad/honepad/badge)](https://securityscorecards.dev/viewer/?uri=github.com/honepad/honepad)
 
+![honepad live console](demo/demo.gif)
+
 Timed desks. You implement methods, run public tests, and unlock the
 next level. 38 language runners work on Linux. The python3 CLI also
 runs on macOS, native Windows, and Windows WSL.

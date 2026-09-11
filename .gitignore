@@ -11,3 +11,5 @@ build/
 src/honepad/_data/
 node_modules/
 .lycheecache
+demo/home/
+demo/tmp/
