@@ -405,6 +405,7 @@ def ensure_session(
     current.pop("clock_now_minutes", None)
     if current["lang"] != lang:
         current["cleared"] = False
+        current.pop("last_run", None)
     current["lang"] = lang
     left = remaining_s(int(current["started_at"]), int(current["minutes"]))
     restarted = False

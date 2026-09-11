@@ -346,6 +346,30 @@ def test_start_same_problem_other_lang_drops_cleared(monkeypatch, tmp_path: Path
     assert load_session()["cleared"] is True
 
 
+def test_language_switch_drops_last_run(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    session["last_run"] = {"level": 1, "passed": 3, "failed": 0}
+    save_session(session)
+    unlocked = int(session["unlocked"])
+    assert main(["start", "bank_system", "java", "--no-console"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == "java"
+    assert session["unlocked"] == unlocked
+    assert "last_run" not in session
+    written = json.loads(session_file.read_text(encoding="utf-8"))
+    assert "last_run" not in written
+    assert main(["debrief"]) == 0
+    out = capsys.readouterr().out
+    assert "last run: none" in out
+
+
 def test_timer_reads_session(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "workers", "javascript", "--minutes", "90", "--reset"]) == 0

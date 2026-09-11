@@ -515,7 +515,12 @@ def cmd_run(args: argparse.Namespace) -> int:
         return 1
     print(render_pass(report.problem, report.lang, report.level, report.passed))
     hidden_ok = True
-    if _wants_hidden(kind, bool(getattr(args, "unlock", False))):
+    if _wants_hidden(
+        kind,
+        bool(getattr(args, "unlock", False)),
+        unlocked=unlocked_now,
+        top=top,
+    ):
         try:
             hidden = load_hidden_cases(args.problem, level)
             if hidden:
@@ -717,10 +722,20 @@ def cmd_submit(args: argparse.Namespace) -> int:
     return cmd_run(args)
 
 
-def _wants_hidden(kind: str | None, unlock: bool) -> bool:
+def _wants_hidden(
+    kind: str | None,
+    unlock: bool,
+    *,
+    unlocked: int | None = None,
+    top: int | None = None,
+) -> bool:
     if kind == "solution":
         return True
-    return bool(unlock) and kind == "work"
+    if kind != "work":
+        return False
+    if unlock:
+        return True
+    return unlocked is not None and top is not None and unlocked >= top
 
 
 def _unlocked_at_last_level(problem: str) -> bool:

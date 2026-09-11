@@ -334,6 +334,43 @@ def test_submit_last_level_hidden_fail_does_not_mark_cleared(
     assert session["last_run"]["hidden"] is True
 
 
+def test_run_last_level_work_hidden_fail_does_not_mark_cleared(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "workers",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 4,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    _copy_official_python_work("workers")
+    monkeypatch.setattr(
+        "honepad.cli.load_hidden_cases",
+        lambda *_a, **_k: [
+            {
+                "id": "hid-fail",
+                "level": 4,
+                "calls": [{"m": "get", "a": ["missing"], "e": "999"}],
+            }
+        ],
+    )
+    assert main(["run", "workers", "--kind", "work"]) == 1
+    out = capsys.readouterr().out
+    assert "DONE" not in out
+    session = load_session()
+    assert session is not None
+    assert session.get("cleared") is not True
+
+
 @pytest.mark.parametrize("expired", (False, True), ids=("live", "expired"))
 def test_submit_work_hidden_fail_records_last_run(
     monkeypatch, tmp_path: Path, capsys, expired: bool
