@@ -194,6 +194,8 @@ def test_ci_test_job_keeps_short_cli_smoke() -> None:
         "run: python3 -m honepad.cli run bank_system --lang perl --level 4",
     ]
     assert "factory/scripts/ci-pytest-shard.py --run" in text
+    assert "--cov-fail-under=80" in text
+    assert "pytest-cov" in (ROOT / "requirements-dev.in").read_text()
     assert "shard: [unit, script, compiled, jvm, stats]" in text
     assert "name: Stealth" in text
     assert "name: Lint" in text
