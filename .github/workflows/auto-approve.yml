@@ -20,15 +20,19 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-    # Same-repo heads only. Approve SebTardif PRs and App-authored
-    # release-please PRs (GITHUB_TOKEN can review those). Auto-merge
-    # is gated later and still skips release PRs.
+    # Same-repo heads only. Approve SebTardif PRs and release-please
+    # PRs. GITHUB_TOKEN cannot review a PR it authored, so
+    # github-actions[bot] release PRs use the honepad-release App
+    # token. App-authored release PRs still use GITHUB_TOKEN.
+    # Auto-merge is gated later and still skips release PRs.
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.user.login != 'github-actions[bot]' &&
       !github.event.pull_request.draft &&
       (
-        github.actor == 'SebTardif' ||
+        (
+          github.actor == 'SebTardif' &&
+          github.event.pull_request.user.login != 'github-actions[bot]'
+        ) ||
         startsWith(github.head_ref, 'release-please') ||
         contains(github.event.pull_request.labels.*.name, 'autorelease: pending')
       )
@@ -36,9 +40,17 @@ jobs:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
         with:
           egress-policy: audit
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        if: github.event.pull_request.user.login == 'github-actions[bot]'
+        id: app-token
+        with:
+          client-id: ${{ vars.AUTO_APPROVE_CLIENT_ID }}
+          private-key: ${{ secrets.AUTO_APPROVE_PRIVATE_KEY }}
+          permission-pull-requests: write
+          permission-contents: write
       - name: Guard paths then approve and auto-merge
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
           HEAD_REF: ${{ github.head_ref }}

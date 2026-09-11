@@ -24,7 +24,7 @@ jobs:
   publish:
     name: Update scoop-bucket
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
         with:
@@ -46,12 +46,19 @@ jobs:
             ver="${tag#v}"
           fi
           echo "version=${ver}" >> "$GITHUB_OUTPUT"
-      - name: Hash the release wheel
+      - name: Wait for and hash the release wheel
         id: hash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           url="https://github.com/honepad/honepad/releases/download/v${{ steps.ver.outputs.version }}/honepad-${{ steps.ver.outputs.version }}-py3-none-any.whl"
-          curl -fsSL -o wheel.whl "$url"
+          python3 scripts/wait_for_release_asset.py \
+            --url "$url" \
+            --output wheel.whl \
+            --deadline-s 480 \
+            --interval-s 5 \
+            --token "${GH_TOKEN}"
           echo "sha256=$(sha256sum wheel.whl | awk '{print $1}')" >> "$GITHUB_OUTPUT"
       - name: Check App credentials
         id: check-key
