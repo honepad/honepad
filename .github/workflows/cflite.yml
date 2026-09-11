@@ -1,0 +1,45 @@
+# ClusterFuzzLite on minijson parse/free. Not a required check.
+# Do not add a product compile on push to main.
+name: ClusterFuzzLite
+
+on:
+  pull_request:
+    paths:
+      - "langs/c/minijson.c"
+      - "langs/c/minijson.h"
+      - ".clusterfuzzlite/**"
+      - ".github/workflows/cflite.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: cflite-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: ClusterFuzzLite
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
+        with:
+          egress-policy: audit
+      - name: Build fuzzers
+        id: build
+        uses: google/clusterfuzzlite/actions/build_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          language: c
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          sanitizer: address
+      - name: Run fuzzers
+        id: run
+        uses: google/clusterfuzzlite/actions/run_fuzzers@884713a6c30a92e5e8544c39945cd7cb630abcd1 # v1
+        with:
+          language: c
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fuzz-seconds: 30
+          mode: code-change
+          sanitizer: address
