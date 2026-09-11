@@ -27,6 +27,7 @@ jobs:
       !contains(github.event.pull_request.labels.*.name, 'autorelease: pending') &&
       !startsWith(github.event.pull_request.title, 'release:') &&
       !startsWith(github.event.pull_request.title, 'chore(release)') &&
+      !startsWith(github.head_ref, 'release-please') &&
       !startsWith(github.event.pull_request.title, 'publish') &&
       github.event.pull_request.title != 'chore: amend constitution' &&
       github.actor == 'SebTardif'

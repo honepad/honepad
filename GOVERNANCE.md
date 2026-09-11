@@ -12,9 +12,12 @@ welcome. They do not expand scope unless the maintainer accepts them.
 
 ## Releases
 
-Versions live in `pyproject.toml`. A GitHub Release and a PyPI upload
-happen from a `v*` tag that matches that version. There is no
-release-please bot. Do not publish from `workflow_dispatch` on `main`.
+Versions live in `pyproject.toml`. release-please opens a version PR
+from conventional commits on `main`. Merging that PR is a human step.
+The same workflow then publishes the wheel to PyPI and attaches SLSA
+provenance plus an SBOM to the GitHub Release. A hand-pushed `v*` tag
+that matches the version still publishes. Do not publish from
+`workflow_dispatch` on `main`.
 
 ## Conduct and security
 

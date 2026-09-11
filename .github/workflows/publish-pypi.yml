@@ -1,16 +1,24 @@
 # Publish to PyPI from a version tag that equals pyproject.toml.
 # workflow_dispatch is main-only and runs the smoke first.
+# workflow_call is used by release-please after it creates a tag
+# (GITHUB_TOKEN tags do not fire this file on their own).
 # Do not add a product compile on push to main.
 name: Publish
 
 on:
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.1.1)"
+        required: true
+        type: string
   push:
     tags:
       - "v*"
   workflow_dispatch:
 
 concurrency:
-  group: publish-pypi-${{ github.ref }}
+  group: publish-pypi-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -20,20 +28,26 @@ jobs:
   publish:
     name: Publish to PyPI
     if: >-
-      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+      github.event_name == 'workflow_call'
+      || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
       || startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     environment: pypi
     permissions:
-      contents: read
+      contents: write
       id-token: write
+      attestations: write
+    env:
+      PUBLISH: ${{ github.event_name == 'workflow_call' || startsWith(github.ref, 'refs/tags/') }}
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.tag || github.ref }}
           persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -44,10 +58,10 @@ jobs:
           ver=$(python -c 'import tomllib;print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')
           echo "HONEPAD_VERSION=$ver" >> "$GITHUB_ENV"
       - name: Tag matches version
-        if: startsWith(github.ref, 'refs/tags/')
+        if: env.PUBLISH == 'true'
         run: |
           set -euo pipefail
-          tag="${GITHUB_REF_NAME#v}"
+          tag="${TAG#v}"
           ver="$HONEPAD_VERSION"
           [ "$tag" = "$ver" ] || { echo "tag $tag != version $ver"; exit 1; }
       - name: Smoke
@@ -69,5 +83,55 @@ jobs:
           test -f "dist/honepad-${ver}-py3-none-any.whl"
           test -f "dist/honepad-${ver}.tar.gz"
       - name: Upload
-        if: startsWith(github.ref, 'refs/tags/')
+        if: env.PUBLISH == 'true'
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+      - name: Attest build provenance
+        if: env.PUBLISH == 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist/honepad-${{ env.HONEPAD_VERSION }}-py3-none-any.whl
+            dist/honepad-${{ env.HONEPAD_VERSION }}.tar.gz
+      - name: Upload provenance to the GitHub Release
+        if: env.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p attestation-bundles
+          for artifact in dist/honepad-${HONEPAD_VERSION}-py3-none-any.whl \
+            dist/honepad-${HONEPAD_VERSION}.tar.gz; do
+            name=$(basename "$artifact")
+            tmpdir=$(mktemp -d)
+            (
+              cd "$tmpdir"
+              if gh attestation download "$OLDPWD/$artifact" \
+                --repo "${{ github.repository }}"; then
+                for bundle in *.jsonl; do
+                  [ -f "$bundle" ] || continue
+                  cp "$bundle" "$OLDPWD/attestation-bundles/${name}.intoto.jsonl"
+                  break
+                done
+              fi
+            )
+            rm -rf "$tmpdir"
+          done
+          gh release upload "$TAG" attestation-bundles/*.intoto.jsonl --clobber
+      - name: SBOM
+        if: env.PUBLISH == 'true'
+        uses: anchore/sbom-action@fbfd9c6c189226748411491745178e0c2017392d # v0.20.10
+        with:
+          path: dist
+          format: cyclonedx-json
+          artifact-name: honepad-${{ env.HONEPAD_VERSION }}.cdx.json
+          output-file: honepad-${{ env.HONEPAD_VERSION }}.cdx.json
+          upload-release-assets: false
+      - name: Upload SBOM to the GitHub Release
+        if: env.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" \
+            "honepad-${HONEPAD_VERSION}.cdx.json#honepad-sbom.cdx.json" \
+            --clobber
