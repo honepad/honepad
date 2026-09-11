@@ -1,0 +1,17 @@
+name: Feature
+description: A change you want
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: want
+    attributes:
+      label: What you want
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: The problem this solves for you.
+    validations:
+      required: true

@@ -2,6 +2,15 @@
 
 Human contributors start here. `AGENTS.md` is for coding assistants.
 
+## Where to start
+
+Pick an open issue labeled
+[good first issue](https://github.com/honepad/honepad/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+or
+[help wanted](https://github.com/honepad/honepad/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22).
+File a bug or a feature request with the issue templates. Questions
+that are not bugs can be a plain issue. See [SUPPORT.md](SUPPORT.md).
+
 ## Install from a clone
 
 A checkout keeps `langs/` and `problems/` at the git root. A wheel or
@@ -55,5 +64,6 @@ Apache-2.0. See `LICENSE`.
 
 ## Conduct
 
-See `CODE_OF_CONDUCT.md`. Security reports go to `SECURITY.md`, not
-a public issue.
+See [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Security reports go to
+[SECURITY.md](SECURITY.md), not a public issue. How the project is
+run is in [GOVERNANCE.md](GOVERNANCE.md).
