@@ -33,7 +33,7 @@ func sinkStdout() *os.File {
 	}
 	// syscall.SetStdHandle is not in the Go 1.26 syscall package.
 	setStdHandle := syscall.NewLazyDLL("kernel32.dll").NewProc("SetStdHandle")
-	r1, _, err := setStdHandle.Call(uintptr(uint32(syscall.STD_OUTPUT_HANDLE)), null.Fd())
+	r1, _, err := setStdHandle.Call(uintptr(^uint32(10)), null.Fd())
 	if r1 == 0 {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
