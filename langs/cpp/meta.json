@@ -58,8 +58,7 @@
     ],
     "argv": [
       "{{tmp}}/run",
-      "{{cases}}",
-      "{{report}}"
+      "{{cases}}"
     ],
     "requires": [
       [

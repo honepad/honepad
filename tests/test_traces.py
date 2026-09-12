@@ -1535,8 +1535,19 @@ def test_report_from_proc_requested_file_does_not_use_stdout() -> None:
     proc = subprocess.CompletedProcess(
         ["adapter"], 0, stdout=f'{{"passed": {n}, "failed": []}}\n', stderr=""
     )
-    with pytest.raises(RuntimeError, match="no output"):
+    with pytest.raises(RuntimeError, match="no report"):
         report_from_proc(proc, "bank_system", "go", 1, report_requested=True)
+
+
+def test_report_from_proc_missing_report_includes_src() -> None:
+    src = Path("/tmp/work/bank_system/go/work.go")
+    proc = subprocess.CompletedProcess(
+        ["adapter"], 0, stdout='{"passed": 99, "failed": []}\n', stderr=""
+    )
+    with pytest.raises(RuntimeError, match="no report") as excinfo:
+        report_from_proc(proc, "bank_system", "go", 1, report_requested=True, src=src)
+    assert str(src) in str(excinfo.value)
+    assert "go adapter produced no report" in str(excinfo.value)
 
 
 def test_report_from_proc_reads_requested_file() -> None:
@@ -1573,6 +1584,19 @@ def test_report_from_proc_ignores_unrequested_report_text() -> None:
     assert report.passed == n
 
 
+def test_run_compiled_ignores_report_path_only_in_argv() -> None:
+    n = len(load_cases("bank_system", 1))
+    stdout = json.dumps({"passed": n, "failed": []})
+
+    def prepare(tmpdir: Path, cases_path: str, report_path: str = "") -> list[str]:
+        Path(report_path).write_text('{"passed": 0, "failed": []}\n', encoding="utf-8")
+        return [sys.executable, "-c", f"print({stdout!r})", report_path]
+
+    report = run_compiled("bank_system", "rust", 1, prepare)
+    assert report.ok
+    assert report.passed == n
+
+
 def test_run_compiled_ignores_planted_report_json() -> None:
     n = len(load_cases("bank_system", 1))
     stdout = json.dumps({"passed": n, "failed": []})
@@ -1587,13 +1611,13 @@ def test_run_compiled_ignores_planted_report_json() -> None:
     assert report.passed == n
 
 
-def test_run_compiled_reads_nonce_report_when_named_in_argv() -> None:
+def test_run_compiled_reads_nonce_report_when_env_set() -> None:
     n = len(load_cases("bank_system", 1))
 
     def prepare(tmpdir: Path, cases_path: str, report_path: str = "") -> list[str]:
         Path(report_path).write_text(f'{{"passed": {n}, "failed": []}}\n', encoding="utf-8")
         (tmpdir / "report.json").write_text('{"passed": 0, "failed": []}\n', encoding="utf-8")
-        return [sys.executable, "-c", "print('ignore stdout')", report_path]
+        return [sys.executable, "-c", "print('ignore stdout')"]
 
     report = run_compiled("bank_system", "go", 1, prepare)
     assert report.ok
@@ -1710,7 +1734,7 @@ def test_run_prepare_cmd_times_out() -> None:
 
 def test_run_prepare_cmd_default_timeout_is_compile_budget() -> None:
     assert COMPILE_TIMEOUT_S > RUN_TIMEOUT_S
-    assert run_prepare_cmd.__defaults__[-2] == COMPILE_TIMEOUT_S
+    assert run_prepare_cmd.__defaults__[2] == COMPILE_TIMEOUT_S
 
 
 def test_compile_fail_prefixes_src() -> None:
@@ -1831,11 +1855,25 @@ def test_compiled_recipes_name_the_cases_file() -> None:
         assert "{{cases}}" in json.dumps(spec["argv"]), lang_id
 
 
-def test_go_and_cpp_recipes_name_the_report_file() -> None:
+def test_go_and_cpp_recipes_keep_report_off_argv() -> None:
     for lang_id in ("go", "cpp"):
         spec = packspec.run_spec(lang_id)
         assert spec is not None
-        assert "{{report}}" in json.dumps(spec["argv"]), lang_id
+        assert "{{report}}" not in json.dumps(spec["argv"]), lang_id
+
+
+def test_go_recipe_copies_honepadreport_package() -> None:
+    spec = packspec.run_spec("go")
+    assert spec is not None
+    copy = spec.get("copy") or {}
+    dests = [str(dest) for dest in copy]
+    assert any(dest.startswith("honepadreport/") and dest.endswith(".go") for dest in dests)
+    adapter = (repo_root() / "langs" / "go" / "honepadreport" / "adapter.go").read_text(
+        encoding="utf-8"
+    )
+    assert "func Main(" in adapter
+    assert "func Path(" not in adapter
+    assert "func Write(" not in adapter
 
 
 def _execute_argv_after_prepare(monkeypatch, lang_id: str, kind: str = "stub") -> list[str]:
@@ -1848,17 +1886,22 @@ def _execute_argv_after_prepare(monkeypatch, lang_id: str, kind: str = "stub") -
         lang_id: str = "",
         timeout: float = COMPILE_TIMEOUT_S,
         src: Path | None = None,
+        env: dict[str, str] | None = None,
     ):
         if timeout == RUN_TIMEOUT_S:
             captured["argv"] = list(argv)
             n = len(load_cases("bank_system", 1))
             body = f'{{"passed": {n}, "failed": []}}\n'
-            for arg in argv:
-                if Path(arg).name.startswith(".honepad-report-"):
-                    Path(arg).write_text(body, encoding="utf-8")
-                    break
+            report_file = (env or {}).get("HONEPAD_REPORT")
+            if report_file:
+                Path(report_file).write_text(body, encoding="utf-8")
+            else:
+                for arg in argv:
+                    if Path(arg).name.startswith(".honepad-report-"):
+                        Path(arg).write_text(body, encoding="utf-8")
+                        break
             return subprocess.CompletedProcess(argv, 0, stdout=body, stderr="")
-        return real(argv, cwd, lang_id, timeout, src=src)
+        return real(argv, cwd, lang_id, timeout, src=src, env=env)
 
     monkeypatch.setattr("honepad.runner.run_prepare_cmd", spy)
     run("bank_system", lang_id, 1, kind)
@@ -1870,6 +1913,7 @@ def test_go_prepare_execute_argv_is_built_binary(monkeypatch) -> None:
     argv = _execute_argv_after_prepare(monkeypatch, "go")
     assert Path(argv[0]).name == "run"
     assert Path(argv[0]).name not in {"go", "cargo", "dotnet"}
+    assert not any(Path(arg).name.startswith(".honepad-report-") for arg in argv)
 
 
 @pytest.mark.skipif(_CARGO is None, reason="cargo not found")

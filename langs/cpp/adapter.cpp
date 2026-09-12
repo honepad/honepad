@@ -97,8 +97,16 @@ __attribute__((constructor(101))) static void sink_stdout_ctor() {
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc < 3) {
-    std::cerr << "usage: adapter cases.json report.json\n";
+  const char* report_env = std::getenv("HONEPAD_REPORT");
+  std::string report_path = report_env ? report_env : "";
+#ifdef _WIN32
+  char wipe[] = "HONEPAD_REPORT=";
+  _putenv(wipe);
+#else
+  unsetenv("HONEPAD_REPORT");
+#endif
+  if (argc < 2 || report_path.empty()) {
+    std::cerr << "usage: adapter cases.json\n";
     return 2;
   }
   sink_stdout_early();
@@ -157,14 +165,14 @@ int main(int argc, char** argv) {
   JsonVal failed_arr = JsonVal::from_arr(std::move(failed));
   report.obj.emplace_back("failed", failed_arr);
   std::string encoded = stringify(report);
-  std::ofstream report_file(argv[2]);
+  std::ofstream report_file(report_path);
   if (!report_file) {
-    std::cerr << "cannot write " << argv[2] << "\n";
+    std::cerr << "cannot write " << report_path << "\n";
     return 2;
   }
   report_file << encoded << '\n';
   if (!report_file) {
-    std::cerr << "cannot write " << argv[2] << "\n";
+    std::cerr << "cannot write " << report_path << "\n";
     return 2;
   }
   return failed_arr.arr.empty() ? 0 : 1;

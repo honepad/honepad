@@ -1,4 +1,4 @@
-package main
+package honepadreport
 
 import (
 	"encoding/json"
@@ -33,6 +33,9 @@ type report struct {
 	Passed int       `json:"passed"`
 	Failed []failRow `json:"failed"`
 }
+
+// NewTarget is set by package-main ctor.go before Main runs.
+var NewTarget func() any
 
 func toPascal(name string) string {
 	parts := strings.Split(name, "_")
@@ -121,9 +124,17 @@ func jsonEqual(actual, expected any) bool {
 	return string(left) == string(right)
 }
 
-func main() {
-	if len(os.Args) < 3 {
-		fmt.Fprintln(os.Stderr, "usage: adapter cases.json report.json")
+func Main() {
+	if reportPath == "" {
+		fmt.Fprintln(os.Stderr, "HONEPAD_REPORT is not set")
+		os.Exit(2)
+	}
+	if len(os.Args) < 2 {
+		fmt.Fprintln(os.Stderr, "usage: adapter cases.json")
+		os.Exit(2)
+	}
+	if NewTarget == nil {
+		fmt.Fprintln(os.Stderr, "NewTarget is not set")
 		os.Exit(2)
 	}
 	data, err := os.ReadFile(os.Args[1])
@@ -172,7 +183,7 @@ func main() {
 			passed++
 		}
 	}
-	out, err := os.Create(os.Args[2])
+	out, err := os.Create(reportPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)

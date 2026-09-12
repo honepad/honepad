@@ -121,10 +121,13 @@ def report_from_proc(
     report_text: str | None = None,
     *,
     report_requested: bool = False,
+    src: Path | None = None,
 ) -> Report:
     if report_requested:
         if not (report_text or "").strip():
-            raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
+            detail = (proc.stderr or "").strip() or f"{lang_id} adapter produced no report"
+            prefix = f"{src}: " if src is not None else ""
+            raise RuntimeError(f"{prefix}{detail}")
         payload, debug = _extract_report_payload(report_text or "", lang_id)
     else:
         if not proc.stdout.strip():
@@ -174,6 +177,7 @@ def run_prepare_cmd(
     lang_id: str = "",
     timeout: float = COMPILE_TIMEOUT_S,
     src: Path | None = None,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(
@@ -183,6 +187,7 @@ def run_prepare_cmd(
             text=True,
             cwd=cwd,
             timeout=timeout,
+            env=env,
         )
     except FileNotFoundError as exc:
         raise RuntimeError(f"{lang_id}: {argv[0]} not on PATH") from exc
@@ -226,8 +231,12 @@ def run_compiled(
         argv = prepare(tmpdir, str(cases_path), str(report_path))
         if argv:
             argv = [windows_artifact(argv[0]), *argv[1:]]
-        proc = run_prepare_cmd(argv, tmpdir, lang_id, timeout=RUN_TIMEOUT_S, src=src)
-        report_requested = str(report_path) in argv
+        run_env = os.environ.copy()
+        run_env.pop("HONEPAD_REPORT", None)
+        if lang_id in {"go", "cpp"}:
+            run_env["HONEPAD_REPORT"] = str(report_path)
+        report_requested = bool(run_env.get("HONEPAD_REPORT"))
+        proc = run_prepare_cmd(argv, tmpdir, lang_id, timeout=RUN_TIMEOUT_S, src=src, env=run_env)
         report_text = report_path.read_text(encoding="utf-8") if report_path.is_file() else None
     return report_from_proc(
         proc,
@@ -237,6 +246,7 @@ def run_compiled(
         cases=cases,
         report_text=report_text,
         report_requested=report_requested,
+        src=src,
     )
 
 

@@ -4185,6 +4185,41 @@ def test_submit_rejects_go_init_planted_report_json_exit(
 
 
 @pytest.mark.skipif(shutil.which("go") is None, reason="go not found")
+def test_submit_rejects_go_init_args2_fake_json_exit(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "go", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "go" / "work.go"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "package main\n\n"
+        "import (\n"
+        '\t"os"\n'
+        ")\n\n"
+        "func init() {\n"
+        '\tpath := "report.json"\n'
+        "\tif len(os.Args) >= 3 {\n"
+        "\t\tpath = os.Args[2]\n"
+        "\t}\n"
+        f"\t_ = os.WriteFile(path, []byte(`{payload}`), 0644)\n"
+        "\tos.Exit(0)\n"
+        "}\n\n"
+        "type Simulation struct{}\n\n"
+        "func NewSimulation() *Simulation { return &Simulation{} }\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "go"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(shutil.which("go") is None, reason="go not found")
 def test_submit_rejects_go_init_reportout_fake_json_exit(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:
