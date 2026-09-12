@@ -34,6 +34,8 @@
     ],
     "argv": [
       "java",
+      "--add-opens",
+      "java.base/java.io=ALL-UNNAMED",
       "Adapter",
       "{{cases}}",
       "{{class}}"

@@ -1,5 +1,8 @@
 import java.io.ByteArrayOutputStream;
+import java.io.FileDescriptor;
+import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -7,6 +10,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class Adapter {
@@ -23,10 +27,10 @@ public class Adapter {
         }
         @SuppressWarnings("unchecked")
         List<Object> cases = (List<Object>) parsed;
+        PrintStream reportOut = sinkStdout();
         Class<?> cls = Class.forName(className);
         List<Map<String, Object>> failed = new ArrayList<>();
         int passed = 0;
-        PrintStream realOut = System.out;
         ByteArrayOutputStream captured = new ByteArrayOutputStream();
         PrintStream sink = new PrintStream(captured, true);
         System.setOut(sink);
@@ -68,21 +72,58 @@ public class Adapter {
             }
         } finally {
             sink.flush();
-            System.setOut(realOut);
             sink.close();
         }
         String debug = captured.toString();
         if (!debug.isEmpty()) {
-            System.out.print(debug);
+            reportOut.print(debug);
             if (!debug.endsWith("\n")) {
-                System.out.println();
+                reportOut.println();
             }
         }
         Map<String, Object> report = new LinkedHashMap<>();
         report.put("passed", passed);
         report.put("failed", failed);
-        System.out.println(MiniJson.stringify(report));
+        reportOut.println(MiniJson.stringify(report));
+        reportOut.flush();
         System.exit(failed.isEmpty() ? 0 : 1);
+    }
+
+    static FileOutputStream stdoutNullHold;
+
+    static PrintStream sinkStdout() {
+        try {
+            FileDescriptor saved = new FileDescriptor();
+            copyNativeId(FileDescriptor.out, saved);
+            PrintStream reportOut = new PrintStream(new FileOutputStream(saved), true);
+            String nullPath =
+                    System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")
+                            ? "NUL"
+                            : "/dev/null";
+            stdoutNullHold = new FileOutputStream(nullPath);
+            copyNativeId(stdoutNullHold.getFD(), FileDescriptor.out);
+            return reportOut;
+        } catch (Exception exc) {
+            return System.out;
+        }
+    }
+
+    static void copyNativeId(FileDescriptor from, FileDescriptor to) throws Exception {
+        Exception last = null;
+        boolean copied = false;
+        for (String name : new String[] {"fd", "handle"}) {
+            try {
+                Field field = FileDescriptor.class.getDeclaredField(name);
+                field.setAccessible(true);
+                field.set(to, field.get(from));
+                copied = true;
+            } catch (ReflectiveOperationException exc) {
+                last = exc;
+            }
+        }
+        if (!copied) {
+            throw last != null ? last : new IllegalStateException("FileDescriptor id missing");
+        }
     }
 
     static Map<String, Object> failRow(String caseId, int index, String method, Object expected, Object actual) {

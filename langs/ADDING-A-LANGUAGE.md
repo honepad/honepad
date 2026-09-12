@@ -15,6 +15,9 @@ mirrors the catalog row and adds `run`, which is the whole toolchain contract:
 `honepad.runner` executes it, so a pack with a valid `run` block is runnable and
 one without it is a factory job.
 
+New packs are proven on Ubuntu CI. All-platform means `CORE_LANGS` in
+`tests/test_os_compat.py` plus the Compat job.
+
 ## The run recipe
 
 Two kinds cover every pack. `hook` is a third, used only by Python 3, which

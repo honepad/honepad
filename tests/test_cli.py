@@ -344,6 +344,29 @@ def test_start_bank_system_python_resolves_to_python3(monkeypatch, tmp_path) -> 
     assert session["problem"] == "bank_system"
 
 
+@pytest.mark.parametrize(
+    ("token", "lang_id"),
+    [
+        ("c#", "csharp"),
+        ("C#", "csharp"),
+        ("cs", "csharp"),
+        ("c++", "cpp"),
+        ("js", "javascript"),
+        ("node", "javascript"),
+        ("ts", "typescript"),
+    ],
+)
+def test_start_bank_system_readme_language_token(
+    monkeypatch, tmp_path, token: str, lang_id: str
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", token, "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == lang_id
+    assert session["problem"] == "bank_system"
+
+
 def test_start_unknown_lang_pyton_suggests_python3(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     code = main(["start", "bank_system", "pyton", "--no-console"])
@@ -503,6 +526,15 @@ def test_resolve_start_target_prefix_and_missing() -> None:
     assert resolve_start_target("bank_system", None) == ("bank_system", None)
 
 
+def test_resolve_start_target_readme_aliases() -> None:
+    assert resolve_start_target("bank_system", "c#") == ("bank_system", "csharp")
+    assert resolve_start_target("bank_system", "js") == ("bank_system", "javascript")
+    assert resolve_start_target("bank_system", "ts") == ("bank_system", "typescript")
+    assert resolve_start_target("bank_system", "c++") == ("bank_system", "cpp")
+    assert resolve_start_target("c#", "bank_system") == ("bank_system", "csharp")
+    assert resolve_start_target("js", None) == (None, "javascript")
+
+
 def test_resolve_start_target_unknown_lang_raises() -> None:
     with pytest.raises(ValueError, match="unknown language: pyton"):
         resolve_start_target("bank_system", "pyton")
@@ -624,6 +656,27 @@ def test_start_picker_accepts_unique_prefix(monkeypatch, tmp_path, capsys) -> No
     assert session["lang"] == "kotlin"
     assert session["problem"] == "file_storage"
     assert "not a choice" not in out
+
+
+@pytest.mark.parametrize(
+    ("token", "lang_id"),
+    [
+        ("c#", "csharp"),
+        ("js", "javascript"),
+        ("ts", "typescript"),
+        ("c++", "cpp"),
+    ],
+)
+def test_start_picker_accepts_readme_language_token(
+    monkeypatch, tmp_path, token: str, lang_id: str
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    _tty_stdin(monkeypatch, f"{token}\nbank_system\n")
+    assert main(["start", "--no-console"]) == 0
+    session = load_session()
+    assert session is not None
+    assert session["lang"] == lang_id
+    assert session["problem"] == "bank_system"
 
 
 def test_start_picker_ambiguous_prefix_reprompts(monkeypatch, tmp_path, capsys) -> None:

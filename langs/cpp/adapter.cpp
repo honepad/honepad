@@ -2,6 +2,7 @@
 #include "minijson.hpp"
 
 #include <cctype>
+#include <cstdio>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -9,6 +10,21 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#define honepad_dup _dup
+#define honepad_fdopen _fdopen
+#define honepad_fileno _fileno
+#define HONEPAD_DEVNULL "NUL"
+#else
+#include <unistd.h>
+#define honepad_dup dup
+#define honepad_fdopen fdopen
+#define honepad_fileno fileno
+#define HONEPAD_DEVNULL "/dev/null"
+#endif
 
 namespace {
 
@@ -67,6 +83,20 @@ int main(int argc, char** argv) {
     std::cerr << "usage: adapter cases.json\n";
     return 2;
   }
+  int saved_fd = honepad_dup(honepad_fileno(stdout));
+  if (saved_fd < 0) {
+    std::cerr << "failed to dup stdout\n";
+    return 2;
+  }
+  FILE* report_out = honepad_fdopen(saved_fd, "w");
+  if (report_out == nullptr) {
+    std::cerr << "failed to fdopen stdout\n";
+    return 2;
+  }
+  if (std::freopen(HONEPAD_DEVNULL, "w", stdout) == nullptr) {
+    std::cerr << "failed to sink stdout\n";
+    return 2;
+  }
   JsonVal cases;
   try {
     cases = parse_json(read_file(argv[1]));
@@ -121,6 +151,9 @@ int main(int argc, char** argv) {
   report.obj.emplace_back("passed", JsonVal::from_int(passed));
   JsonVal failed_arr = JsonVal::from_arr(std::move(failed));
   report.obj.emplace_back("failed", failed_arr);
-  std::cout << stringify(report) << "\n";
+  std::string encoded = stringify(report);
+  std::fputs(encoded.c_str(), report_out);
+  std::fputc('\n', report_out);
+  std::fflush(report_out);
   return failed_arr.arr.empty() ? 0 : 1;
 }

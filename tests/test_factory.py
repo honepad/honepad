@@ -64,22 +64,33 @@ def test_ci_does_not_rebuild_on_push_to_main() -> None:
     assert "needs: [stealth, lint, test, compat]" in text
 
 
+def _ci_job(text: str, name: str) -> str:
+    start = text.index(f"\n  {name}:\n    name:")
+    rest = text[start + 1 :]
+    nxt = re.search(r"\n  [a-z][a-z0-9_-]*:\n    (?:name:|if:|needs:)", rest)
+    return rest[: nxt.start() + 1] if nxt else rest
+
+
 def test_ci_compat_covers_linux_macos_windows_and_wsl() -> None:
     text = (ROOT / ".github/workflows/ci.yml").read_text()
-    assert "name: Compat (${{ matrix.label }})" in text
-    assert "ubuntu-latest" in text
-    assert "macos-latest" in text
-    assert "windows-2022" in text
-    assert "Ubuntu-24.04" in text
-    assert "label: wsl" in text
-    assert "Vampire/setup-wsl@" in text
-    assert "tests/test_os_compat.py" in text
-    assert "actions/setup-java@" in text
-    assert "actions/setup-go@" in text
-    assert "actions/setup-dotnet@" in text
-    assert "actions/setup-node@" in text
-    assert "ilammy/msvc-dev-cmd@" in text
-    assert "node-v22.20.0-linux-x64.tar.xz" in text
+    job = _ci_job(text, "compat")
+    assert "name: Compat (${{ matrix.label }})" in job
+    assert "label: linux" in job
+    assert "label: macos" in job
+    assert "label: windows" in job
+    assert "label: wsl" in job
+    assert "ubuntu-latest" in job
+    assert "macos-latest" in job
+    assert "windows-2022" in job
+    assert "Ubuntu-24.04" in job
+    assert "Vampire/setup-wsl@" in job
+    assert "tests/test_os_compat.py" in job
+    assert "actions/setup-java@" in job
+    assert "actions/setup-go@" in job
+    assert "actions/setup-dotnet@" in job
+    assert "actions/setup-node@" in job
+    assert "ilammy/msvc-dev-cmd@" in job
+    assert "node-v22.20.0-linux-x64.tar.xz" in job
 
 
 def test_compat_tests_name_the_core_langs() -> None:
@@ -132,11 +143,42 @@ def test_publish_uploads_only_from_a_version_tag() -> None:
     assert ".intoto.jsonl" in text
 
 
+def _ci_named_filter(text: str, name: str) -> str:
+    filters = text.split("filters: |", 1)[1]
+    filters = filters.split("\n  stealth:", 1)[0]
+    collecting = False
+    lines: list[str] = []
+    for line in filters.splitlines():
+        if line.startswith("            ") and not line.startswith("              "):
+            collecting = line.strip() == f"{name}:"
+            continue
+        if collecting:
+            lines.append(line)
+    return "\n".join(lines)
+
+
 def test_ci_docs_only_skips_shards() -> None:
     text = (ROOT / ".github/workflows/ci.yml").read_text()
     assert "dorny/paths-filter@" in text
     assert "needs.changes.outputs.code == 'true'" in text
     assert "!startsWith(github.head_ref, 'release-please')" in text
+    code = _ci_named_filter(text, "code")
+    assert "'ci/npm/**'" in code
+
+
+def test_ci_compat_filter_skips_factory_only() -> None:
+    text = (ROOT / ".github/workflows/ci.yml").read_text()
+    job = _ci_job(text, "compat")
+    assert "needs.changes.outputs.compat == 'true'" in job
+    assert "needs.changes.outputs.code == 'true'" not in job
+    compat = _ci_named_filter(text, "compat")
+    assert "'src/**'" in compat
+    assert "'langs/python3/**'" in compat
+    assert "'langs/catalog.json'" in compat
+    assert "'tests/test_os_compat.py'" in compat
+    assert "'factory/**'" not in compat
+    assert "'langs/**'" not in compat
+    assert "'ci/npm/**'" not in compat
 
 
 def test_release_please_python_package() -> None:
@@ -166,7 +208,7 @@ def test_dependabot_auto_merge_keeps_workflow_read() -> None:
 
 def test_ci_test_job_splits_apt_install() -> None:
     text = (ROOT / ".github/workflows/ci.yml").read_text()
-    job = text[text.index("  test:\n") : text.index("  compat:\n")]
+    job = _ci_job(text, "test")
     assert job.count("sudo apt-get update") == 1
     assert "sudo apt-get update && sudo apt-get install -y lua5.4" not in text
     wanted = {
