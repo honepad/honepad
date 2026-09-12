@@ -126,7 +126,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, "usage: adapter cases.json")
 		os.Exit(2)
 	}
-	reportOut := sinkStdout()
 	data, err := os.ReadFile(os.Args[1])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

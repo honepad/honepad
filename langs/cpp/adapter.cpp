@@ -76,6 +76,43 @@ JsonVal fail_row(
   return row;
 }
 
+FILE* g_report_out = nullptr;
+
+void sink_stdout_early() {
+  if (g_report_out != nullptr) {
+    return;
+  }
+  int saved_fd = honepad_dup(honepad_fileno(stdout));
+  if (saved_fd < 0) {
+    std::cerr << "failed to dup stdout\n";
+    std::exit(2);
+  }
+  FILE* report_out = honepad_fdopen(saved_fd, "w");
+  if (report_out == nullptr) {
+    std::cerr << "failed to fdopen stdout\n";
+    std::exit(2);
+  }
+  if (std::freopen(HONEPAD_DEVNULL, "w", stdout) == nullptr) {
+    std::cerr << "failed to sink stdout\n";
+    std::exit(2);
+  }
+  g_report_out = report_out;
+}
+
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable : 4073)
+#pragma init_seg(lib)
+static struct SinkEarly {
+  SinkEarly() { sink_stdout_early(); }
+} g_sink_early;
+#pragma warning(pop)
+#else
+__attribute__((constructor(101))) static void sink_stdout_ctor() {
+  sink_stdout_early();
+}
+#endif
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -83,20 +120,8 @@ int main(int argc, char** argv) {
     std::cerr << "usage: adapter cases.json\n";
     return 2;
   }
-  int saved_fd = honepad_dup(honepad_fileno(stdout));
-  if (saved_fd < 0) {
-    std::cerr << "failed to dup stdout\n";
-    return 2;
-  }
-  FILE* report_out = honepad_fdopen(saved_fd, "w");
-  if (report_out == nullptr) {
-    std::cerr << "failed to fdopen stdout\n";
-    return 2;
-  }
-  if (std::freopen(HONEPAD_DEVNULL, "w", stdout) == nullptr) {
-    std::cerr << "failed to sink stdout\n";
-    return 2;
-  }
+  sink_stdout_early();
+  FILE* report_out = g_report_out;
   JsonVal cases;
   try {
     cases = parse_json(read_file(argv[1]));
