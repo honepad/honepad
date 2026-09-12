@@ -415,6 +415,15 @@ def work_reset_next() -> str:
     return f"NEXT: edit the work file or {invocation()} start --reset"
 
 
+def workspace_note_next() -> str:
+    return f"NEXT: retry {invocation()} vscode or fix permissions"
+
+
+def print_workspace_note(exc: BaseException) -> None:
+    print(status_note(f"NOTE: workspace {exc}"))
+    print(workspace_note_next())
+
+
 def format_clock(seconds: int, *, span_s: int | None = None) -> str:
     left = seconds if seconds > 0 else 0
     hours, rem = divmod(left, 3600)

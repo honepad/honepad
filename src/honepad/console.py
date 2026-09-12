@@ -38,6 +38,7 @@ from honepad.term import (
     level_dots,
     paint_spec,
     print_fail,
+    print_workspace_note,
     read_choice,
     render_help,
     render_keys,
@@ -117,7 +118,7 @@ def cmd_console(args: argparse.Namespace) -> int:
             cleared=bool(session.get("cleared")),
         )
     except HONEPAD_ERRORS as exc:
-        print(status_note(f"NOTE: workspace {exc}"))
+        print_workspace_note(exc)
     return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
 
 

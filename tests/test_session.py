@@ -24,6 +24,7 @@ from honepad.session import (
     save_session,
     work_src,
 )
+from honepad.term import workspace_note_next
 from honepad.workspace import workspace_dir, write_workspace
 from honepad.workstub import (
     _insert_before_python_class_end,
@@ -224,6 +225,7 @@ def test_submit_unlocks_when_workspace_write_fails(monkeypatch, tmp_path: Path, 
     assert "OK" in out
     assert "NOTE:" in out
     assert "workspace boom" in out
+    assert workspace_note_next() in out
     assert "Account.py is ignored" in out
     assert "Put the Simulation class in work.py" in out
 
@@ -249,8 +251,28 @@ def test_start_resumes_when_workspace_write_fails(monkeypatch, tmp_path: Path, c
     assert "Traceback" not in out
     assert "NOTE:" in out
     assert "workspace boom" in out
+    assert workspace_note_next() in out
     assert "FAIL:" not in out
     assert "OK:" in out
+
+
+def test_console_workspace_write_fail_prints_next(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise OSError("workspace boom")
+
+    monkeypatch.setattr("honepad.console.refresh_workspace", boom)
+    monkeypatch.setattr("honepad.console.loop_console", lambda *_a, **_k: 0)
+    code = main(["console"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "NOTE:" in out
+    assert "workspace boom" in out
+    assert workspace_note_next() in out
+    assert "FAIL:" not in out
 
 
 def test_stub_runs_do_not_unlock_next_level(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -4128,6 +4150,44 @@ def test_submit_rejects_csharp_exact_count_fake_json_exit(
     assert load_session()["unlocked"] == 1
 
 
+@pytest.mark.skipif(shutil.which("dotnet") is None, reason="dotnet not found")
+def test_submit_rejects_csharp_openstandardoutput_fake_json_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "csharp", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "csharp" / "work.cs"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "using System;\n"
+        "using System.Text;\n"
+        "\n"
+        "public class Simulation\n"
+        "{\n"
+        "    public Simulation()\n"
+        "    {\n"
+        f"        string payload = {json.dumps(payload)};\n"
+        "        using var stdout = Console.OpenStandardOutput();\n"
+        '        byte[] bytes = Encoding.UTF8.GetBytes(payload + "\\n");\n'
+        "        stdout.Write(bytes, 0, bytes.Length);\n"
+        "        stdout.Flush();\n"
+        "        Environment.Exit(0);\n"
+        "    }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "csharp"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
 @pytest.mark.skipif(shutil.which("c++") is None, reason="c++ not found")
 def test_submit_rejects_cpp_exact_count_fake_json_exit(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
@@ -4183,6 +4243,42 @@ def test_submit_rejects_java_exact_count_fake_json_fd_exit(
         "        PrintStream out = new PrintStream(\n"
         "            new FileOutputStream(FileDescriptor.out), true);\n"
         f"        out.println({json.dumps(payload)});\n"
+        "        System.exit(0);\n"
+        "    }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "java"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(shutil.which("javac") is None, reason="javac not found")
+def test_submit_rejects_java_static_init_fake_json_fd_exit(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "import java.io.FileDescriptor;\n"
+        "import java.io.FileOutputStream;\n"
+        "import java.io.PrintStream;\n"
+        "public class Simulation {\n"
+        "    static {\n"
+        "        try {\n"
+        "            PrintStream out = new PrintStream(\n"
+        "                new FileOutputStream(FileDescriptor.out), true);\n"
+        f"            out.println({json.dumps(payload)});\n"
+        "        } catch (Exception ignored) {}\n"
         "        System.exit(0);\n"
         "    }\n"
         "}\n",

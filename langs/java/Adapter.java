@@ -27,10 +27,10 @@ public class Adapter {
         }
         @SuppressWarnings("unchecked")
         List<Object> cases = (List<Object>) parsed;
+        PrintStream reportOut = sinkStdout();
         Class<?> cls = Class.forName(className);
         List<Map<String, Object>> failed = new ArrayList<>();
         int passed = 0;
-        PrintStream reportOut = sinkStdout();
         ByteArrayOutputStream captured = new ByteArrayOutputStream();
         PrintStream sink = new PrintStream(captured, true);
         System.setOut(sink);

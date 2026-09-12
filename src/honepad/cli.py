@@ -46,6 +46,7 @@ from honepad.term import (
     paint_spec,
     print_complete,
     print_fail,
+    print_workspace_note,
     read_choice,
     render_fail,
     render_hidden_fail,
@@ -349,7 +350,7 @@ def cmd_start(args: argparse.Namespace) -> int:
                         cleared=bool(session.get("cleared")),
                     )
             except HONEPAD_ERRORS as exc:
-                print(status_note(f"NOTE: workspace {exc}"))
+                print_workspace_note(exc)
         else:
             session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=False)
             unlocked = int(session["unlocked"])
@@ -362,7 +363,7 @@ def cmd_start(args: argparse.Namespace) -> int:
                     cleared=bool(session.get("cleared")),
                 )
             except HONEPAD_ERRORS as exc:
-                print(status_note(f"NOTE: workspace {exc}"))
+                print_workspace_note(exc)
         level = unlocked if args.level is None else args.level
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
@@ -458,7 +459,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                         cleared=bool(session.get("cleared")),
                     )
                 except HONEPAD_ERRORS as exc:
-                    print(status_note(f"NOTE: workspace {exc}"))
+                    print_workspace_note(exc)
         report = run(args.problem, lang, level, kind=kind)
         if session is not None and same:
             left = remaining_s(int(session["started_at"]), int(session["minutes"]))
@@ -606,7 +607,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                             cleared=True,
                         )
                     except HONEPAD_ERRORS as exc:
-                        print(status_note(f"NOTE: workspace {exc}"))
+                        print_workspace_note(exc)
             print_complete(
                 str(session["problem"]),
                 str(session["lang"]),
@@ -657,7 +658,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 if spec.is_file():
                     print(paint_spec(spec.read_text(encoding="utf-8")).rstrip() + "\n")
             if workspace_exc is not None:
-                print(status_note(f"NOTE: workspace {workspace_exc}"))
+                print_workspace_note(workspace_exc)
             if kind == "work":
                 _print_work_notes(args.problem, lang)
             return 0

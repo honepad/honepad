@@ -1,9 +1,65 @@
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Win32.SafeHandles;
 
 public class Adapter
 {
+    static FileStream? stdoutNullHold;
+
+    const int StdOutputHandle = -11;
+
+    [DllImport("libc", SetLastError = true)]
+    static extern int dup(int oldfd);
+
+    [DllImport("libc", SetLastError = true)]
+    static extern int dup2(int oldfd, int newfd);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool SetStdHandle(int nStdHandle, IntPtr handle);
+
+    static readonly Encoding Utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
+
+    static TextWriter sinkStdout()
+    {
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                Stream saved = Console.OpenStandardOutput();
+                stdoutNullHold = new FileStream("NUL", FileMode.Open, FileAccess.Write);
+                SetStdHandle(StdOutputHandle, stdoutNullHold.SafeFileHandle.DangerousGetHandle());
+                Console.SetOut(TextWriter.Null);
+                return new StreamWriter(saved, Utf8) { AutoFlush = true };
+            }
+
+            int savedFd = dup(1);
+            if (savedFd < 0)
+            {
+                return Console.Out;
+            }
+
+            var reportStream = new FileStream(
+                new SafeFileHandle((IntPtr)savedFd, ownsHandle: true),
+                FileAccess.Write
+            );
+            stdoutNullHold = new FileStream("/dev/null", FileMode.Open, FileAccess.Write);
+            int nullFd = (int)stdoutNullHold.SafeFileHandle.DangerousGetHandle();
+            if (dup2(nullFd, 1) < 0)
+            {
+                return new StreamWriter(reportStream, Utf8) { AutoFlush = true };
+            }
+
+            Console.SetOut(TextWriter.Null);
+            return new StreamWriter(reportStream, Utf8) { AutoFlush = true };
+        }
+        catch
+        {
+            return Console.Out;
+        }
+    }
+
     public static void Main(string[] args)
     {
         List<string> positional = args.Where(item => item.Length > 0 && item != "--" && !item.StartsWith('-')).ToList();
@@ -15,8 +71,7 @@ public class Adapter
 
         string casesPath = positional[0];
         string className = positional[1];
-        TextWriter reportOut = Console.Out;
-        Console.SetOut(TextWriter.Null);
+        TextWriter reportOut = sinkStdout();
         using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(casesPath));
         if (doc.RootElement.ValueKind != JsonValueKind.Array)
         {
