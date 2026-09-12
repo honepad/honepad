@@ -22,6 +22,7 @@
 - Docs-only PRs skip the language shards and OS compat matrix
 - Accept C#, C++, JS, and TS as language tokens
 - Reject compiled-lang constructor fake pass reports
+- Reject Go init and C++ static-init fake pass reports
 - Skip Compat on factory-only PRs
 
 ## [0.1.0] - 2026-09-11

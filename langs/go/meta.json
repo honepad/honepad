@@ -14,6 +14,7 @@
     "solution": "solution.go",
     "stub": "stub.go",
     "copy": {
+      "00_sink.go": "{{pack}}/00_sink.go",
       "adapter.go": "{{pack}}/adapter.go",
       "stdout_unix.go": "{{pack}}/stdout_unix.go",
       "stdout_windows.go": "{{pack}}/stdout_windows.go"

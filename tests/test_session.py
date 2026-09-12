@@ -4119,6 +4119,38 @@ def test_submit_rejects_go_exact_count_fake_json_exit(monkeypatch, tmp_path: Pat
     assert load_session()["unlocked"] == 1
 
 
+@pytest.mark.skipif(shutil.which("go") is None, reason="go not found")
+def test_submit_rejects_go_init_fake_json_exit(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "go", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "go" / "work.go"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "package main\n\n"
+        "import (\n"
+        '\t"fmt"\n'
+        '\t"os"\n'
+        ")\n\n"
+        "func init() {\n"
+        f"\tfmt.Println(`{payload}`)\n"
+        "\tos.Exit(0)\n"
+        "}\n\n"
+        "type Simulation struct{}\n\n"
+        "func NewSimulation() *Simulation { return &Simulation{} }\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "go"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
 @pytest.mark.skipif(shutil.which("dotnet") is None, reason="dotnet not found")
 def test_submit_rejects_csharp_exact_count_fake_json_exit(
     monkeypatch, tmp_path: Path, capsys
@@ -4211,6 +4243,45 @@ def test_submit_rejects_cpp_exact_count_fake_json_exit(monkeypatch, tmp_path: Pa
         '    throw std::runtime_error("not implemented: " + method);\n'
         "  }\n"
         "};\n"
+        "#endif\n",
+        encoding="utf-8",
+    )
+    code = main(["submit", "bank_system", "--lang", "cpp"])
+    captured = capsys.readouterr()
+    out = captured.out + captured.err
+    assert code == 1
+    assert "FAIL" in out
+    assert "OK" not in out
+    assert "UNLOCKED" not in out
+    assert "passed=" not in out
+    assert load_session()["unlocked"] == 1
+
+
+@pytest.mark.skipif(shutil.which("c++") is None, reason="c++ not found")
+def test_submit_rejects_cpp_static_init_fake_json_exit(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "cpp", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "cpp" / "work.cpp"
+    payload = _exact_l1_pass_json()
+    work.write_text(
+        "#ifndef HONEPAD_SOLUTION_INCLUDED\n"
+        "#define HONEPAD_SOLUTION_INCLUDED\n"
+        '#include "harness.hpp"\n'
+        "#include <cstdlib>\n"
+        "#include <iostream>\n"
+        "class Simulation : public Harness {\n"
+        " public:\n"
+        "  JsonVal call(const std::string& method, const std::vector<JsonVal>&) override {\n"
+        '    throw std::runtime_error("not implemented: " + method);\n'
+        "  }\n"
+        "};\n"
+        "static struct FakePass {\n"
+        "  FakePass() {\n"
+        f"    std::cout << {json.dumps(payload)} << std::endl;\n"
+        "    std::exit(0);\n"
+        "  }\n"
+        "} fake_pass;\n"
         "#endif\n",
         encoding="utf-8",
     )
