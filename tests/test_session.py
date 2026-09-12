@@ -4152,7 +4152,7 @@ def test_submit_rejects_go_init_fake_json_exit(monkeypatch, tmp_path: Path, caps
 
 
 @pytest.mark.skipif(shutil.which("go") is None, reason="go not found")
-def test_submit_rejects_go_init_planted_report_json_exit(
+def test_submit_rejects_go_init_planted_report_json_fake_json_exit(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
