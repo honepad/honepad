@@ -27,6 +27,7 @@ jobs:
       pull-requests: read
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      compat: ${{ steps.filter.outputs.compat }}
     steps:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
@@ -38,9 +39,27 @@ jobs:
               - 'langs/**'
               - 'problems/**'
               - 'factory/**'
+              - 'ci/npm/**'
+              - 'scripts/**'
+              - 'setup.py'
               - 'pyproject.toml'
               - 'requirements-*.txt'
               - 'Makefile'
+              - '.github/workflows/ci.yml'
+            compat:
+              - 'src/**'
+              - 'langs/catalog.json'
+              - 'langs/python3/**'
+              - 'langs/java/**'
+              - 'langs/csharp/**'
+              - 'langs/go/**'
+              - 'langs/javascript/**'
+              - 'langs/typescript/**'
+              - 'langs/cpp/**'
+              - 'problems/**'
+              - 'tests/test_os_compat.py'
+              - 'pyproject.toml'
+              - 'requirements-*.txt'
               - '.github/workflows/ci.yml'
 
   stealth:
@@ -241,7 +260,7 @@ jobs:
     if: >-
       always() &&
       !startsWith(github.head_ref, 'release-please') &&
-      (needs.changes.result == 'skipped' || needs.changes.outputs.code == 'true')
+      (needs.changes.result == 'skipped' || needs.changes.outputs.compat == 'true')
     runs-on: ${{ matrix.os }}
     timeout-minutes: ${{ matrix.timeout }}
     strategy:
