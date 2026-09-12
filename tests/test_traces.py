@@ -1599,25 +1599,29 @@ def test_run_compiled_ignores_report_path_only_in_argv() -> None:
 
 def test_run_compiled_ignores_planted_report_json() -> None:
     n = len(load_cases("bank_system", 1))
-    stdout = json.dumps({"passed": n, "failed": []})
+    planted = json.dumps({"passed": n, "failed": []})
 
     def prepare(tmpdir: Path, cases_path: str, report_path: str = "") -> list[str]:
-        (tmpdir / "report.json").write_text('{"passed": 0, "failed": []}\n', encoding="utf-8")
+        (tmpdir / "report.json").write_text(planted + "\n", encoding="utf-8")
         assert Path(report_path).name.startswith(".honepad-report-")
-        return [sys.executable, "-c", f"print({stdout!r})"]
+        return [sys.executable, "-c", f"print({planted!r})"]
 
-    report = run_compiled("bank_system", "rust", 1, prepare)
-    assert report.ok
-    assert report.passed == n
+    with pytest.raises(RuntimeError, match="no report"):
+        run_compiled("bank_system", "go", 1, prepare)
 
 
 def test_run_compiled_reads_nonce_report_when_env_set() -> None:
     n = len(load_cases("bank_system", 1))
+    body = json.dumps({"passed": n, "failed": []})
 
     def prepare(tmpdir: Path, cases_path: str, report_path: str = "") -> list[str]:
-        Path(report_path).write_text(f'{{"passed": {n}, "failed": []}}\n', encoding="utf-8")
         (tmpdir / "report.json").write_text('{"passed": 0, "failed": []}\n', encoding="utf-8")
-        return [sys.executable, "-c", "print('ignore stdout')"]
+        return [
+            sys.executable,
+            "-c",
+            "import os\n"
+            f"open(os.environ['HONEPAD_REPORT'], 'w', encoding='utf-8').write({body!r} + '\\n')\n",
+        ]
 
     report = run_compiled("bank_system", "go", 1, prepare)
     assert report.ok
