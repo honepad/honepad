@@ -122,8 +122,8 @@ func jsonEqual(actual, expected any) bool {
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: adapter cases.json")
+	if len(os.Args) < 3 {
+		fmt.Fprintln(os.Stderr, "usage: adapter cases.json report.json")
 		os.Exit(2)
 	}
 	data, err := os.ReadFile(os.Args[1])
@@ -172,8 +172,17 @@ func main() {
 			passed++
 		}
 	}
-	enc := json.NewEncoder(reportOut)
+	out, err := os.Create(os.Args[2])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	enc := json.NewEncoder(out)
 	if err := enc.Encode(report{Passed: passed, Failed: failed}); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
+	if err := out.Close(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}

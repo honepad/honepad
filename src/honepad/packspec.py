@@ -27,6 +27,7 @@ Tokens substituted in argv entries and in ``write`` bodies:
 ``{{src}}``          absolute path of the candidate source
 ``{{src_name}}``     that source's file name
 ``{{cases}}``        absolute path of the traces file
+``{{report}}``       absolute path of the adapter report file
 ``{{tmp}}``          build directory (``compiled`` only)
 ``{{pack}}``         ``langs/<id>``
 ``{{langs}}``        ``langs``, for packs that borrow another pack's adapter
@@ -229,6 +230,7 @@ def context(
     src: Path,
     cases: str = "",
     tmpdir: Path | None = None,
+    report: str = "",
 ) -> dict[str, str]:
     langs = repo_root() / "langs"
     return {
@@ -236,6 +238,7 @@ def context(
         "src": str(src),
         "src_name": src.name,
         "cases": cases,
+        "report": report,
         "tmp": str(tmpdir) if tmpdir is not None else "",
         "pack": str(langs / lang_id),
         "langs": str(langs),

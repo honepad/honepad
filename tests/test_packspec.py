@@ -92,6 +92,7 @@ def test_context_covers_every_token_the_docs_promise() -> None:
     assert ctx["pack"].endswith("langs/go")
     assert ctx["langs"].endswith("langs")
     assert ctx["cases"] == ""
+    assert ctx["report"] == ""
     assert ctx["tmp"] == ""
 
 

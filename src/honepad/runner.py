@@ -117,10 +117,20 @@ def report_from_proc(
     lang_id: str,
     level: int,
     cases: list[dict[str, Any]] | None = None,
+    report_text: str | None = None,
+    *,
+    report_requested: bool = False,
 ) -> Report:
-    if not proc.stdout.strip():
-        raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
-    payload, debug = _extract_report_payload(proc.stdout, lang_id)
+    if report_requested:
+        if not (report_text or "").strip():
+            raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
+        payload, debug = _extract_report_payload(report_text or "", lang_id)
+    elif report_text is not None and report_text.strip():
+        payload, debug = _extract_report_payload(report_text, lang_id)
+    else:
+        if not proc.stdout.strip():
+            raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
+        payload, debug = _extract_report_payload(proc.stdout, lang_id)
     cases = {str(case["id"]): case for case in _resolve_cases(problem, level, cases)}
     failed: list[Fail] = []
     raw_failed = payload.get("failed", [])
@@ -213,11 +223,22 @@ def run_compiled(
         tmpdir = Path(tmp)
         cases_path = tmpdir / "cases.json"
         cases_path.write_text(json.dumps(cases), encoding="utf-8")
+        report_path = tmpdir / "report.json"
         argv = prepare(tmpdir, str(cases_path))
         if argv:
             argv = [windows_artifact(argv[0]), *argv[1:]]
         proc = run_prepare_cmd(argv, tmpdir, lang_id, timeout=RUN_TIMEOUT_S, src=src)
-    return report_from_proc(proc, problem, lang_id, level, cases=cases)
+        report_requested = str(report_path) in argv
+        report_text = report_path.read_text(encoding="utf-8") if report_path.is_file() else None
+    return report_from_proc(
+        proc,
+        problem,
+        lang_id,
+        level,
+        cases=cases,
+        report_text=report_text,
+        report_requested=report_requested,
+    )
 
 
 def run_script(
@@ -275,7 +296,12 @@ def run_spec_compiled(
 
     def prepare(tmpdir: Path, cases_path: str) -> list[str]:
         ctx = packspec.context(
-            lang_id, class_name=class_name, src=src, cases=cases_path, tmpdir=tmpdir
+            lang_id,
+            class_name=class_name,
+            src=src,
+            cases=cases_path,
+            tmpdir=tmpdir,
+            report=str(tmpdir / "report.json"),
         )
         packspec.lay_out(spec, tmpdir, src, ctx)
         packspec.prepare_env(spec, lang_id)

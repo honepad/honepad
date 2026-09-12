@@ -1527,6 +1527,32 @@ def test_report_from_proc_last_passed_object_wins() -> None:
     assert '{"passed": 0' in report.debug
 
 
+def test_report_from_proc_requested_file_does_not_use_stdout() -> None:
+    n = len(load_cases("bank_system", 1))
+    proc = subprocess.CompletedProcess(
+        ["adapter"], 0, stdout=f'{{"passed": {n}, "failed": []}}\n', stderr=""
+    )
+    with pytest.raises(RuntimeError, match="no output"):
+        report_from_proc(proc, "bank_system", "go", 1, report_requested=True)
+
+
+def test_report_from_proc_reads_requested_file() -> None:
+    n = len(load_cases("bank_system", 1))
+    proc = subprocess.CompletedProcess(
+        ["adapter"], 0, stdout='{"passed": 0, "failed": []}\n', stderr=""
+    )
+    report = report_from_proc(
+        proc,
+        "bank_system",
+        "go",
+        1,
+        report_text=f'{{"passed": {n}, "failed": []}}\n',
+        report_requested=True,
+    )
+    assert report.ok
+    assert report.passed == n
+
+
 def test_java_work_system_out_print_still_reports(monkeypatch, tmp_path: Path, capsys) -> None:
     from honepad.cli import main
 
@@ -1758,6 +1784,13 @@ def test_compiled_recipes_name_the_cases_file() -> None:
         assert "{{cases}}" in json.dumps(spec["argv"]), lang_id
 
 
+def test_go_and_cpp_recipes_name_the_report_file() -> None:
+    for lang_id in ("go", "cpp"):
+        spec = packspec.run_spec(lang_id)
+        assert spec is not None
+        assert "{{report}}" in json.dumps(spec["argv"]), lang_id
+
+
 def _execute_argv_after_prepare(monkeypatch, lang_id: str, kind: str = "stub") -> list[str]:
     captured: dict[str, list[str]] = {}
     real = run_prepare_cmd
@@ -1772,9 +1805,12 @@ def _execute_argv_after_prepare(monkeypatch, lang_id: str, kind: str = "stub") -
         if timeout == RUN_TIMEOUT_S:
             captured["argv"] = list(argv)
             n = len(load_cases("bank_system", 1))
-            return subprocess.CompletedProcess(
-                argv, 0, stdout=f'{{"passed": {n}, "failed": []}}\n', stderr=""
-            )
+            body = f'{{"passed": {n}, "failed": []}}\n'
+            for arg in argv:
+                if Path(arg).name == "report.json":
+                    Path(arg).write_text(body, encoding="utf-8")
+                    break
+            return subprocess.CompletedProcess(argv, 0, stdout=body, stderr="")
         return real(argv, cwd, lang_id, timeout, src=src)
 
     monkeypatch.setattr("honepad.runner.run_prepare_cmd", spy)
