@@ -12,17 +12,8 @@
 #include <vector>
 
 #ifdef _WIN32
-#include <fcntl.h>
-#include <io.h>
-#define honepad_dup _dup
-#define honepad_fdopen _fdopen
-#define honepad_fileno _fileno
 #define HONEPAD_DEVNULL "NUL"
 #else
-#include <unistd.h>
-#define honepad_dup dup
-#define honepad_fdopen fdopen
-#define honepad_fileno fileno
 #define HONEPAD_DEVNULL "/dev/null"
 #endif
 
@@ -76,27 +67,17 @@ JsonVal fail_row(
   return row;
 }
 
-FILE* g_report_out = nullptr;
+bool g_stdout_sunk = false;
 
 void sink_stdout_early() {
-  if (g_report_out != nullptr) {
+  if (g_stdout_sunk) {
     return;
-  }
-  int saved_fd = honepad_dup(honepad_fileno(stdout));
-  if (saved_fd < 0) {
-    std::cerr << "failed to dup stdout\n";
-    std::exit(2);
-  }
-  FILE* report_out = honepad_fdopen(saved_fd, "w");
-  if (report_out == nullptr) {
-    std::cerr << "failed to fdopen stdout\n";
-    std::exit(2);
   }
   if (std::freopen(HONEPAD_DEVNULL, "w", stdout) == nullptr) {
     std::cerr << "failed to sink stdout\n";
     std::exit(2);
   }
-  g_report_out = report_out;
+  g_stdout_sunk = true;
 }
 
 #ifdef _MSC_VER
@@ -116,12 +97,19 @@ __attribute__((constructor(101))) static void sink_stdout_ctor() {
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc < 2) {
+  const char* report_env = std::getenv("HONEPAD_REPORT");
+  std::string report_path = report_env ? report_env : "";
+#ifdef _WIN32
+  char wipe[] = "HONEPAD_REPORT=";
+  _putenv(wipe);
+#else
+  unsetenv("HONEPAD_REPORT");
+#endif
+  if (argc < 2 || report_path.empty()) {
     std::cerr << "usage: adapter cases.json\n";
     return 2;
   }
   sink_stdout_early();
-  FILE* report_out = g_report_out;
   JsonVal cases;
   try {
     cases = parse_json(read_file(argv[1]));
@@ -177,8 +165,15 @@ int main(int argc, char** argv) {
   JsonVal failed_arr = JsonVal::from_arr(std::move(failed));
   report.obj.emplace_back("failed", failed_arr);
   std::string encoded = stringify(report);
-  std::fputs(encoded.c_str(), report_out);
-  std::fputc('\n', report_out);
-  std::fflush(report_out);
+  std::ofstream report_file(report_path);
+  if (!report_file) {
+    std::cerr << "cannot write " << report_path << "\n";
+    return 2;
+  }
+  report_file << encoded << '\n';
+  if (!report_file) {
+    std::cerr << "cannot write " << report_path << "\n";
+    return 2;
+  }
   return failed_arr.arr.empty() ? 0 : 1;
 }

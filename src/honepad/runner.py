@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import secrets
 import shutil
 import subprocess
 import sys
@@ -117,10 +118,21 @@ def report_from_proc(
     lang_id: str,
     level: int,
     cases: list[dict[str, Any]] | None = None,
+    report_text: str | None = None,
+    *,
+    report_requested: bool = False,
+    src: Path | None = None,
 ) -> Report:
-    if not proc.stdout.strip():
-        raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
-    payload, debug = _extract_report_payload(proc.stdout, lang_id)
+    if report_requested:
+        if not (report_text or "").strip():
+            detail = (proc.stderr or "").strip() or f"{lang_id} adapter produced no report"
+            prefix = f"{src}: " if src is not None else ""
+            raise RuntimeError(f"{prefix}{detail}")
+        payload, debug = _extract_report_payload(report_text or "", lang_id)
+    else:
+        if not proc.stdout.strip():
+            raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
+        payload, debug = _extract_report_payload(proc.stdout, lang_id)
     cases = {str(case["id"]): case for case in _resolve_cases(problem, level, cases)}
     failed: list[Fail] = []
     raw_failed = payload.get("failed", [])
@@ -165,6 +177,7 @@ def run_prepare_cmd(
     lang_id: str = "",
     timeout: float = COMPILE_TIMEOUT_S,
     src: Path | None = None,
+    env: dict[str, str] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     try:
         return subprocess.run(
@@ -174,6 +187,7 @@ def run_prepare_cmd(
             text=True,
             cwd=cwd,
             timeout=timeout,
+            env=env,
         )
     except FileNotFoundError as exc:
         raise RuntimeError(f"{lang_id}: {argv[0]} not on PATH") from exc
@@ -203,21 +217,37 @@ def run_compiled(
     problem: str,
     lang_id: str,
     level: int,
-    prepare: Callable[[Path, str], list[str]],
+    prepare: Callable[[Path, str, str], list[str]],
     src: Path | None = None,
     cases: list[dict[str, Any]] | None = None,
 ) -> Report:
-    """prepare(tmpdir: Path, cases_path: str) -> list[str]  (argv to run in tmpdir)."""
+    """prepare(tmpdir, cases_path, report_path) -> argv to run in tmpdir."""
     cases = _resolve_cases(problem, level, cases)
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
         cases_path = tmpdir / "cases.json"
         cases_path.write_text(json.dumps(cases), encoding="utf-8")
-        argv = prepare(tmpdir, str(cases_path))
+        report_path = tmpdir / f".honepad-report-{secrets.token_hex(8)}"
+        argv = prepare(tmpdir, str(cases_path), str(report_path))
         if argv:
             argv = [windows_artifact(argv[0]), *argv[1:]]
-        proc = run_prepare_cmd(argv, tmpdir, lang_id, timeout=RUN_TIMEOUT_S, src=src)
-    return report_from_proc(proc, problem, lang_id, level, cases=cases)
+        run_env = os.environ.copy()
+        run_env.pop("HONEPAD_REPORT", None)
+        if lang_id in {"go", "cpp"}:
+            run_env["HONEPAD_REPORT"] = str(report_path)
+        report_requested = bool(run_env.get("HONEPAD_REPORT"))
+        proc = run_prepare_cmd(argv, tmpdir, lang_id, timeout=RUN_TIMEOUT_S, src=src, env=run_env)
+        report_text = report_path.read_text(encoding="utf-8") if report_path.is_file() else None
+    return report_from_proc(
+        proc,
+        problem,
+        lang_id,
+        level,
+        cases=cases,
+        report_text=report_text,
+        report_requested=report_requested,
+        src=src,
+    )
 
 
 def run_script(
@@ -273,9 +303,14 @@ def run_spec_compiled(
     src = spec_src(lang_id, problem, kind, spec)
     class_name = class_name_for(problem)
 
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
+    def prepare(tmpdir: Path, cases_path: str, report_path: str = "") -> list[str]:
         ctx = packspec.context(
-            lang_id, class_name=class_name, src=src, cases=cases_path, tmpdir=tmpdir
+            lang_id,
+            class_name=class_name,
+            src=src,
+            cases=cases_path,
+            tmpdir=tmpdir,
+            report=report_path,
         )
         packspec.lay_out(spec, tmpdir, src, ctx)
         packspec.prepare_env(spec, lang_id)

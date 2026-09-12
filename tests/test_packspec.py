@@ -84,6 +84,29 @@ def test_substitute_leaves_single_braces_alone() -> None:
     assert packspec.substitute(body, ctx) == "func NewTarget() any { return NewSimulation() }"
 
 
+def test_substitute_rejects_leftover_reprot_token() -> None:
+    with pytest.raises(ValueError, match="reprot"):
+        packspec.substitute("{{reprot}}", {"report": "/tmp/r"})
+
+
+def test_substitute_rejects_empty_report_token() -> None:
+    with pytest.raises(ValueError, match="report"):
+        packspec.substitute("{{report}}", {"report": ""})
+
+
+def test_render_argv_rejects_leftover_reprot_token() -> None:
+    ctx = packspec.context("go", class_name="Simulation", src=Path("/w/work.go"), report="/tmp/r")
+    with pytest.raises(ValueError, match="reprot"):
+        packspec.render_argv(["{{reprot}}"], ctx, [])
+
+
+def test_render_argv_rejects_empty_report_token() -> None:
+    ctx = packspec.context("go", class_name="Simulation", src=Path("/w/work.go"))
+    assert ctx["report"] == ""
+    with pytest.raises(ValueError, match="report"):
+        packspec.render_argv(["{{tmp}}/run", "{{cases}}", "{{report}}"], ctx, [])
+
+
 def test_context_covers_every_token_the_docs_promise() -> None:
     ctx = packspec.context("go", class_name="Simulation", src=Path("/w/work.go"))
     assert ctx["class"] == "Simulation"
@@ -92,6 +115,7 @@ def test_context_covers_every_token_the_docs_promise() -> None:
     assert ctx["pack"].endswith("langs/go")
     assert ctx["langs"].endswith("langs")
     assert ctx["cases"] == ""
+    assert ctx["report"] == ""
     assert ctx["tmp"] == ""
 
 

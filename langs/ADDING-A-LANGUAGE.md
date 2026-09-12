@@ -81,6 +81,7 @@ Substituted in `argv` entries and in `write` bodies.
 | `{{src}}` | absolute path of the candidate source |
 | `{{src_name}}` | that source's file name |
 | `{{cases}}` | absolute path of the traces file (`compiled` only) |
+| `{{report}}` | absolute path of the adapter report file (`compiled` only) |
 | `{{tmp}}` | build directory (`compiled` only) |
 | `{{pack}}` | `langs/<id>` |
 | `{{langs}}` | `langs`, for packs that borrow another pack's adapter |

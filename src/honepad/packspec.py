@@ -27,6 +27,7 @@ Tokens substituted in argv entries and in ``write`` bodies:
 ``{{src}}``          absolute path of the candidate source
 ``{{src_name}}``     that source's file name
 ``{{cases}}``        absolute path of the traces file
+``{{report}}``       absolute path of the adapter report file
 ``{{tmp}}``          build directory (``compiled`` only)
 ``{{pack}}``         ``langs/<id>``
 ``{{langs}}``        ``langs``, for packs that borrow another pack's adapter
@@ -39,6 +40,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -229,6 +231,7 @@ def context(
     src: Path,
     cases: str = "",
     tmpdir: Path | None = None,
+    report: str = "",
 ) -> dict[str, str]:
     langs = repo_root() / "langs"
     return {
@@ -236,6 +239,7 @@ def context(
         "src": str(src),
         "src_name": src.name,
         "cases": cases,
+        "report": report,
         "tmp": str(tmpdir) if tmpdir is not None else "",
         "pack": str(langs / lang_id),
         "langs": str(langs),
@@ -243,9 +247,21 @@ def context(
     }
 
 
+_LEFTOVER_TOKEN = re.compile(r"\{\{[^}]+\}\}")
+
+
+def _reject_leftover_tokens(text: str) -> None:
+    leftover = _LEFTOVER_TOKEN.search(text)
+    if leftover:
+        raise ValueError(f"unsubstituted recipe token {leftover.group(0)}")
+
+
 def substitute(text: str, ctx: dict[str, str]) -> str:
+    if "{{report}}" in text and not ctx.get("report"):
+        raise ValueError("recipe token {{report}} is empty")
     for key, value in ctx.items():
         text = text.replace("{{" + key + "}}", value)
+    _reject_leftover_tokens(text)
     return text
 
 
@@ -256,6 +272,8 @@ def render_argv(argv: list[str], ctx: dict[str, str], tool: list[str]) -> list[s
             out.extend(tool)
             continue
         out.append(substitute(str(word), ctx))
+    for word in out:
+        _reject_leftover_tokens(word)
     return out
 
 

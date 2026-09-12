@@ -14,14 +14,15 @@
     "solution": "solution.go",
     "stub": "stub.go",
     "copy": {
-      "00_sink.go": "{{pack}}/00_sink.go",
-      "adapter.go": "{{pack}}/adapter.go",
-      "stdout_unix.go": "{{pack}}/stdout_unix.go",
-      "stdout_windows.go": "{{pack}}/stdout_windows.go"
+      "main.go": "{{pack}}/main.go",
+      "honepadreport/00_sink.go": "{{pack}}/honepadreport/00_sink.go",
+      "honepadreport/adapter.go": "{{pack}}/honepadreport/adapter.go",
+      "honepadreport/stdout_unix.go": "{{pack}}/honepadreport/stdout_unix.go",
+      "honepadreport/stdout_windows.go": "{{pack}}/honepadreport/stdout_windows.go"
     },
     "src_as": "{{src_name}}",
     "write": {
-      "ctor.go": "package main\nfunc NewTarget() any { return New{{class}}() }\n",
+      "ctor.go": "package main\n\nimport \"honepadrun/honepadreport\"\n\nfunc init() {\n\thonepadreport.NewTarget = func() any { return New{{class}}() }\n}\n",
       "go.mod": "module honepadrun\n\ngo 1.22\n"
     },
     "steps": [
