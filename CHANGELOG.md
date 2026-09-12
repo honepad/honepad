@@ -23,6 +23,7 @@
 - Accept C#, C++, JS, and TS as language tokens
 - Reject compiled-lang constructor fake pass reports
 - Reject Go init and C++ static-init fake pass reports
+- Read Go and C++ adapter reports from a nonce file, not stdout
 - Skip Compat on factory-only PRs
 
 ## [0.1.0] - 2026-09-11
