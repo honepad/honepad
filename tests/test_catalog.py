@@ -75,7 +75,23 @@ def test_suggest_language_python_is_python3() -> None:
 
 def test_resolve_language_token_unique_prefix_and_ambiguous() -> None:
     assert resolve_language_token("python") == "python3"
+    assert resolve_language_token("py") == "python3"
     assert resolve_language_token("j") is None
+
+
+def test_resolve_language_token_readme_aliases() -> None:
+    assert resolve_language_token("c#") == "csharp"
+    assert resolve_language_token("C#") == "csharp"
+    assert resolve_language_token("cs") == "csharp"
+    assert resolve_language_token("c++") == "cpp"
+    assert resolve_language_token("C++") == "cpp"
+    assert resolve_language_token("js") == "javascript"
+    assert resolve_language_token("JS") == "javascript"
+    assert resolve_language_token("node") == "javascript"
+    assert resolve_language_token("ts") == "typescript"
+    assert resolve_language_token("TS") == "typescript"
+    assert resolve_language_token("python") == "python3"
+    assert resolve_language_token("pyton") is None
 
 
 def test_unknown_language_raises_value_error() -> None:

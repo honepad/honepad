@@ -68,7 +68,15 @@ or `no-runner`.
 ## Scope
 
 These seven languages have a runner on Linux, macOS, native Windows,
-and WSL: Python 3, Java, C#, Go, JavaScript, TypeScript, and C++.
+and WSL: Python 3 (`python3`), Java (`java`), C# (`csharp`), Go
+(`go`), JavaScript (`javascript`), TypeScript (`typescript`), and
+C++ (`cpp`). `honepad langs --check` shows which toolchains are on
+PATH.
+
+```bash
+honepad start bank_system python3
+honepad run bank_system --lang python3
+```
 
 Install the matching toolchain on that machine: a JDK for Java
 (`javac` and `java`), `dotnet` for C#, `go` for Go, `node` for

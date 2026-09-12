@@ -51,8 +51,23 @@ def language(lang_id: str) -> dict[str, Any]:
     raise ValueError(f"unknown language: {lang_id}")
 
 
+# README names (C#, C++, JS, TS) plus short tokens for the seven
+# all-platform desks. Fold case before lookup so C# and c# both bind.
+_LANGUAGE_ALIASES = {
+    "c#": "csharp",
+    "cs": "csharp",
+    "c++": "cpp",
+    "js": "javascript",
+    "node": "javascript",
+    "ts": "typescript",
+}
+
+
 def resolve_language_token(token: str) -> str | None:
     ids = language_ids()
+    alias = _LANGUAGE_ALIASES.get(token.casefold())
+    if alias is not None:
+        return alias
     if token in ids:
         return token
     hits = [item for item in ids if item.startswith(token)]

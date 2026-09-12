@@ -8,6 +8,7 @@ import re
 import shutil
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import TextIO
 
@@ -192,6 +193,7 @@ def read_choice(
     items: list[str],
     *,
     keep: str | None = None,
+    resolve: Callable[[str], str | None] | None = None,
 ) -> str | None:
     while True:
         line = stdin.readline()
@@ -210,6 +212,9 @@ def read_choice(
         elif raw in items:
             return raw
         else:
+            mapped = resolve(raw) if resolve is not None else None
+            if mapped is not None and mapped in items:
+                return mapped
             hits = [item for item in items if item.startswith(raw)]
             if len(hits) == 1:
                 return hits[0]

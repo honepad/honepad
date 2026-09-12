@@ -58,6 +58,12 @@ bot commits and merge commits.
 - Public copy: "practice problems", not "traces". No interview-vendor
   affiliation.
 
+## Language packs
+
+New language packs are proven on Ubuntu CI. All-platform means the
+ids in `CORE_LANGS` in [tests/test_os_compat.py](tests/test_os_compat.py)
+plus the Compat job.
+
 ## Pull requests
 
 Use the pull request template. Commits on `main` squash through the

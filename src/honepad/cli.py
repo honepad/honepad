@@ -6,6 +6,7 @@ import argparse
 import json
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -156,8 +157,12 @@ def _print_choices(title: str, items: list[str], labels: list[str] | None = None
     sys.stdout.flush()
 
 
-def _read_choice(items: list[str]) -> str | None:
-    return read_choice(sys.stdin, sys.stdout, items)
+def _read_choice(
+    items: list[str],
+    *,
+    resolve: Callable[[str], str | None] | None = None,
+) -> str | None:
+    return read_choice(sys.stdin, sys.stdout, items, resolve=resolve)
 
 
 def _problem_labels(opts: list[str]) -> list[str]:
@@ -168,7 +173,7 @@ def _fill_start_args(args: argparse.Namespace) -> bool:
     if not args.lang:
         ids = _runner_ids()
         _print_choices("language", ids)
-        picked = _read_choice(ids)
+        picked = _read_choice(ids, resolve=resolve_language_token)
         if picked is None:
             return False
         args.lang = picked
