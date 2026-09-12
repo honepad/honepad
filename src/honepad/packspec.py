@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -246,9 +247,21 @@ def context(
     }
 
 
+_LEFTOVER_TOKEN = re.compile(r"\{\{[^}]+\}\}")
+
+
+def _reject_leftover_tokens(text: str) -> None:
+    leftover = _LEFTOVER_TOKEN.search(text)
+    if leftover:
+        raise ValueError(f"unsubstituted recipe token {leftover.group(0)}")
+
+
 def substitute(text: str, ctx: dict[str, str]) -> str:
+    if "{{report}}" in text and not ctx.get("report"):
+        raise ValueError("recipe token {{report}} is empty")
     for key, value in ctx.items():
         text = text.replace("{{" + key + "}}", value)
+    _reject_leftover_tokens(text)
     return text
 
 
@@ -259,6 +272,8 @@ def render_argv(argv: list[str], ctx: dict[str, str], tool: list[str]) -> list[s
             out.extend(tool)
             continue
         out.append(substitute(str(word), ctx))
+    for word in out:
+        _reject_leftover_tokens(word)
     return out
 
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import secrets
 import shutil
 import subprocess
 import sys
@@ -125,8 +126,6 @@ def report_from_proc(
         if not (report_text or "").strip():
             raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
         payload, debug = _extract_report_payload(report_text or "", lang_id)
-    elif report_text is not None and report_text.strip():
-        payload, debug = _extract_report_payload(report_text, lang_id)
     else:
         if not proc.stdout.strip():
             raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
@@ -213,18 +212,18 @@ def run_compiled(
     problem: str,
     lang_id: str,
     level: int,
-    prepare: Callable[[Path, str], list[str]],
+    prepare: Callable[[Path, str, str], list[str]],
     src: Path | None = None,
     cases: list[dict[str, Any]] | None = None,
 ) -> Report:
-    """prepare(tmpdir: Path, cases_path: str) -> list[str]  (argv to run in tmpdir)."""
+    """prepare(tmpdir, cases_path, report_path) -> argv to run in tmpdir."""
     cases = _resolve_cases(problem, level, cases)
     with tempfile.TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
         cases_path = tmpdir / "cases.json"
         cases_path.write_text(json.dumps(cases), encoding="utf-8")
-        report_path = tmpdir / "report.json"
-        argv = prepare(tmpdir, str(cases_path))
+        report_path = tmpdir / f".honepad-report-{secrets.token_hex(8)}"
+        argv = prepare(tmpdir, str(cases_path), str(report_path))
         if argv:
             argv = [windows_artifact(argv[0]), *argv[1:]]
         proc = run_prepare_cmd(argv, tmpdir, lang_id, timeout=RUN_TIMEOUT_S, src=src)
@@ -294,14 +293,14 @@ def run_spec_compiled(
     src = spec_src(lang_id, problem, kind, spec)
     class_name = class_name_for(problem)
 
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
+    def prepare(tmpdir: Path, cases_path: str, report_path: str = "") -> list[str]:
         ctx = packspec.context(
             lang_id,
             class_name=class_name,
             src=src,
             cases=cases_path,
             tmpdir=tmpdir,
-            report=str(tmpdir / "report.json"),
+            report=report_path,
         )
         packspec.lay_out(spec, tmpdir, src, ctx)
         packspec.prepare_env(spec, lang_id)

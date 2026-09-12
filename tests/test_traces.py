@@ -1444,13 +1444,16 @@ def test_run_unknown_language_is_not_implemented() -> None:
 def test_run_compiled_writes_cases_inside_tmpdir() -> None:
     seen: dict[str, object] = {}
 
-    def prepare(tmpdir: Path, cases_path: str) -> list[str]:
+    def prepare(tmpdir: Path, cases_path: str, report_path: str = "") -> list[str]:
         seen["inside"] = Path(cases_path).resolve().is_relative_to(Path(tmpdir).resolve())
+        seen["report"] = Path(report_path).name
         raise RuntimeError("stop")
 
     with pytest.raises(RuntimeError, match="stop"):
         run_compiled("bank_system", "python3", 1, prepare)
     assert seen["inside"] is True
+    assert str(seen["report"]).startswith(".honepad-report-")
+    assert seen["report"] != "report.json"
 
 
 def test_report_from_proc_rejects_non_object_json() -> None:
@@ -1549,6 +1552,50 @@ def test_report_from_proc_reads_requested_file() -> None:
         report_text=f'{{"passed": {n}, "failed": []}}\n',
         report_requested=True,
     )
+    assert report.ok
+    assert report.passed == n
+
+
+def test_report_from_proc_ignores_unrequested_report_text() -> None:
+    n = len(load_cases("bank_system", 1))
+    proc = subprocess.CompletedProcess(
+        ["adapter"], 0, stdout=f'{{"passed": {n}, "failed": []}}\n', stderr=""
+    )
+    report = report_from_proc(
+        proc,
+        "bank_system",
+        "rust",
+        1,
+        report_text='{"passed": 0, "failed": []}\n',
+        report_requested=False,
+    )
+    assert report.ok
+    assert report.passed == n
+
+
+def test_run_compiled_ignores_planted_report_json() -> None:
+    n = len(load_cases("bank_system", 1))
+    stdout = json.dumps({"passed": n, "failed": []})
+
+    def prepare(tmpdir: Path, cases_path: str, report_path: str = "") -> list[str]:
+        (tmpdir / "report.json").write_text('{"passed": 0, "failed": []}\n', encoding="utf-8")
+        assert Path(report_path).name.startswith(".honepad-report-")
+        return [sys.executable, "-c", f"print({stdout!r})"]
+
+    report = run_compiled("bank_system", "rust", 1, prepare)
+    assert report.ok
+    assert report.passed == n
+
+
+def test_run_compiled_reads_nonce_report_when_named_in_argv() -> None:
+    n = len(load_cases("bank_system", 1))
+
+    def prepare(tmpdir: Path, cases_path: str, report_path: str = "") -> list[str]:
+        Path(report_path).write_text(f'{{"passed": {n}, "failed": []}}\n', encoding="utf-8")
+        (tmpdir / "report.json").write_text('{"passed": 0, "failed": []}\n', encoding="utf-8")
+        return [sys.executable, "-c", "print('ignore stdout')", report_path]
+
+    report = run_compiled("bank_system", "go", 1, prepare)
     assert report.ok
     assert report.passed == n
 
@@ -1807,7 +1854,7 @@ def _execute_argv_after_prepare(monkeypatch, lang_id: str, kind: str = "stub") -
             n = len(load_cases("bank_system", 1))
             body = f'{{"passed": {n}, "failed": []}}\n'
             for arg in argv:
-                if Path(arg).name == "report.json":
+                if Path(arg).name.startswith(".honepad-report-"):
                     Path(arg).write_text(body, encoding="utf-8")
                     break
             return subprocess.CompletedProcess(argv, 0, stdout=body, stderr="")
