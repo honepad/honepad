@@ -281,7 +281,7 @@ def run_spec_compiled(
         packspec.prepare_env(spec, lang_id)
         for step in spec.get("steps", []):
             tool = packspec.resolve_tool(step, lang_id)
-            built = run_prepare_cmd(packspec.step_argv(step, ctx, tool), tmpdir, lang_id)
+            built = run_prepare_cmd(packspec.step_argv(step, ctx, tool), tmpdir, lang_id, src=src)
             if built.returncode != 0:
                 raise compile_fail(src, built, str(step.get("fail", "compile failed")))
         return packspec.render_argv(list(spec["argv"]), ctx, packspec.resolve_tool(spec, lang_id))

@@ -328,30 +328,36 @@ def cmd_start(args: argparse.Namespace) -> int:
             work = ensure_work_copy(args.problem, row["id"], reset=True, level=1)
             session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=True)
             unlocked = int(session["unlocked"])
-            if workspace_dir(args.problem, row["id"]).exists():
-                write_workspace(
-                    args.problem,
-                    row["id"],
-                    unlocked,
-                    cleared=bool(session.get("cleared")),
-                )
-            else:
+            try:
+                if workspace_dir(args.problem, row["id"]).exists():
+                    write_workspace(
+                        args.problem,
+                        row["id"],
+                        unlocked,
+                        cleared=bool(session.get("cleared")),
+                    )
+                else:
+                    refresh_workspace(
+                        args.problem,
+                        row["id"],
+                        unlocked,
+                        cleared=bool(session.get("cleared")),
+                    )
+            except HONEPAD_ERRORS as exc:
+                print(status_note(f"NOTE: workspace {exc}"))
+        else:
+            session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=False)
+            unlocked = int(session["unlocked"])
+            work = ensure_work_copy(args.problem, row["id"], reset=False, level=unlocked)
+            try:
                 refresh_workspace(
                     args.problem,
                     row["id"],
                     unlocked,
                     cleared=bool(session.get("cleared")),
                 )
-        else:
-            session = ensure_session(args.problem, args.lang, minutes=args.minutes, reset=False)
-            unlocked = int(session["unlocked"])
-            work = ensure_work_copy(args.problem, row["id"], reset=False, level=unlocked)
-            refresh_workspace(
-                args.problem,
-                row["id"],
-                unlocked,
-                cleared=bool(session.get("cleared")),
-            )
+            except HONEPAD_ERRORS as exc:
+                print(status_note(f"NOTE: workspace {exc}"))
         level = unlocked if args.level is None else args.level
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
@@ -503,7 +509,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         if (
             practice
             and session is not None
-            and kind in ("solution", "work", "stub")
+            and _time_up_kind(kind)
             and left == 0
             and int(session["unlocked"]) < max_level(str(session["problem"]))
         ):
@@ -572,7 +578,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         if (
             practice
             and session is not None
-            and kind in ("solution", "work")
+            and _time_up_kind(kind)
             and left == 0
             and int(session["unlocked"]) < max_level(str(session["problem"]))
         ):
@@ -606,12 +612,20 @@ def cmd_run(args: argparse.Namespace) -> int:
             if kind == "work":
                 _print_work_notes(args.problem, lang)
             return 0
-        if left == 0:
-            _print_time_up(session)
-            if kind == "work":
-                _print_work_notes(args.problem, lang)
-            return 0
+    if (
+        practice
+        and session is not None
+        and _time_up_kind(kind)
+        and left == 0
+        and int(session["unlocked"]) < max_level(str(session["problem"]))
+    ):
+        _print_time_up(session)
+        if kind == "work":
+            _print_work_notes(args.problem, lang)
+        return 0
+    if practice and session is not None and kind in ("solution", "work"):
         if may_unlock:
+            nxt = int(session["unlocked"]) + 1
             try:
                 ensure_work_copy(args.problem, lang, reset=False, level=nxt, require_merge=True)
             except HONEPAD_ERRORS as exc:
@@ -677,6 +691,10 @@ def _print_run_source(problem: str, lang: str, kind: str) -> None:
         print(f"SRC: {spec_src(lang, problem, kind, spec)}")
     except HONEPAD_ERRORS:
         return
+
+
+def _time_up_kind(kind: str | None) -> bool:
+    return kind in ("solution", "work", "stub")
 
 
 def _print_time_up(session: dict[str, Any]) -> None:

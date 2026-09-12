@@ -104,6 +104,12 @@ def cmd_console(args: argparse.Namespace) -> int:
             reset=False,
             level=int(session["unlocked"]),
         )
+    except HONEPAD_ERRORS as exc:
+        print_fail(exc)
+        if "both problem and lang" in str(exc):
+            print(f"NEXT: {invocation()} console bank_system java")
+        return 1
+    try:
         refresh_workspace(
             str(session["problem"]),
             str(session["lang"]),
@@ -111,10 +117,7 @@ def cmd_console(args: argparse.Namespace) -> int:
             cleared=bool(session.get("cleared")),
         )
     except HONEPAD_ERRORS as exc:
-        print_fail(exc)
-        if "both problem and lang" in str(exc):
-            print(f"NEXT: {invocation()} console bank_system java")
-        return 1
+        print(status_note(f"NOTE: workspace {exc}"))
     return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
 
 

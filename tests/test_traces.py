@@ -1646,6 +1646,23 @@ def test_compile_fail_prefixes_src() -> None:
     assert str(compile_fail(src, proc, "c compile failed")) == f"{src}: error: expected identifier"
 
 
+def test_compile_step_timeout_includes_src(tmp_path: Path, monkeypatch) -> None:
+    src = tmp_path / "work.go"
+    src.write_text("package main\nfunc main() {}\n", encoding="utf-8")
+    monkeypatch.setattr("honepad.runner.spec_src", lambda *_a, **_k: src)
+
+    def fake_run(*_args: object, **_kwargs: object) -> None:
+        raise subprocess.TimeoutExpired(cmd=["go", "build"], timeout=COMPILE_TIMEOUT_S)
+
+    monkeypatch.setattr("honepad.runner.subprocess.run", fake_run)
+    with pytest.raises(RuntimeError) as excinfo:
+        run("bank_system", "go", 1, "stub")
+    msg = str(excinfo.value)
+    assert str(src) in msg
+    assert "timed out" in msg
+    assert "go" in msg
+
+
 _GO = shutil.which("go")
 _CARGO = shutil.which("cargo")
 _DOTNET = shutil.which("dotnet")

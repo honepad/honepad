@@ -12,7 +12,7 @@ import pytest
 from honepad.catalog import language, problems, repo_root
 from honepad.cli import main
 from honepad.console import render_banner
-from honepad.runner import _RUNNERS
+from honepad.runner import _RUNNERS, Report
 from honepad.session import (
     ensure_work_copy,
     extra_work_note,
@@ -226,6 +226,31 @@ def test_submit_unlocks_when_workspace_write_fails(monkeypatch, tmp_path: Path, 
     assert "workspace boom" in out
     assert "Account.py is ignored" in out
     assert "Put the Simulation class in work.py" in out
+
+
+def test_start_resumes_when_workspace_write_fails(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    assert work.is_file()
+    assert load_session()["unlocked"] == 1
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise OSError("workspace boom")
+
+    monkeypatch.setattr("honepad.cli.refresh_workspace", boom)
+    code = main(["start", "bank_system", "python3", "--no-console"])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert load_session() is not None
+    assert load_session()["unlocked"] == 1
+    assert work.is_file()
+    assert "Traceback" not in out
+    assert "NOTE:" in out
+    assert "workspace boom" in out
+    assert "FAIL:" not in out
+    assert "OK:" in out
 
 
 def test_stub_runs_do_not_unlock_next_level(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -1821,6 +1846,39 @@ def test_expired_run_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> Non
     assert "NEXT:" in out
     assert "start" in out
     assert "q then" not in out
+    assert load_session()["unlocked"] == 1
+
+
+def test_stub_time_up_on_fail_and_pass(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    started = 1_700_000_000
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": started,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("honepad.session.time.time", lambda: started + 90 * 60 + 5)
+    assert main(["run", "bank_system", "--kind", "stub"]) == 1
+    fail_out = capsys.readouterr().out
+    assert "TIME UP" in fail_out
+    assert "UNLOCKED" not in fail_out
+    monkeypatch.setattr(
+        "honepad.cli.run",
+        lambda *_a, **_k: Report("bank_system", "python3", 1, 3, []),
+    )
+    assert main(["run", "bank_system", "--kind", "stub"]) == 0
+    pass_out = capsys.readouterr().out
+    assert "TIME UP" in pass_out
+    assert "UNLOCKED" not in pass_out
     assert load_session()["unlocked"] == 1
 
 
