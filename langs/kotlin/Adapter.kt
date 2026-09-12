@@ -1,7 +1,13 @@
+import java.io.ByteArrayOutputStream
+import java.io.FileDescriptor
+import java.io.FileOutputStream
+import java.io.PrintStream
+import java.lang.reflect.Field
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.Method
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.Locale
 
 class Adapter {
     companion object {
@@ -20,6 +26,11 @@ class Adapter {
             val cls = Class.forName(className)
             val failed = ArrayList<Map<String, Any?>>()
             var passed = 0
+            val reportOut = sinkStdout()
+            val captured = ByteArrayOutputStream()
+            val sink = PrintStream(captured, true)
+            System.setOut(sink)
+            try {
             for (rowObj in parsed) {
                 @Suppress("UNCHECKED_CAST")
                 val row = rowObj as Map<String, Any?>
@@ -55,11 +66,62 @@ class Adapter {
                     passed += 1
                 }
             }
+            } finally {
+                sink.flush()
+                sink.close()
+            }
+            val debug = captured.toString()
+            if (debug.isNotEmpty()) {
+                reportOut.print(debug)
+                if (!debug.endsWith("\n")) {
+                    reportOut.println()
+                }
+            }
             val report = LinkedHashMap<String, Any?>()
             report["passed"] = passed
             report["failed"] = failed
-            println(MiniJson.stringify(report))
+            reportOut.println(MiniJson.stringify(report))
+            reportOut.flush()
             System.exit(if (failed.isEmpty()) 0 else 1)
+        }
+
+        var stdoutNullHold: FileOutputStream? = null
+
+        fun sinkStdout(): PrintStream {
+            return try {
+                val saved = FileDescriptor()
+                copyNativeId(FileDescriptor.out, saved)
+                val reportOut = PrintStream(FileOutputStream(saved), true)
+                val nullPath =
+                    if (System.getProperty("os.name", "").lowercase(Locale.ROOT).contains("win")) {
+                        "NUL"
+                    } else {
+                        "/dev/null"
+                    }
+                stdoutNullHold = FileOutputStream(nullPath)
+                copyNativeId(stdoutNullHold!!.fd, FileDescriptor.out)
+                reportOut
+            } catch (_: Exception) {
+                System.out
+            }
+        }
+
+        fun copyNativeId(from: FileDescriptor, to: FileDescriptor) {
+            var last: Exception? = null
+            var copied = false
+            for (name in arrayOf("fd", "handle")) {
+                try {
+                    val field: Field = FileDescriptor::class.java.getDeclaredField(name)
+                    field.isAccessible = true
+                    field.set(to, field.get(from))
+                    copied = true
+                } catch (exc: ReflectiveOperationException) {
+                    last = exc
+                }
+            }
+            if (!copied) {
+                throw last ?: IllegalStateException("FileDescriptor id missing")
+            }
         }
 
         fun failRow(

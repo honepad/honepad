@@ -126,6 +126,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "usage: adapter cases.json")
 		os.Exit(2)
 	}
+	reportOut := sinkStdout()
 	data, err := os.ReadFile(os.Args[1])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -172,7 +173,7 @@ func main() {
 			passed++
 		}
 	}
-	enc := json.NewEncoder(os.Stdout)
+	enc := json.NewEncoder(reportOut)
 	if err := enc.Encode(report{Passed: passed, Failed: failed}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
@@ -180,4 +181,5 @@ func main() {
 	if len(failed) > 0 {
 		os.Exit(1)
 	}
+	os.Exit(0)
 }

@@ -50,6 +50,8 @@
     ],
     "argv": [
       "java",
+      "--add-opens",
+      "java.base/java.io=ALL-UNNAMED",
       "-cp",
       "run.jar{{pathsep}}.",
       "Adapter",

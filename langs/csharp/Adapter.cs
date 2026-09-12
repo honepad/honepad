@@ -15,6 +15,8 @@ public class Adapter
 
         string casesPath = positional[0];
         string className = positional[1];
+        TextWriter reportOut = Console.Out;
+        Console.SetOut(TextWriter.Null);
         using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(casesPath));
         if (doc.RootElement.ValueKind != JsonValueKind.Array)
         {
@@ -72,7 +74,8 @@ public class Adapter
             ["passed"] = passed,
             ["failed"] = failed,
         };
-        Console.WriteLine(JsonSerializer.Serialize(report));
+        reportOut.WriteLine(JsonSerializer.Serialize(report));
+        reportOut.Flush();
         Environment.Exit(failed.Count == 0 ? 0 : 1);
     }
 
