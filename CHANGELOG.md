@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.2.0](https://github.com/honepad/honepad/compare/v0.1.1...v0.2.0) (2026-09-12)
+
+
+### Features
+
+* prove seven languages on Linux, macOS, Windows, and WSL ([#261](https://github.com/honepad/honepad/issues/261)) ([9159b5b](https://github.com/honepad/honepad/commit/9159b5b755a4a8b11e92182f7e619e2a1078d22e))
+
+
+### Bug Fixes
+
+* read Go and C++ reports from a nonce file ([#267](https://github.com/honepad/honepad/issues/267)) ([d6caa31](https://github.com/honepad/honepad/commit/d6caa31803365c2aa994617fa870fe143f8be059))
+* reject compiled fake-pass reports and accept C# JS TS tokens ([#265](https://github.com/honepad/honepad/issues/265)) ([955ddee](https://github.com/honepad/honepad/commit/955ddeedf194d0e5cc104dbb6a88760b334781e4))
+* reject Go init and C++ static-init fake pass reports ([#266](https://github.com/honepad/honepad/issues/266)) ([d7eb01d](https://github.com/honepad/honepad/commit/d7eb01dbe7bbd3ad5598272a6b2270cce4e9900d)), closes [#264](https://github.com/honepad/honepad/issues/264)
+
+
+### Documentation
+
+* use Honepad in English sentences ([#263](https://github.com/honepad/honepad/issues/263)) ([d003a59](https://github.com/honepad/honepad/commit/d003a5904a12a7b1a19056c4ce54baffb0571ad2))
+
 ## [0.1.1](https://github.com/honepad/honepad/compare/v0.1.0...v0.1.1) (2026-09-11)
 
 
