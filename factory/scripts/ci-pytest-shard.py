@@ -161,7 +161,7 @@ def _session_skipif_toolchain(path: str, func: str) -> bool:
         return False
     if func == "test_work_compile_error_prints_c_work_path":
         return True
-    return func.startswith("test_submit_rejects_") and "exact_count_fake_json" in func
+    return func.startswith("test_submit_rejects_") and "fake_json" in func
 
 
 def _shard_from_tokens(nodeid: str, func: str) -> str:
