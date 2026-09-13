@@ -4235,7 +4235,12 @@ def test_submit_rejects_go_init_reportout_fake_json_exit(
         '\t"os"\n'
         ")\n\n"
         "func init() {\n"
-        f"\tfmt.Fprintln(reportOut, `{payload}`)\n"
+        '\tpath := os.Getenv("HONEPAD_REPORT")\n'
+        "\treportOut, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)\n"
+        "\tif err == nil {\n"
+        f"\t\tfmt.Fprintln(reportOut, `{payload}`)\n"
+        "\t\t_ = reportOut.Close()\n"
+        "\t}\n"
         "\tos.Exit(0)\n"
         "}\n\n"
         "type Simulation struct{}\n\n"
