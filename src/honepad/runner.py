@@ -485,7 +485,10 @@ def _tool(name: str) -> str | None:
 
 def _ensure_scala() -> None:
     script = repo_root() / "factory" / "scripts" / "ensure-scala.sh"
-    subprocess.run(["bash", str(script)], check=False)
+    proc = run_prepare_cmd(["bash", str(script)], lang_id="scala")
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip() or f"exited {proc.returncode}"
+        raise RuntimeError(f"scala: {detail}")
     for folder in _coursier_bins():
         if (folder / "scalac").is_file():
             _prepend_path(folder)
@@ -519,12 +522,16 @@ def _clojure() -> list[str]:
     """The CLI needs -M to run a script; the older launcher and the jar do not."""
     path = shutil.which("clojure")
     if path:
-        help_proc = subprocess.run(
-            [path, "-h"],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        try:
+            help_proc = subprocess.run(
+                [path, "-h"],
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=RUN_TIMEOUT_S,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(f"clojure timed out after {RUN_TIMEOUT_S}s") from exc
         blob = f"{help_proc.stdout}\n{help_proc.stderr}"
         if "clj-opt" in blob or "-M[aliases]" in blob:
             return [path, "-M"]

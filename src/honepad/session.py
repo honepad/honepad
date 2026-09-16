@@ -339,17 +339,7 @@ def save_session(session: dict[str, Any], path: Path | None = None) -> Path:
     last_run = _parse_last_run(session.get("last_run"))
     if last_run is not None:
         payload["last_run"] = last_run
-    fd, tmp_name = tempfile.mkstemp(prefix=".session.", suffix=".tmp", dir=str(target.parent))
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(json.dumps(payload, indent=2) + "\n")
-        os.replace(tmp_name, target)
-    except Exception:
-        try:
-            os.unlink(tmp_name)
-        except OSError:
-            pass  # leftover tmp from a failed atomic replace
-        raise
+    _replace_text(target, json.dumps(payload, indent=2) + "\n")
     return target
 
 

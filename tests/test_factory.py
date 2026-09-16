@@ -470,6 +470,69 @@ def test_ensure_scala_script_is_executable() -> None:
     assert os.access(path, os.X_OK)
 
 
+def test_ensure_scala_timeout_raises(monkeypatch, tmp_path: Path) -> None:
+    from honepad import runner
+
+    monkeypatch.setattr(runner.shutil, "which", lambda _name, **_k: None)
+    monkeypatch.setattr(runner, "_coursier_bins", lambda: [tmp_path / "empty"])
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise subprocess.TimeoutExpired(cmd=["bash"], timeout=runner.COMPILE_TIMEOUT_S)
+
+    monkeypatch.setattr(runner.subprocess, "run", boom)
+    with pytest.raises(RuntimeError, match="timed out"):
+        runner._scala_tool("scalac")
+
+
+def test_clojure_help_timeout_raises(monkeypatch, tmp_path: Path) -> None:
+    from honepad import runner
+
+    fake = tmp_path / "clojure"
+    fake.write_text("#!/bin/sh\n", encoding="utf-8")
+    fake.chmod(0o755)
+    monkeypatch.setattr(
+        runner.shutil, "which", lambda name, **_k: str(fake) if name == "clojure" else None
+    )
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise subprocess.TimeoutExpired(cmd=[str(fake), "-h"], timeout=runner.RUN_TIMEOUT_S)
+
+    monkeypatch.setattr(runner.subprocess, "run", boom)
+    with pytest.raises(RuntimeError, match="timed out"):
+        runner._clojure()
+
+
+def test_save_session_uses_replace_text(monkeypatch, tmp_path: Path) -> None:
+    from honepad import session
+
+    called: list[tuple[Path, str]] = []
+
+    def fake_replace(dest: Path, text: str) -> None:
+        called.append((dest, text))
+
+    monkeypatch.setattr(session, "_replace_text", fake_replace)
+    target = tmp_path / "session.json"
+    session.save_session(
+        {
+            "problem": "bank_system",
+            "lang": "python3",
+            "started_at": 1_700_000_000,
+            "minutes": 90,
+            "unlocked": 1,
+        },
+        path=target,
+    )
+    assert called
+    dest, text = called[0]
+    assert dest == target
+    payload = json.loads(text)
+    assert payload["problem"] == "bank_system"
+    assert payload["lang"] == "python3"
+    assert payload["started_at"] == 1_700_000_000
+    assert payload["minutes"] == 90
+    assert payload["unlocked"] == 1
+
+
 def _auto_approve_workflow() -> str:
     return (ROOT / ".github/workflows/auto-approve.yml").read_text()
 
