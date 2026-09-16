@@ -183,10 +183,13 @@ def test_ci_compat_filter_skips_factory_only() -> None:
 
 def test_release_please_python_package() -> None:
     cfg = (ROOT / "release-please-config.json").read_text()
-    man = (ROOT / ".release-please-manifest.json").read_text()
+    man = json.loads((ROOT / ".release-please-manifest.json").read_text())
     wf = (ROOT / ".github/workflows/release-please.yml").read_text()
+    pyproject = (ROOT / "pyproject.toml").read_text()
+    match = re.search(r'(?m)^version = "([^"]+)"', pyproject)
+    assert match is not None
     assert '"release-type": "python"' in cfg
-    assert '".": "0.1.1"' in man
+    assert man["."] == match.group(1)
     assert "googleapis/release-please-action@" in wf
     assert "uses: ./.github/workflows/publish-pypi.yml" in wf
 
