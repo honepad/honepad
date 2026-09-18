@@ -5412,6 +5412,140 @@ def test_ruby_unlock_merge_ignores_end_in_heredoc() -> None:
     assert "def top_spenders" in before_class_end
 
 
+def test_ruby_unlock_merge_inserts_when_begin_comment_already_defines_method() -> None:
+    work = (
+        "=begin\n"
+        "class Simulation\n"
+        "  def top_spenders(timestamp, n)\n"
+        "    []\n"
+        "  end\n"
+        "end\n"
+        "=end\n"
+        "class Simulation\n"
+        "  def initialize\n"
+        "  end\n"
+        "  def create_account(timestamp, account_id)\n"
+        "    true\n"
+        "  end\n"
+        "  def deposit(timestamp, account_id, amount)\n"
+        "    0\n"
+        "  end\n"
+        "  def transfer(timestamp, source_account_id, target_account_id, amount)\n"
+        "    0\n"
+        "  end\n"
+        "end\n"
+    )
+    full = (repo_root() / "langs/ruby/problems/bank_system/stub.rb").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("ruby"))
+    merged = merge_unlocked_methods(work, full, "rb", allowed, "Simulation")
+    begin, sep, rest = merged.partition("=end")
+    assert sep
+    _comment, real_sep, real = rest.partition("class Simulation")
+    assert real_sep
+    assert "def top_spenders" in real
+
+
+def test_ruby_unlock_merge_ignores_end_in_quoted_heredoc() -> None:
+    work = (
+        "class Simulation\n"
+        "  def initialize\n"
+        "  end\n"
+        "  def create_account(timestamp, account_id)\n"
+        "    true\n"
+        "  end\n"
+        "  def deposit(timestamp, account_id, amount)\n"
+        "    0\n"
+        "  end\n"
+        "  def transfer(timestamp, source_account_id, target_account_id, amount)\n"
+        "    0\n"
+        "  end\n"
+        "  X = <<'END'\n"
+        "end\n"
+        "END\n"
+        "end\n"
+    )
+    full = (repo_root() / "langs/ruby/problems/bank_system/stub.rb").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("ruby"))
+    merged = merge_unlocked_methods(work, full, "rb", allowed, "Simulation")
+    open_at = merged.find("<<'END'")
+    close_at = merged.find("\nEND\n", open_at)
+    assert open_at >= 0
+    assert close_at >= 0
+    assert "def top_spenders" not in merged[open_at:close_at]
+    after_heredoc = merged[close_at + len("\nEND\n") :]
+    before_class_end, class_end, _tail = after_heredoc.partition("\nend")
+    assert class_end
+    assert "def top_spenders" in before_class_end
+
+
+def _ruby_l1_simulation(*extra: str) -> str:
+    body = (
+        "class Simulation\n"
+        "  def initialize\n"
+        "  end\n"
+        "  def create_account(timestamp, account_id)\n"
+        "    true\n"
+        "  end\n"
+        "  def deposit(timestamp, account_id, amount)\n"
+        "    0\n"
+        "  end\n"
+        "  def transfer(timestamp, source_account_id, target_account_id, amount)\n"
+        "    0\n"
+        "  end\n"
+    )
+    return body + "".join(extra) + "end\n"
+
+
+def test_ruby_unlock_merge_does_not_treat_shift_as_heredoc() -> None:
+    work = _ruby_l1_simulation("  def mask\n    1<<n\n  end\n")
+    full = (repo_root() / "langs/ruby/problems/bank_system/stub.rb").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("ruby"))
+    merged = merge_unlocked_methods(work, full, "rb", allowed, "Simulation")
+    assert "1<<n" in merged
+    assert "def top_spenders" in merged
+
+
+def test_ruby_unlock_merge_does_not_treat_append_as_heredoc() -> None:
+    work = _ruby_l1_simulation("  def push\n    arr<<item\n  end\n")
+    full = (repo_root() / "langs/ruby/problems/bank_system/stub.rb").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("ruby"))
+    merged = merge_unlocked_methods(work, full, "rb", allowed, "Simulation")
+    assert "arr<<item" in merged
+    assert "def top_spenders" in merged
+
+
+def test_ruby_unlock_merge_ignores_heredoc_marker_in_string() -> None:
+    work = _ruby_l1_simulation('  def tip\n    "use <<END here"\n  end\n')
+    full = (repo_root() / "langs/ruby/problems/bank_system/stub.rb").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("ruby"))
+    merged = merge_unlocked_methods(work, full, "rb", allowed, "Simulation")
+    assert '"use <<END here"' in merged
+    assert "def top_spenders" in merged
+
+
+def test_ruby_unlock_merge_skips_stacked_heredoc_bodies() -> None:
+    work = _ruby_l1_simulation("  X = <<A, <<B\nhello\nA\nend\nB\n")
+    full = (repo_root() / "langs/ruby/problems/bank_system/stub.rb").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("ruby"))
+    merged = merge_unlocked_methods(work, full, "rb", allowed, "Simulation")
+    open_at = merged.find("<<A, <<B")
+    close_at = merged.find("\nB\n", open_at)
+    assert open_at >= 0
+    assert close_at >= 0
+    assert "def top_spenders" not in merged[open_at:close_at]
+    assert "def top_spenders" in merged[close_at:]
+
+
+def test_ruby_unlock_merge_inserts_when_in_class_begin_defines_method() -> None:
+    work = _ruby_l1_simulation("=begin\ndef top_spenders(timestamp, n)\n  []\nend\n=end\n")
+    full = (repo_root() / "langs/ruby/problems/bank_system/stub.rb").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("ruby"))
+    merged = merge_unlocked_methods(work, full, "rb", allowed, "Simulation")
+    begin, sep, rest = merged.partition("=end")
+    assert sep
+    assert "def top_spenders" in rest
+
+
 def test_js_unlock_merge_targets_simulation_not_first_class(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:

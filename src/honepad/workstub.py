@@ -199,7 +199,8 @@ def _declares(text: str, ext: str, name: str, class_name: str | None = None) -> 
             start, close = _ruby_class_span(text, class_name)
         except ValueError:
             return False
-        text = _strip_nested_ruby_types(text[start:close])
+        sliced = "".join(line for _off, line in _ruby_code_lines(text[start:close]))
+        text = _strip_nested_ruby_types(sliced)
     lines = _code_lines(text, ext)
     if ext == "java":
         needle = f"{name}("
@@ -989,13 +990,29 @@ def _ruby_end_comment(line: str) -> bool:
     return line.startswith("=end") and (len(line) == 4 or not (line[4].isalnum() or line[4] == "_"))
 
 
-def _ruby_heredoc_open(line: str) -> tuple[str, bool] | None:
-    if line.lstrip().startswith("#"):
-        return None
-    match = _RUBY_HEREDOC.search(line)
-    if match is None:
-        return None
-    return match.group(3), match.group(1) in {"-", "~"}
+def _ruby_heredoc_opens(line: str) -> list[tuple[str, bool]]:
+    found: list[tuple[str, bool]] = []
+    i = 0
+    n = len(line)
+    while i < n:
+        ch = line[i]
+        if ch in "\"'`":
+            i = _skip_quoted(line, i, ch)
+            continue
+        if ch == "#":
+            break
+        if line.startswith("<<", i):
+            prev = line[i - 1] if i else ""
+            if prev.isalnum() or prev in "_.)]":
+                i += 2
+                continue
+            match = _RUBY_HEREDOC.match(line, i)
+            if match:
+                found.append((match.group(3), match.group(1) in {"-", "~"}))
+                i = match.end()
+                continue
+        i += 1
+    return found
 
 
 def _ruby_code_lines(text: str):
@@ -1018,21 +1035,19 @@ def _ruby_code_lines(text: str):
             offset += len(line)
             i += 1
             continue
-        heredoc = _ruby_heredoc_open(line)
+        opens = _ruby_heredoc_opens(line)
         yield offset, line
         offset += len(line)
         i += 1
-        if heredoc is None:
-            continue
-        label, indented_ok = heredoc
-        while i < n:
-            cur = lines[i]
-            raw = cur.rstrip("\r\n")
-            term = raw.lstrip() if indented_ok else raw
-            offset += len(cur)
-            i += 1
-            if term == label:
-                break
+        for label, indented_ok in opens:
+            while i < n:
+                cur = lines[i]
+                raw = cur.rstrip("\r\n")
+                term = raw.lstrip() if indented_ok else raw
+                offset += len(cur)
+                i += 1
+                if term == label:
+                    break
 
 
 def _ruby_class_span(text: str, class_name: str) -> tuple[int, int]:
