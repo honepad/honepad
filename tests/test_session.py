@@ -5410,3 +5410,73 @@ class Simulation:
     helper, _sep, simulation = merged.partition("class Simulation")
     assert "def top_spenders(" in helper
     assert "def top_spenders(" in simulation
+
+
+def test_js_helper_top_spenders_does_not_skip_merge() -> None:
+    work = """class Helper {
+  topSpenders(timestamp, n) { return []; }
+}
+class Simulation {
+  constructor() {}
+  createAccount(timestamp, account_id) { return true; }
+  deposit(timestamp, account_id, amount) { return 0; }
+  transfer(timestamp, source_account_id, target_account_id, amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/javascript/problems/bank_system/stub.js").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
+    merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+    helper, _sep, simulation = merged.partition("class Simulation")
+    assert "topSpenders(" in helper
+    assert "topSpenders(" in simulation
+
+
+def test_ts_helper_top_spenders_does_not_skip_merge() -> None:
+    work = """class Helper {
+  topSpenders(timestamp, n) { return []; }
+}
+class Simulation {
+  constructor() {}
+  createAccount(timestamp, account_id) { return true; }
+  deposit(timestamp, account_id, amount) { return 0; }
+  transfer(timestamp, source_account_id, target_account_id, amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/typescript/problems/bank_system/stub.ts").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("typescript"))
+    merged = merge_unlocked_methods(work, full, "ts", allowed, "Simulation")
+    helper, _sep, simulation = merged.partition("class Simulation")
+    assert "topSpenders(" in helper
+    assert "topSpenders(" in simulation
+
+
+def test_ruby_helper_top_spenders_does_not_skip_merge() -> None:
+    work = """class Helper
+  def top_spenders(timestamp, n)
+    []
+  end
+end
+class Simulation
+  def initialize
+  end
+  def create_account(timestamp, account_id)
+    true
+  end
+  def deposit(timestamp, account_id, amount)
+    0
+  end
+  def transfer(timestamp, source_account_id, target_account_id, amount)
+    0
+  end
+end
+"""
+    full = (repo_root() / "langs/ruby/problems/bank_system/stub.rb").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("ruby"))
+    merged = merge_unlocked_methods(work, full, "rb", allowed, "Simulation")
+    helper, _sep, simulation = merged.partition("class Simulation")
+    assert "def top_spenders" in helper
+    assert "def top_spenders" in simulation

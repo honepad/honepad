@@ -171,6 +171,20 @@ def _declares(text: str, ext: str, name: str, class_name: str | None = None) -> 
         if start < 0:
             return False
         text = text[start : close + 1]
+    elif class_name and ext in {"js", "ts"}:
+        try:
+            close = _js_class_close(text, class_name)
+        except ValueError:
+            return False
+        start = _java_class_decl_index(text, class_name)
+        if start < 0:
+            for marker in (f"{class_name} = class", f"{class_name}: class"):
+                start = text.find(marker)
+                if start >= 0:
+                    break
+        if start < 0:
+            return False
+        text = text[start : close + 1]
     elif class_name and ext == "py":
         match = re.search(rf"^class {re.escape(class_name)}\b", text, re.MULTILINE)
         if match is None:
@@ -178,6 +192,12 @@ def _declares(text: str, ext: str, name: str, class_name: str | None = None) -> 
         nxt = re.search(r"^class ", text[match.end() :], re.MULTILINE)
         end = match.end() + nxt.start() if nxt else len(text)
         text = text[match.start() : end]
+    elif class_name and ext == "rb":
+        try:
+            start, close = _ruby_class_span(text, class_name)
+        except ValueError:
+            return False
+        text = text[start:close]
     lines = _code_lines(text, ext)
     if ext == "java":
         needle = f"{name}("
@@ -832,16 +852,21 @@ def _ruby_method(text: str, name: str) -> str | None:
     return "".join(lines[start:])
 
 
-def _insert_before_ruby_class_end(work: str, extra: str, class_name: str) -> str:
-    if not extra:
-        return work
-    match = re.search(rf"^(\s*)class {re.escape(class_name)}\b", work, re.MULTILINE)
+def _ruby_class_span(text: str, class_name: str) -> tuple[int, int]:
+    match = re.search(rf"^(\s*)class {re.escape(class_name)}\b", text, re.MULTILINE)
     if match is None:
         raise ValueError(f"missing class {class_name}")
     indent = match.group(1)
-    closer = re.search(rf"^{re.escape(indent)}end\b", work[match.end() :], re.MULTILINE)
+    closer = re.search(rf"^{re.escape(indent)}end\b", text[match.end() :], re.MULTILINE)
     if closer is None:
         raise ValueError(f"unbalanced end for class {class_name}")
     close = match.end() + closer.start()
+    return match.start(), close
+
+
+def _insert_before_ruby_class_end(work: str, extra: str, class_name: str) -> str:
+    if not extra:
+        return work
+    _start, close = _ruby_class_span(work, class_name)
     prefix = work[:close].rstrip() + "\n"
     return prefix + extra.lstrip("\n") + work[close:]
