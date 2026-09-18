@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.1](https://github.com/honepad/honepad/compare/v0.2.0...v0.2.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* do not treat Ruby shift or strings as heredoc openers ([#279](https://github.com/honepad/honepad/issues/279)) ([1b40808](https://github.com/honepad/honepad/commit/1b408080a06f91b0aefe9c13e49eece0bb15a192))
+* ignore Ruby =begin and heredoc when merging unlock methods ([#278](https://github.com/honepad/honepad/issues/278)) ([5bb41e8](https://github.com/honepad/honepad/commit/5bb41e8dc99eb88ce0e2f8b0c4935d50c61126da))
+* print NEXT for missing tools and keep src on adapter crashes ([#277](https://github.com/honepad/honepad/issues/277)) ([ce58892](https://github.com/honepad/honepad/commit/ce5889265075727317840435129df21246471615))
+* target Simulation class when merging unlock methods ([#276](https://github.com/honepad/honepad/issues/276)) ([f269aed](https://github.com/honepad/honepad/commit/f269aedab448fad2dc05d77e5efc1efe6a1e9680))
+* time out scala bootstrap and clojure help probe ([#275](https://github.com/honepad/honepad/issues/275)) ([c899cae](https://github.com/honepad/honepad/commit/c899cae2d3bb9f62731ece17953383fd80023bb4))
+
+
+### Dependencies
+
+* Bump ruff from 0.16.6 to 0.16.7 in the pip-minor-patch group ([#270](https://github.com/honepad/honepad/issues/270)) ([6e74117](https://github.com/honepad/honepad/commit/6e74117293878f988e7dc306809f66b7b7e71563))
+
 ## [0.2.0](https://github.com/honepad/honepad/compare/v0.1.1...v0.2.0) (2026-09-12)
 
 
