@@ -5348,6 +5348,70 @@ def test_ruby_unlock_merge_targets_simulation_not_last_end(
     assert "def top_spenders" not in account
 
 
+def test_ruby_unlock_merge_ignores_class_in_begin_comment() -> None:
+    work = (
+        "=begin\n"
+        "class Simulation\n"
+        "end\n"
+        "=end\n"
+        "class Simulation\n"
+        "  def initialize\n"
+        "  end\n"
+        "  def create_account(timestamp, account_id)\n"
+        "    true\n"
+        "  end\n"
+        "  def deposit(timestamp, account_id, amount)\n"
+        "    0\n"
+        "  end\n"
+        "  def transfer(timestamp, source_account_id, target_account_id, amount)\n"
+        "    0\n"
+        "  end\n"
+        "end\n"
+    )
+    full = (repo_root() / "langs/ruby/problems/bank_system/stub.rb").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("ruby"))
+    merged = merge_unlocked_methods(work, full, "rb", allowed, "Simulation")
+    begin, sep, rest = merged.partition("=end")
+    assert sep
+    assert "def top_spenders" not in begin
+    _comment, real_sep, real = rest.partition("class Simulation")
+    assert real_sep
+    assert "def top_spenders" in real
+
+
+def test_ruby_unlock_merge_ignores_end_in_heredoc() -> None:
+    work = (
+        "class Simulation\n"
+        "  def initialize\n"
+        "  end\n"
+        "  def create_account(timestamp, account_id)\n"
+        "    true\n"
+        "  end\n"
+        "  def deposit(timestamp, account_id, amount)\n"
+        "    0\n"
+        "  end\n"
+        "  def transfer(timestamp, source_account_id, target_account_id, amount)\n"
+        "    0\n"
+        "  end\n"
+        "  X = <<END\n"
+        "end\n"
+        "END\n"
+        "end\n"
+    )
+    full = (repo_root() / "langs/ruby/problems/bank_system/stub.rb").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("ruby"))
+    merged = merge_unlocked_methods(work, full, "rb", allowed, "Simulation")
+    open_at = merged.find("<<END")
+    close_at = merged.find("\nEND\n", open_at)
+    assert open_at >= 0
+    assert close_at >= 0
+    assert "def top_spenders" not in merged[open_at:close_at]
+    after_heredoc = merged[close_at + len("\nEND\n") :]
+    before_class_end, class_end, _tail = after_heredoc.partition("\nend")
+    assert class_end
+    assert "def top_spenders" in before_class_end
+
+
 def test_js_unlock_merge_targets_simulation_not_first_class(
     monkeypatch, tmp_path: Path, capsys
 ) -> None:

@@ -11,6 +11,7 @@ from honepad.traces import load_cases, method_name
 _API_IDENT = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\(")
 _RUBY_DEF = re.compile(r"^(\s*)def ([A-Za-z_][A-Za-z0-9_?!]*)\b")
 _RUBY_NESTED_TYPE = re.compile(r"^(\s*)(class|module)\b")
+_RUBY_HEREDOC = re.compile(r"""<<([~-]?)(['"`]?)([A-Za-z_][A-Za-z0-9_]*)\2""")
 _CLASS_TYPE_MODS = r"final|abstract|static|strictfp"
 
 _CLASS = {
@@ -978,16 +979,78 @@ def _ruby_method(text: str, name: str) -> str | None:
     return "".join(lines[start:])
 
 
-def _ruby_class_span(text: str, class_name: str) -> tuple[int, int]:
-    match = re.search(rf"^(\s*)class {re.escape(class_name)}\b", text, re.MULTILINE)
+def _ruby_begin_comment(line: str) -> bool:
+    return line.startswith("=begin") and (
+        len(line) == 6 or not (line[6].isalnum() or line[6] == "_")
+    )
+
+
+def _ruby_end_comment(line: str) -> bool:
+    return line.startswith("=end") and (len(line) == 4 or not (line[4].isalnum() or line[4] == "_"))
+
+
+def _ruby_heredoc_open(line: str) -> tuple[str, bool] | None:
+    if line.lstrip().startswith("#"):
+        return None
+    match = _RUBY_HEREDOC.search(line)
     if match is None:
+        return None
+    return match.group(3), match.group(1) in {"-", "~"}
+
+
+def _ruby_code_lines(text: str):
+    """Yield (offset, line) skipping =begin, # comments, and heredoc bodies."""
+    offset = 0
+    lines = text.splitlines(keepends=True)
+    i = 0
+    n = len(lines)
+    while i < n:
+        line = lines[i]
+        if _ruby_begin_comment(line):
+            while i < n:
+                cur = lines[i]
+                offset += len(cur)
+                i += 1
+                if _ruby_end_comment(cur):
+                    break
+            continue
+        if line.lstrip().startswith("#"):
+            offset += len(line)
+            i += 1
+            continue
+        heredoc = _ruby_heredoc_open(line)
+        yield offset, line
+        offset += len(line)
+        i += 1
+        if heredoc is None:
+            continue
+        label, indented_ok = heredoc
+        while i < n:
+            cur = lines[i]
+            raw = cur.rstrip("\r\n")
+            term = raw.lstrip() if indented_ok else raw
+            offset += len(cur)
+            i += 1
+            if term == label:
+                break
+
+
+def _ruby_class_span(text: str, class_name: str) -> tuple[int, int]:
+    class_re = re.compile(rf"^(\s*)class {re.escape(class_name)}\b")
+    start: int | None = None
+    indent: str | None = None
+    for offset, line in _ruby_code_lines(text):
+        if start is None:
+            match = class_re.match(line)
+            if match:
+                start = offset
+                indent = match.group(1)
+            continue
+        if re.match(rf"^{re.escape(indent)}end\b", line):
+            return start, offset
+    if start is None:
         raise ValueError(f"missing class {class_name}")
-    indent = match.group(1)
-    closer = re.search(rf"^{re.escape(indent)}end\b", text[match.end() :], re.MULTILINE)
-    if closer is None:
-        raise ValueError(f"unbalanced end for class {class_name}")
-    close = match.end() + closer.start()
-    return match.start(), close
+    raise ValueError(f"unbalanced end for class {class_name}")
 
 
 def _insert_before_ruby_class_end(work: str, extra: str, class_name: str) -> str:
