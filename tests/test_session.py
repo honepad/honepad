@@ -3403,6 +3403,26 @@ def test_merge_fail_prints_next_reset(monkeypatch, tmp_path: Path, capsys) -> No
     assert load_session()["unlocked"] == 1
 
 
+def test_start_missing_class_brace_prints_next_reset(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "java", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work = tmp_path / "work" / "bank_system" / "java" / "Simulation.java"
+    work.write_text(
+        "class Helper {\n  void foo() {}\n}\npublic class Simulation\n",
+        encoding="utf-8",
+    )
+    code = main(["start", "bank_system", "java", "--no-console"])
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "FAIL:" in out
+    assert "Simulation" in out
+    assert "{" in out
+    next_lines = [line for line in out.splitlines() if "NEXT:" in line]
+    assert next_lines
+    assert any("start --reset" in line for line in next_lines)
+
+
 def _l1_python_work(create_ok: object, create_dup: object, missing: object) -> str:
     return (
         "class Simulation:\n"
@@ -5067,8 +5087,12 @@ public class Simulation
 """
     full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
     allowed = methods_through_level("bank_system", 2, naming_for("java"))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as excinfo:
         merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    text = str(excinfo.value)
+    assert "work file" in text
+    assert "Simulation" in text
+    assert "{" in text
     helper, _sep, _sim = work.partition("public class Simulation")
     assert "topSpenders" not in helper
 
@@ -5083,15 +5107,20 @@ class Simulation
         encoding="utf-8"
     )
     allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as excinfo:
         merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+    text = str(excinfo.value)
+    assert "work file" in text
+    assert "Simulation" in text
+    assert "{" in text
     helper, _sep, _sim = work.partition("class Simulation")
     assert "topSpenders" not in helper
 
 
 def test_brace_close_rejects_missing_brace() -> None:
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError) as excinfo:
         _brace_close("class Helper { }\nclass Simulation", -1)
+    assert str(excinfo.value) == "work file is missing {"
 
 
 def test_python_unlock_merge_targets_simulation_not_last_class(
@@ -5480,3 +5509,93 @@ end
     helper, _sep, simulation = merged.partition("class Simulation")
     assert "def top_spenders" in helper
     assert "def top_spenders" in simulation
+
+
+def test_java_nested_inner_top_spenders_does_not_skip_merge() -> None:
+    work = """public class Simulation {
+  public static class Inner {
+    public List<String> topSpenders(int timestamp, int n) { return null; }
+  }
+  public Simulation() {}
+  public Boolean createAccount(long t, String id) { return true; }
+  public Integer deposit(long t, String id, int amount) { return 0; }
+  public Integer transfer(long t, String a, String b, int amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("java"))
+    merged = merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    assert merged.count("public List<String> topSpenders") == 2
+    inner_at = merged.find("class Inner")
+    assert inner_at >= 0
+    inner_close = _brace_close(merged, merged.find("{", inner_at))
+    inner = merged[inner_at : inner_close + 1]
+    outside = merged[:inner_at] + merged[inner_close + 1 :]
+    assert "public List<String> topSpenders" in inner
+    assert "public List<String> topSpenders" in outside
+
+
+def test_js_nested_inner_top_spenders_does_not_skip_merge() -> None:
+    work = """class Simulation {
+  class Inner {
+    topSpenders(timestamp, n) { return []; }
+  }
+  constructor() {}
+  createAccount(timestamp, account_id) { return true; }
+  deposit(timestamp, account_id, amount) { return 0; }
+  transfer(timestamp, source_account_id, target_account_id, amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/javascript/problems/bank_system/stub.js").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
+    merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+
+    def _decl_count(text: str) -> int:
+        return sum(
+            1
+            for line in text.splitlines()
+            if line.strip().startswith("topSpenders(") and "{" in line
+        )
+
+    inner_at = merged.find("class Inner")
+    assert inner_at >= 0
+    inner_close = _brace_close(merged, merged.find("{", inner_at))
+    inner = merged[inner_at : inner_close + 1]
+    outside = merged[:inner_at] + merged[inner_close + 1 :]
+    assert _decl_count(inner) == 1
+    assert _decl_count(outside) == 1
+
+
+def test_ruby_nested_inner_top_spenders_does_not_skip_merge() -> None:
+    work = """class Simulation
+  class Inner
+    def top_spenders(timestamp, n)
+      []
+    end
+  end
+  def initialize
+  end
+  def create_account(timestamp, account_id)
+    true
+  end
+  def deposit(timestamp, account_id, amount)
+    0
+  end
+  def transfer(timestamp, source_account_id, target_account_id, amount)
+    0
+  end
+end
+"""
+    full = (repo_root() / "langs/ruby/problems/bank_system/stub.rb").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("ruby"))
+    merged = merge_unlocked_methods(work, full, "rb", allowed, "Simulation")
+    before, sep, after = merged.partition("class Inner")
+    assert sep
+    inner_end = after.find("\n  end\n")
+    assert inner_end >= 0
+    inner = after[: inner_end + len("\n  end\n")]
+    outside = before + after[inner_end + len("\n  end\n") :]
+    assert "def top_spenders" in inner
+    assert "def top_spenders" in outside
