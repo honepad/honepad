@@ -10,7 +10,7 @@ from honepad.catalog import languages, problems
 from honepad.cli import build_parser, main, resolve_start_target
 from honepad.runner import _RUNNERS, run_prepare_cmd
 from honepad.session import load_session
-from honepad.term import invocation
+from honepad.term import invocation, print_fail
 
 # Catalog id used by unimplemented-lang CLI tests. Must stay off
 # _RUNNERS so start/run keep failing with FAIL: instead of succeeding.
@@ -161,6 +161,14 @@ def test_start_blocks_when_the_pack_says_block(monkeypatch, tmp_path, capsys) ->
     out = capsys.readouterr().out
     assert "javac not on PATH" in out
     assert not session_file.is_file()
+
+
+def test_print_fail_hints_install_when_tool_is_not_found(capsys) -> None:
+    print_fail(RuntimeError("coffee not found"))
+    out = capsys.readouterr().out
+    assert "FAIL" in out
+    assert "coffee" in out
+    assert "install coffee" in out
 
 
 def test_warn_is_the_default_missing_tools_policy() -> None:
