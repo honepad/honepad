@@ -5079,6 +5079,42 @@ def test_java_unlock_merge_ignores_brace_in_line_comment() -> None:
     assert "topSpenders" in merged
 
 
+def test_java_unlock_merge_ignores_class_decl_in_block_comment() -> None:
+    work = """/* class Simulation { } */
+public class Simulation {
+  public Simulation() {}
+  public Boolean createAccount(long t, String id) { return true; }
+  public Integer deposit(long t, String id, int amount) { return 0; }
+  public Integer transfer(long t, String a, String b, int amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("java"))
+    merged = merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    comment, _sep, simulation = merged.partition("public class Simulation")
+    assert "/* class Simulation { } */" in comment
+    assert "topSpenders" not in comment
+    assert "public List<String> topSpenders" in simulation
+
+
+def test_java_unlock_merge_ignores_class_decl_in_line_comment() -> None:
+    work = """// class Simulation {
+public class Simulation {
+  public Simulation() {}
+  public Boolean createAccount(long t, String id) { return true; }
+  public Integer deposit(long t, String id, int amount) { return 0; }
+  public Integer transfer(long t, String a, String b, int amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("java"))
+    merged = merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    comment, _sep, simulation = merged.partition("public class Simulation")
+    assert "// class Simulation {" in comment
+    assert "topSpenders" not in comment
+    assert "public List<String> topSpenders" in simulation
+
+
 def test_java_unlock_merge_rejects_simulation_without_brace() -> None:
     work = """class Helper {
   void foo() {}

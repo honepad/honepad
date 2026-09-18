@@ -243,13 +243,46 @@ def _slice_java(text: str, allowed: set[str], class_name: str) -> str:
     return _java_header(text, class_name, body) + body + "}\n"
 
 
+_CLASS_TYPE_MOD_WORDS = frozenset(_CLASS_TYPE_MODS.split("|"))
+
+
 def _java_class_decl_index(text: str, class_name: str) -> int:
-    token = re.escape(class_name)
-    match = re.search(
-        rf"(?:public(?:\s+(?:{_CLASS_TYPE_MODS}))*\s+)?class\s+{token}\b",
-        text,
-    )
-    return match.start() if match else -1
+    i = 0
+    n = len(text)
+    while i < n:
+        skipped = _skip_comment_or_string(text, i)
+        if skipped is not None:
+            i = skipped
+            continue
+        if _is_word_at(text, i, "class"):
+            j = i + 5
+            while j < n and text[j].isspace():
+                j += 1
+            if _is_word_at(text, j, class_name):
+                return _java_class_kw_start(text, i)
+        i += 1
+    return -1
+
+
+def _java_class_kw_start(text: str, class_idx: int) -> int:
+    """Start of `public` when `public [mods] class`, else `class`."""
+    i = class_idx
+    while True:
+        j = i - 1
+        while j >= 0 and text[j].isspace():
+            j -= 1
+        if j < 0:
+            return class_idx
+        start = j
+        while start > 0 and (text[start - 1].isalnum() or text[start - 1] == "_"):
+            start -= 1
+        word = text[start : j + 1]
+        if word in _CLASS_TYPE_MOD_WORDS:
+            i = start
+            continue
+        if word == "public":
+            return start
+        return class_idx
 
 
 def _java_header(text: str, class_name: str, body: str) -> str:
@@ -775,7 +808,7 @@ def _js_class_close(text: str, class_name: str) -> int:
                 break
     if idx < 0:
         raise ValueError(f"missing class {class_name}")
-    brace = text.find("{", idx)
+    brace = _find_brace(text, idx)
     if brace < 0:
         raise ValueError(f"work file class {class_name} is missing {{")
     return _brace_close(text, brace)
