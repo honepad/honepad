@@ -319,6 +319,8 @@ def _skip_quoted(text: str, start: int, quote: str) -> int:
 
 def _brace_close(text: str, brace: int) -> int:
     """Index of the matching `}`, skipping comments and quoted braces."""
+    if brace < 0:
+        raise ValueError("unbalanced braces")
     depth = 0
     i = brace
     n = len(text)
@@ -355,6 +357,8 @@ def _brace_close(text: str, brace: int) -> int:
 
 def _brace_block(text: str, start: int) -> str:
     brace = text.find("{", start)
+    if brace < 0:
+        raise ValueError("unbalanced braces")
     close = _brace_close(text, brace)
     end = close + 1
     if end < len(text) and text[end] == "\n":
@@ -659,6 +663,8 @@ def _js_class_close(text: str, class_name: str) -> int:
     if idx < 0:
         raise ValueError(f"missing class {class_name}")
     brace = text.find("{", idx)
+    if brace < 0:
+        raise ValueError("unbalanced braces")
     return _brace_close(text, brace)
 
 

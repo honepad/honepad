@@ -27,6 +27,7 @@ from honepad.session import (
 from honepad.term import workspace_note_next
 from honepad.workspace import workspace_dir, write_workspace
 from honepad.workstub import (
+    _brace_close,
     _insert_before_python_class_end,
     _java_method,
     class_name_for,
@@ -5056,6 +5057,41 @@ def test_java_unlock_merge_ignores_brace_in_line_comment() -> None:
     merged = merge_unlocked_methods(work, full, "java", allowed, "Simulation")
     assert "// keep {" in merged
     assert "topSpenders" in merged
+
+
+def test_java_unlock_merge_rejects_simulation_without_brace() -> None:
+    work = """class Helper {
+  void foo() {}
+}
+public class Simulation
+"""
+    full = (repo_root() / "langs/java/problems/bank_system/stub.java").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("java"))
+    with pytest.raises(ValueError):
+        merge_unlocked_methods(work, full, "java", allowed, "Simulation")
+    helper, _sep, _sim = work.partition("public class Simulation")
+    assert "topSpenders" not in helper
+
+
+def test_js_unlock_merge_rejects_simulation_without_brace() -> None:
+    work = """class Helper {
+  foo() {}
+}
+class Simulation
+"""
+    full = (repo_root() / "langs/javascript/problems/bank_system/stub.js").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
+    with pytest.raises(ValueError):
+        merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+    helper, _sep, _sim = work.partition("class Simulation")
+    assert "topSpenders" not in helper
+
+
+def test_brace_close_rejects_missing_brace() -> None:
+    with pytest.raises(ValueError):
+        _brace_close("class Helper { }\nclass Simulation", -1)
 
 
 def test_python_unlock_merge_targets_simulation_not_last_class(
