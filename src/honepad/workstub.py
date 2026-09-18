@@ -10,6 +10,7 @@ from honepad.traces import load_cases, method_name
 
 _API_IDENT = re.compile(r"\b([A-Za-z_][A-Za-z0-9_]*)\(")
 _RUBY_DEF = re.compile(r"^(\s*)def ([A-Za-z_][A-Za-z0-9_?!]*)\b")
+_RUBY_NESTED_TYPE = re.compile(r"^(\s*)(class|module)\b")
 _CLASS_TYPE_MODS = r"final|abstract|static|strictfp"
 
 _CLASS = {
@@ -170,7 +171,21 @@ def _declares(text: str, ext: str, name: str, class_name: str | None = None) -> 
         start = _java_class_decl_index(text, class_name)
         if start < 0:
             return False
-        text = text[start : close + 1]
+        text = _strip_nested_brace_types(text[start : close + 1])
+    elif class_name and ext in {"js", "ts"}:
+        try:
+            close = _js_class_close(text, class_name)
+        except ValueError:
+            return False
+        start = _java_class_decl_index(text, class_name)
+        if start < 0:
+            for marker in (f"{class_name} = class", f"{class_name}: class"):
+                start = text.find(marker)
+                if start >= 0:
+                    break
+        if start < 0:
+            return False
+        text = _strip_nested_brace_types(text[start : close + 1])
     elif class_name and ext == "py":
         match = re.search(rf"^class {re.escape(class_name)}\b", text, re.MULTILINE)
         if match is None:
@@ -178,6 +193,12 @@ def _declares(text: str, ext: str, name: str, class_name: str | None = None) -> 
         nxt = re.search(r"^class ", text[match.end() :], re.MULTILINE)
         end = match.end() + nxt.start() if nxt else len(text)
         text = text[match.start() : end]
+    elif class_name and ext == "rb":
+        try:
+            start, close = _ruby_class_span(text, class_name)
+        except ValueError:
+            return False
+        text = _strip_nested_ruby_types(text[start:close])
     lines = _code_lines(text, ext)
     if ext == "java":
         needle = f"{name}("
@@ -222,13 +243,46 @@ def _slice_java(text: str, allowed: set[str], class_name: str) -> str:
     return _java_header(text, class_name, body) + body + "}\n"
 
 
+_CLASS_TYPE_MOD_WORDS = frozenset(_CLASS_TYPE_MODS.split("|"))
+
+
 def _java_class_decl_index(text: str, class_name: str) -> int:
-    token = re.escape(class_name)
-    match = re.search(
-        rf"(?:public(?:\s+(?:{_CLASS_TYPE_MODS}))*\s+)?class\s+{token}\b",
-        text,
-    )
-    return match.start() if match else -1
+    i = 0
+    n = len(text)
+    while i < n:
+        skipped = _skip_comment_or_string(text, i)
+        if skipped is not None:
+            i = skipped
+            continue
+        if _is_word_at(text, i, "class"):
+            j = i + 5
+            while j < n and text[j].isspace():
+                j += 1
+            if _is_word_at(text, j, class_name):
+                return _java_class_kw_start(text, i)
+        i += 1
+    return -1
+
+
+def _java_class_kw_start(text: str, class_idx: int) -> int:
+    """Start of `public` when `public [mods] class`, else `class`."""
+    i = class_idx
+    while True:
+        j = i - 1
+        while j >= 0 and text[j].isspace():
+            j -= 1
+        if j < 0:
+            return class_idx
+        start = j
+        while start > 0 and (text[start - 1].isalnum() or text[start - 1] == "_"):
+            start -= 1
+        word = text[start : j + 1]
+        if word in _CLASS_TYPE_MOD_WORDS:
+            i = start
+            continue
+        if word == "public":
+            return start
+        return class_idx
 
 
 def _java_header(text: str, class_name: str, body: str) -> str:
@@ -317,8 +371,104 @@ def _skip_quoted(text: str, start: int, quote: str) -> int:
     return n
 
 
+def _skip_comment_or_string(text: str, i: int) -> int | None:
+    n = len(text)
+    if i >= n:
+        return None
+    ch = text[i]
+    if ch == "/" and i + 1 < n:
+        nxt = text[i + 1]
+        if nxt == "/":
+            nl = text.find("\n", i + 2)
+            return n if nl < 0 else nl + 1
+        if nxt == "*":
+            end = text.find("*/", i + 2)
+            return n if end < 0 else end + 2
+    if ch in "\"'`":
+        return _skip_quoted(text, i, ch)
+    return None
+
+
+def _is_word_at(text: str, i: int, word: str) -> bool:
+    n = len(word)
+    if not text.startswith(word, i):
+        return False
+    if i > 0 and (text[i - 1].isalnum() or text[i - 1] == "_"):
+        return False
+    end = i + n
+    if end < len(text) and (text[end].isalnum() or text[end] == "_"):
+        return False
+    return True
+
+
+def _find_brace(text: str, start: int) -> int:
+    i = start
+    n = len(text)
+    while i < n:
+        skipped = _skip_comment_or_string(text, i)
+        if skipped is not None:
+            i = skipped
+            continue
+        if text[i] == "{":
+            return i
+        i += 1
+    return -1
+
+
+def _strip_nested_brace_types(text: str) -> str:
+    brace = _find_brace(text, 0)
+    if brace < 0:
+        return text
+    parts: list[str] = []
+    last = 0
+    i = brace + 1
+    n = len(text)
+    while i < n:
+        skipped = _skip_comment_or_string(text, i)
+        if skipped is not None:
+            i = skipped
+            continue
+        if _is_word_at(text, i, "class"):
+            nested_brace = _find_brace(text, i + 5)
+            if nested_brace < 0:
+                i += 5
+                continue
+            close = _brace_close(text, nested_brace)
+            parts.append(text[last:i])
+            last = close + 1
+            i = close + 1
+            continue
+        i += 1
+    parts.append(text[last:])
+    return "".join(parts)
+
+
+def _strip_nested_ruby_types(text: str) -> str:
+    lines = text.splitlines(keepends=True)
+    if not lines:
+        return text
+    out = [lines[0]]
+    i = 1
+    while i < len(lines):
+        match = _RUBY_NESTED_TYPE.match(lines[i])
+        if match:
+            closer = re.compile(rf"^{re.escape(match.group(1))}end\b")
+            j = i + 1
+            while j < len(lines) and not closer.match(lines[j]):
+                j += 1
+            if j < len(lines):
+                j += 1
+            i = j
+            continue
+        out.append(lines[i])
+        i += 1
+    return "".join(out)
+
+
 def _brace_close(text: str, brace: int) -> int:
     """Index of the matching `}`, skipping comments and quoted braces."""
+    if brace < 0:
+        raise ValueError("work file is missing {")
     depth = 0
     i = brace
     n = len(text)
@@ -658,7 +808,9 @@ def _js_class_close(text: str, class_name: str) -> int:
                 break
     if idx < 0:
         raise ValueError(f"missing class {class_name}")
-    brace = text.find("{", idx)
+    brace = _find_brace(text, idx)
+    if brace < 0:
+        raise ValueError(f"work file class {class_name} is missing {{")
     return _brace_close(text, brace)
 
 
@@ -826,16 +978,21 @@ def _ruby_method(text: str, name: str) -> str | None:
     return "".join(lines[start:])
 
 
-def _insert_before_ruby_class_end(work: str, extra: str, class_name: str) -> str:
-    if not extra:
-        return work
-    match = re.search(rf"^(\s*)class {re.escape(class_name)}\b", work, re.MULTILINE)
+def _ruby_class_span(text: str, class_name: str) -> tuple[int, int]:
+    match = re.search(rf"^(\s*)class {re.escape(class_name)}\b", text, re.MULTILINE)
     if match is None:
         raise ValueError(f"missing class {class_name}")
     indent = match.group(1)
-    closer = re.search(rf"^{re.escape(indent)}end\b", work[match.end() :], re.MULTILINE)
+    closer = re.search(rf"^{re.escape(indent)}end\b", text[match.end() :], re.MULTILINE)
     if closer is None:
         raise ValueError(f"unbalanced end for class {class_name}")
     close = match.end() + closer.start()
+    return match.start(), close
+
+
+def _insert_before_ruby_class_end(work: str, extra: str, class_name: str) -> str:
+    if not extra:
+        return work
+    _start, close = _ruby_class_span(work, class_name)
     prefix = work[:close].rstrip() + "\n"
     return prefix + extra.lstrip("\n") + work[close:]
