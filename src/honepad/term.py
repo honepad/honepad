@@ -381,6 +381,9 @@ def print_fail(exc: BaseException) -> None:
     if text.endswith(" not on PATH"):
         print(f"NEXT: install {text[: -len(' not on PATH')]} and put it on PATH")
         return
+    if text.endswith(" not found"):
+        print(f"NEXT: install {text[: -len(' not found')]} and put it on PATH")
+        return
     if text.startswith("no runner for "):
         print(start_next())
         return

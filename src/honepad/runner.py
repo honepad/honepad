@@ -97,6 +97,12 @@ def _values_differ(actual: Any, expected: Any) -> bool:
     return actual != expected
 
 
+def _adapter_detail(src: Path | None, lang_id: str, detail: str) -> str:
+    if src is not None:
+        return f"{src}: {lang_id}: {detail}"
+    return f"{lang_id}: {detail}"
+
+
 def _extract_report_payload(stdout: str, lang_id: str) -> tuple[dict[str, Any], str]:
     text = stdout.rstrip("\n")
     idx = text.rfind("{")
@@ -126,12 +132,12 @@ def report_from_proc(
     if report_requested:
         if not (report_text or "").strip():
             detail = (proc.stderr or "").strip() or f"{lang_id} adapter produced no report"
-            prefix = f"{src}: " if src is not None else ""
-            raise RuntimeError(f"{prefix}{detail}")
+            raise RuntimeError(_adapter_detail(src, lang_id, detail))
         payload, debug = _extract_report_payload(report_text or "", lang_id)
     else:
         if not proc.stdout.strip():
-            raise RuntimeError(proc.stderr or f"{lang_id} adapter produced no output")
+            detail = (proc.stderr or "").strip() or f"{lang_id} adapter produced no output"
+            raise RuntimeError(_adapter_detail(src, lang_id, detail))
         payload, debug = _extract_report_payload(proc.stdout, lang_id)
     cases = {str(case["id"]): case for case in _resolve_cases(problem, level, cases)}
     failed: list[Fail] = []
@@ -162,7 +168,7 @@ def report_from_proc(
         )
     if proc.returncode != 0 and not failed:
         detail = (proc.stderr or "").strip() or f"{lang_id} adapter exited {proc.returncode}"
-        raise RuntimeError(detail)
+        raise RuntimeError(_adapter_detail(src, lang_id, detail))
     return Report(problem, lang_id, level, passed, failed, debug=debug)
 
 
@@ -269,7 +275,7 @@ def run_script(
             timeout=RUN_TIMEOUT_S,
             src=src,
         )
-    return report_from_proc(proc, problem, lang_id, level, cases=cases)
+    return report_from_proc(proc, problem, lang_id, level, cases=cases, src=src)
 
 
 # --------------------------------------------------------------------------

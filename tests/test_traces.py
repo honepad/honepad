@@ -1550,6 +1550,16 @@ def test_report_from_proc_missing_report_includes_src() -> None:
     assert "go adapter produced no report" in str(excinfo.value)
 
 
+def test_report_from_proc_empty_stdout_includes_src() -> None:
+    src = Path("/tmp/work/bank_system/python3/work.py")
+    proc = subprocess.CompletedProcess(["adapter"], 0, stdout="", stderr="adapter boom")
+    with pytest.raises(RuntimeError) as excinfo:
+        report_from_proc(proc, "bank_system", "python3", 1, src=src)
+    text = str(excinfo.value)
+    assert str(src) in text
+    assert "python3" in text
+
+
 def test_report_from_proc_reads_requested_file() -> None:
     n = len(load_cases("bank_system", 1))
     proc = subprocess.CompletedProcess(
@@ -1701,6 +1711,32 @@ def test_report_from_proc_rejects_nonzero_empty_failed() -> None:
     text = str(excinfo.value)
     assert "adapter boom" in text or "exited" in text
     assert "adapter report count mismatch" not in text
+
+
+def test_report_from_proc_nonzero_empty_failed_includes_src() -> None:
+    n = len(load_cases("bank_system", 1))
+    src = Path("/tmp/work/bank_system/python3/work.py")
+    proc = subprocess.CompletedProcess(
+        ["adapter"],
+        1,
+        stdout=f'{{"passed": {n}, "failed": []}}\n',
+        stderr="adapter boom",
+    )
+    with pytest.raises(RuntimeError) as excinfo:
+        report_from_proc(proc, "bank_system", "python3", 1, src=src)
+    assert str(src) in str(excinfo.value)
+
+
+def test_run_script_empty_stdout_forwards_src(monkeypatch, tmp_path: Path) -> None:
+    src = tmp_path / "work.js"
+
+    def fake_run(argv, **_kwargs):
+        return subprocess.CompletedProcess(argv, 1, stdout="", stderr="adapter boom")
+
+    monkeypatch.setattr("honepad.runner.subprocess.run", fake_run)
+    with pytest.raises(RuntimeError) as excinfo:
+        run_script("bank_system", "javascript", 1, "solution", ["node"], src=src)
+    assert str(src) in str(excinfo.value)
 
 
 def test_run_script_removes_cases_file(monkeypatch) -> None:
