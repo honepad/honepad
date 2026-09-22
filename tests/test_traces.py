@@ -493,6 +493,12 @@ def test_fs_new_corner_cases() -> None:
     }
 
 
+def _between(source: str, start: str, end: str) -> str:
+    begin = source.index(start)
+    stop = source.index(end, begin + len(start))
+    return source[begin:stop]
+
+
 def test_official_set_at_does_not_store_timestamp() -> None:
     py = (
         repo_root() / "langs" / "python3" / "problems" / "in_memory_database" / "solution.py"
@@ -500,8 +506,12 @@ def test_official_set_at_does_not_store_timestamp() -> None:
     java = (
         repo_root() / "langs" / "java" / "problems" / "in_memory_database" / "solution.java"
     ).read_text(encoding="utf-8")
-    assert "del timestamp" in py
-    assert "return setInternal(key, field, value, null);" in java
+    py_body = _between(py, "def set_at(", "def set_at_with_ttl(")
+    assert py_body.count("timestamp") == 2
+    assert "_set_internal(key, field, value, None)" in py_body
+    java_body = _between(java, "public String setAt(", "public String setAtWithTtl(")
+    assert "timestamp" not in java_body.split("{", 1)[1]
+    assert "setInternal(key, field, value, null)" in java_body
 
 
 def test_stub_fails() -> None:
