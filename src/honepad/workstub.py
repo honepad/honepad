@@ -206,16 +206,19 @@ def _declares(text: str, ext: str, name: str, class_name: str | None = None) -> 
         needle = f"{name}("
         for line in lines:
             idx = 0
-            while True:
-                pos = line.find(needle, idx)
-                if pos < 0:
-                    break
-                if pos > 0 and (line[pos - 1].isalnum() or line[pos - 1] == "_"):
-                    idx = pos + 1
+            while idx < len(line):
+                if line[idx] in "\"'":
+                    idx = _skip_quoted(line, idx, line[idx])
                     continue
-                if _java_declares_name(line, pos, name):
+                if not line.startswith(needle, idx):
+                    idx += 1
+                    continue
+                if idx > 0 and (line[idx - 1].isalnum() or line[idx - 1] == "_"):
+                    idx += 1
+                    continue
+                if _java_declares_name(line, idx, name):
                     return True
-                idx = pos + 1
+                idx += 1
         return False
     if ext in {"js", "ts"}:
         for i, line in enumerate(lines):
@@ -224,7 +227,8 @@ def _declares(text: str, ext: str, name: str, class_name: str | None = None) -> 
                 return True
         return False
     if ext == "py":
-        return any(f"def {name}(" in line for line in lines)
+        decl = re.compile(rf"^(?:async\s+)?def {re.escape(name)}\(")
+        return any(decl.match(line) for line in lines)
     if ext == "rb":
         return any(f"def {name}(" in line or f"def {name} " in line for line in lines)
     return any(token in line for line in lines for token in _name_forms(name))

@@ -5675,6 +5675,35 @@ class Simulation:
     assert "def top_spenders(" in simulation
 
 
+def test_python_unlock_merge_ignores_method_name_inside_string() -> None:
+    work = """class Foo:
+    x = "def bar("
+"""
+    full = """class Foo:
+    def bar(self):
+        return 1
+"""
+    merged = merge_unlocked_methods(work, full, "py", {"bar"}, "Foo")
+    assert 'x = "def bar("' in merged
+    assert "def bar(self)" in merged
+    assert "return 1" in merged
+
+
+def test_java_unlock_merge_ignores_method_name_inside_string() -> None:
+    work = """class Foo {
+  String s = "public int bar(";
+}
+"""
+    full = """class Foo {
+  public int bar() { return 1; }
+}
+"""
+    merged = merge_unlocked_methods(work, full, "java", {"bar"}, "Foo")
+    assert 'String s = "public int bar("' in merged
+    assert "public int bar()" in merged
+    assert "return 1" in merged
+
+
 def test_js_helper_top_spenders_does_not_skip_merge() -> None:
     work = """class Helper {
   topSpenders(timestamp, n) { return []; }
