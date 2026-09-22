@@ -1709,7 +1709,8 @@ def test_report_from_proc_rejects_nonzero_empty_failed() -> None:
     with pytest.raises(RuntimeError) as excinfo:
         report_from_proc(proc, "bank_system", "python3", 1)
     text = str(excinfo.value)
-    assert "adapter boom" in text or "exited" in text
+    assert "adapter boom" in text
+    assert "exited" not in text
     assert "adapter report count mismatch" not in text
 
 
@@ -1980,7 +1981,8 @@ def test_go_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypatch)
     msg = str(excinfo.value)
     assert "timed out" not in msg.lower()
     assert "30s" not in msg
-    assert "error" in msg.lower() or "stub.go" in msg
+    assert "syntax error" in msg
+    assert "stub.go" in msg
 
 
 @pytest.mark.skipif(_CARGO is None, reason="cargo not found")
@@ -1993,7 +1995,8 @@ def test_rust_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypatc
     msg = str(excinfo.value)
     assert "timed out" not in msg.lower()
     assert "30s" not in msg
-    assert "error" in msg.lower() or "rustc" in msg.lower()
+    assert "error:" in msg
+    assert "stub.rs" in msg
 
 
 @pytest.mark.skipif(_DOTNET is None, reason="dotnet not found")
@@ -2006,4 +2009,5 @@ def test_csharp_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypa
     msg = str(excinfo.value)
     assert "timed out" not in msg.lower()
     assert "30s" not in msg
-    assert "error" in msg.lower() or "cs" in msg.lower()
+    assert "error CS" in msg
+    assert "stub.cs" in msg
