@@ -160,7 +160,7 @@ jobs:
         if: matrix.shard == 'script'
         with:
           sdk: stable
-      - uses: coursier/setup-action@9b7939bf01fd1185ce2babe16135168361bf2c62 # v3.0.2
+      - uses: coursier/setup-action@3174df5c784a0c8724f06b7924b849551c40c39e # v3.0.3
         if: matrix.shard == 'jvm'
         with:
           apps: scala:2.13.16 scalac:2.13.16
