@@ -277,6 +277,13 @@ def render_argv(argv: list[str], ctx: dict[str, str], tool: list[str]) -> list[s
     return out
 
 
+def _tool_key_matches(name: str, key: str) -> bool:
+    if not name.startswith(key):
+        return False
+    rest = name[len(key) :]
+    return not rest or not rest[0].isalnum()
+
+
 def step_argv(step: dict[str, Any], ctx: dict[str, str], tool: list[str]) -> list[str]:
     """A step's argv, letting a toolchain pick its own flags.
 
@@ -287,8 +294,9 @@ def step_argv(step: dict[str, Any], ctx: dict[str, str], tool: list[str]) -> lis
     if table is None:
         return render_argv(list(step["argv"]), ctx, tool)
     name = Path(tool[0]).name.lower() if tool else ""
-    # Longest prefix wins so ``clang++`` does not pick the ``cl`` flags.
-    matches = [(len(key), key) for key in table if key != "*" and name.startswith(key)]
+    # A key matches only at a name boundary, so ``cl`` selects ``cl.exe``
+    # and not ``clang++``. The longest match still wins when several fit.
+    matches = [(len(key), key) for key in table if key != "*" and _tool_key_matches(name, key)]
     if matches:
         _length, key = max(matches)
         return render_argv(list(table[key]), ctx, tool)
