@@ -171,6 +171,18 @@ def test_step_argv_picks_the_variant_for_the_resolved_tool() -> None:
     assert packspec.step_argv(step, ctx, ["/usr/bin/dmd"]) == ["/usr/bin/dmd", "-of=run"]
 
 
+def test_cpp_clangpp_does_not_take_msvc_flags() -> None:
+    step = packspec.load_meta("cpp")["run"]["steps"][0]
+    ctx = packspec.context("cpp", class_name="Simulation", src=Path("/w/s.cpp"))
+    clang = packspec.step_argv(step, ctx, ["/usr/bin/clang++"])
+    assert clang[0] == "/usr/bin/clang++"
+    assert "-o" in clang
+    assert "/nologo" not in clang
+    msvc = packspec.step_argv(step, ctx, ["cl.exe"])
+    assert "/nologo" in msvc
+    assert "/Fe:run.exe" in msvc
+
+
 def test_step_argv_prefers_the_longest_tool_prefix() -> None:
     step = {
         "argv_by_tool": {
