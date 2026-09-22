@@ -2002,7 +2002,7 @@ def test_rust_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypatc
     monkeypatch.setattr("honepad.runner.spec_src", lambda *_a, **_k: broken)
     with pytest.raises(RuntimeError) as excinfo:
         run("bank_system", "rust", 1, "stub")
-    msg = str(excinfo.value)
+    msg = re.sub(r"\x1b\[[0-9;]*m", "", str(excinfo.value))
     assert "timed out" not in msg.lower()
     assert "30s" not in msg
     assert "error:" in msg
