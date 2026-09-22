@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.2](https://github.com/honepad/honepad/compare/v0.2.1...v0.2.2) (2026-09-22)
+
+
+### Bug Fixes
+
+* do not give clang++ the MSVC cl flags ([#286](https://github.com/honepad/honepad/issues/286)) ([c0a21b6](https://github.com/honepad/honepad/commit/c0a21b6d44ee70f13d31ab4d34d5c9b301f408ff))
+* ignore quoted method signatures when merging unlocks ([#284](https://github.com/honepad/honepad/issues/284)) ([652cbd0](https://github.com/honepad/honepad/commit/652cbd0915383eec076745ae34d906ab7f600a94))
+
+
+### Dependencies
+
+* Bump ruff from 0.16.7 to 0.16.8 in the pip-minor-patch group ([#280](https://github.com/honepad/honepad/issues/280)) ([bc6762f](https://github.com/honepad/honepad/commit/bc6762f7e435eb7e7e9225d6375e42811adc8d0a))
+
 ## [0.2.1](https://github.com/honepad/honepad/compare/v0.2.0...v0.2.1) (2026-09-18)
 
 
