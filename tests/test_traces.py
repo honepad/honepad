@@ -493,6 +493,12 @@ def test_fs_new_corner_cases() -> None:
     }
 
 
+def _between(source: str, start: str, end: str) -> str:
+    begin = source.index(start)
+    stop = source.index(end, begin + len(start))
+    return source[begin:stop]
+
+
 def test_official_set_at_does_not_store_timestamp() -> None:
     py = (
         repo_root() / "langs" / "python3" / "problems" / "in_memory_database" / "solution.py"
@@ -500,8 +506,12 @@ def test_official_set_at_does_not_store_timestamp() -> None:
     java = (
         repo_root() / "langs" / "java" / "problems" / "in_memory_database" / "solution.java"
     ).read_text(encoding="utf-8")
-    assert "del timestamp" in py
-    assert "return setInternal(key, field, value, null);" in java
+    py_body = _between(py, "def set_at(", "def set_at_with_ttl(")
+    assert py_body.count("timestamp") == 2
+    assert "_set_internal(key, field, value, None)" in py_body
+    java_body = _between(java, "public String setAt(", "public String setAtWithTtl(")
+    assert "timestamp" not in java_body.split("{", 1)[1]
+    assert "setInternal(key, field, value, null)" in java_body
 
 
 def test_stub_fails() -> None:
@@ -1709,7 +1719,8 @@ def test_report_from_proc_rejects_nonzero_empty_failed() -> None:
     with pytest.raises(RuntimeError) as excinfo:
         report_from_proc(proc, "bank_system", "python3", 1)
     text = str(excinfo.value)
-    assert "adapter boom" in text or "exited" in text
+    assert "adapter boom" in text
+    assert "exited" not in text
     assert "adapter report count mismatch" not in text
 
 
@@ -1980,7 +1991,8 @@ def test_go_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypatch)
     msg = str(excinfo.value)
     assert "timed out" not in msg.lower()
     assert "30s" not in msg
-    assert "error" in msg.lower() or "stub.go" in msg
+    assert "syntax error" in msg
+    assert "stub.go" in msg
 
 
 @pytest.mark.skipif(_CARGO is None, reason="cargo not found")
@@ -1990,10 +2002,11 @@ def test_rust_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypatc
     monkeypatch.setattr("honepad.runner.spec_src", lambda *_a, **_k: broken)
     with pytest.raises(RuntimeError) as excinfo:
         run("bank_system", "rust", 1, "stub")
-    msg = str(excinfo.value)
+    msg = re.sub(r"\x1b\[[0-9;]*m", "", str(excinfo.value))
     assert "timed out" not in msg.lower()
     assert "30s" not in msg
-    assert "error" in msg.lower() or "rustc" in msg.lower()
+    assert "error:" in msg
+    assert "stub.rs" in msg
 
 
 @pytest.mark.skipif(_DOTNET is None, reason="dotnet not found")
@@ -2006,4 +2019,5 @@ def test_csharp_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypa
     msg = str(excinfo.value)
     assert "timed out" not in msg.lower()
     assert "30s" not in msg
-    assert "error" in msg.lower() or "cs" in msg.lower()
+    assert "error CS" in msg
+    assert "stub.cs" in msg
