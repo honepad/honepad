@@ -1016,7 +1016,7 @@ def build_parser() -> argparse.ArgumentParser:
             "run immediately (no Enter). Windows reads a line, so press Enter "
             "there. 1 run tests without unlocking, "
             "2 submit (local) unlocks the next level, "
-            "3 reset (yes=this level, back=previous, all=L1; every answer "
+            "3 reset (y or yes=this level, back=previous, all=L1; every answer "
             "rewrites the work file from the stub), "
             "4 spec, 5 vscode workspace, 6 switch problem or language, "
             "? help. Paths use OSC 8 file:// links."

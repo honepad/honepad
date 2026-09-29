@@ -508,7 +508,7 @@ def _confirm_reset(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> st
         + "\n"
     )
     stdout.write(f"  {file_link(work)}\n")
-    stdout.write(f"Type yes to delete it and stay at level {unlocked}.\n")
+    stdout.write(f"Type y or yes to delete it and stay at level {unlocked}.\n")
     if unlocked > 1:
         stdout.write(f"Type back to delete it and drop to level {unlocked - 1}.\n")
     stdout.write("Type all to delete it and start over at level 1.\n")
@@ -572,7 +572,7 @@ def _reset_back(session: dict[str, Any], stdout: TextIO) -> int:
     if unlocked <= 1:
         stdout.write(status_fail("FAIL: already level 1") + "\n")
         stdout.write(
-            "NEXT: type yes to rewrite this level, or all to start over. "
+            "NEXT: press 3, then y or yes to rewrite this level, or all to start over. "
             "6 switches without deleting.\n"
         )
         stdout.flush()

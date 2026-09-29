@@ -625,6 +625,7 @@ def test_console_help_key_prints_every_key(monkeypatch, tmp_path: Path, capsys) 
     assert main(["console"]) == 0
     out = capsys.readouterr().out
     assert "unlock the next level" in out
+    assert "y or yes wipes this level" in out
     assert "restarts at level 1" in out
     assert "NO_COLOR" in out
     assert "Windows" in out
@@ -1457,7 +1458,7 @@ def test_console_reset(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setattr(sys, "stdin", io.StringIO("3\nyes\nq\n"))
     assert main(["console"]) == 0
     out = capsys.readouterr().out
-    assert "Type yes" in out
+    assert "Type y or yes" in out
     assert "OK: reset" in out
     assert "def create_account(" in work.read_text(encoding="utf-8")
     assert "edited-by-candidate" not in work.read_text(encoding="utf-8")
@@ -1472,6 +1473,7 @@ def test_console_reset_y_wipes_work(monkeypatch, tmp_path: Path, capsys) -> None
     monkeypatch.setattr(sys, "stdin", io.StringIO("3\ny\nq\n"))
     assert main(["console"]) == 0
     out = capsys.readouterr().out
+    assert "Type y or yes to delete" in out
     assert "OK: reset" in out
     assert "def create_account(" in work.read_text(encoding="utf-8")
     assert "edited-by-candidate" not in work.read_text(encoding="utf-8")
@@ -1650,7 +1652,8 @@ def test_console_reset_back_at_level1_fails(monkeypatch, tmp_path: Path, capsys)
     assert "already level 1" in out
     assert "NEXT: already LEVEL 1" not in out
     assert (
-        "NEXT: type yes to rewrite this level, or all to start over. 6 switches without deleting."
+        "NEXT: press 3, then y or yes to rewrite this level, or all to start over. "
+        "6 switches without deleting."
     ) in out
     assert load_session()["unlocked"] == 1
 
@@ -1725,7 +1728,7 @@ def test_console_reset_without_yes_keeps_work(monkeypatch, tmp_path: Path, capsy
     monkeypatch.setattr(sys, "stdin", io.StringIO("3\nq\n"))
     assert main(["console"]) == 0
     out = capsys.readouterr().out
-    assert "Type yes" in out
+    assert "Type y or yes" in out
     assert "OK: reset" not in out
     assert work.read_text(encoding="utf-8") == "edited-by-candidate\n"
 
@@ -2693,6 +2696,9 @@ def test_help_names_every_key_the_way_the_menu_does(last_level: bool) -> None:
     # The menu renames 2 once the problem is cleared. Help has to follow, or it
     # tells you to submit a problem that has nothing left to unlock.
     rows = dict(help_rows(last_level=last_level))
+    assert rows["3  reset"] == (
+        "y or yes wipes this level, back drops one, all restarts at level 1"
+    )
     assert len(rows) == len(menu_items(last_level=last_level))
     for key, label in menu_items(last_level=last_level):
         expected = f"{key}  {label.split()[0]}"
@@ -2750,7 +2756,7 @@ def test_reset_prompt_says_every_answer_deletes_the_work_file(monkeypatch, tmp_p
     out = stdout.getvalue()
     assert "This deletes what you wrote" in out
     assert str(work_src("bank_system", "python3")) in out
-    assert "Type yes to delete it and stay at level 2." in out
+    assert "Type y or yes to delete it and stay at level 2." in out
     assert "Type back to delete it and drop to level 1." in out
     assert "Type all to delete it and start over at level 1." in out
 
