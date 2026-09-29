@@ -298,6 +298,14 @@ def record_last_run(
     save_session(session)
 
 
+def _minute_span(seconds: int) -> str:
+    """Minutes, plus leftover seconds so used and left still add up."""
+    whole, sec = divmod(max(0, int(seconds)), 60)
+    if sec == 0:
+        return f"{whole}m"
+    return f"{whole}m {sec}s"
+
+
 def format_debrief(session: dict[str, Any], now: int | None = None) -> str:
     problem = str(session["problem"])
     lang = str(session["lang"])
@@ -308,7 +316,7 @@ def format_debrief(session: dict[str, Any], now: int | None = None) -> str:
     used = minutes * 60 - left
     lines = [
         f"DEBRIEF: {problem} {lang} LEVEL {unlocked}/{top}",
-        f"used {used // 60}m left {left // 60}m",
+        f"used {_minute_span(used)} left {_minute_span(left)}",
     ]
     last = session.get("last_run")
     if isinstance(last, dict) and {"level", "passed", "failed"} <= last.keys():

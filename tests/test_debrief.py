@@ -229,6 +229,21 @@ def test_format_debrief_omits_remaining_s_token() -> None:
     assert "last hidden through" not in text
 
 
+def test_format_debrief_keeps_a_partial_minute() -> None:
+    text = format_debrief(
+        {
+            "problem": "bank_system",
+            "lang": "python3",
+            "started_at": 1_000,
+            "minutes": 25,
+            "unlocked": 2,
+        },
+        now=1_000 + 104,
+    )
+    assert "used 1m 44s left 23m 16s" in text
+    assert "used 1m left 23m" not in text
+
+
 def test_format_debrief_says_hidden_when_last_run_hidden() -> None:
     text = format_debrief(
         {
