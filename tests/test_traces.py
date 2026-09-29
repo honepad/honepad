@@ -1773,14 +1773,14 @@ def test_run_script_missing_binary_raises() -> None:
 
 
 def test_run_prepare_cmd_times_out() -> None:
-    with pytest.raises(RuntimeError, match="timed out") as excinfo:
+    with pytest.raises(RuntimeError, match="java timed out") as excinfo:
         run_prepare_cmd(
             [sys.executable, "-c", "import time; time.sleep(5)"],
             Path("."),
             "java",
             timeout=0.2,
         )
-    assert "timed out" in str(excinfo.value)
+    assert "java timed out" in str(excinfo.value)
 
 
 def test_run_prepare_cmd_default_timeout_is_compile_budget() -> None:
@@ -1807,8 +1807,7 @@ def test_compile_step_timeout_includes_src(tmp_path: Path, monkeypatch) -> None:
         run("bank_system", "go", 1, "stub")
     msg = str(excinfo.value)
     assert str(src) in msg
-    assert "timed out" in msg
-    assert "go" in msg
+    assert "go timed out" in msg
 
 
 _GO = shutil.which("go")

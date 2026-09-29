@@ -1166,8 +1166,7 @@ public class Simulation {
     captured = capsys.readouterr()
     out = captured.out + captured.err
     assert "FAIL:" in out
-    assert "timed out" in out
-    assert "java" in out
+    assert "java timed out" in out
     assert str(work) in out
     assert "Traceback" not in out
     assert "UNLOCKED" not in out
