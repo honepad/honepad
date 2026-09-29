@@ -274,6 +274,8 @@ def _parse_last_run(raw: Any) -> dict[str, Any] | None:
         }
     except (KeyError, TypeError, ValueError, OverflowError):
         return None
+    if parsed["level"] < 1 or parsed["passed"] < 0 or parsed["failed"] < 0:
+        return None
     if raw.get("hidden") is True:
         parsed["hidden"] = True
     return parsed
