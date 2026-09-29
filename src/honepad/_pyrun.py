@@ -69,6 +69,10 @@ def main(argv: list[str] | None = None) -> int:
         orig_stdout.write(text)
         orig_stdout.flush()
     if report is not None:
+        debug = report.debug.strip()
+        if debug:
+            orig_stdout.write(debug + "\n")
+            orig_stdout.flush()
         payload = {
             "passed": report.passed,
             "failed": [

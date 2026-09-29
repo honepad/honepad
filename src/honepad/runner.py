@@ -366,6 +366,52 @@ def python_entry(problem: str, kind: str) -> Path:
     return pack_src("python3", problem, kind, "solution.py", "stub.py")
 
 
+def _in_honepad(filename: str) -> bool:
+    try:
+        path = Path(filename).resolve()
+    except OSError:
+        return False
+    root = Path(__file__).resolve().parent
+    return path == root or root in path.parents
+
+
+def _class_line(cls: type) -> int:
+    try:
+        import inspect
+
+        return int(inspect.getsourcelines(cls)[1])
+    except (OSError, TypeError):
+        return 1
+
+
+def _python_exc_debug(exc: BaseException, *, anchor: tuple[str, int] | None = None) -> str:
+    """Type, message, and where it was raised. `actual` stays `exc:Type`.
+
+    Frames inside honepad are the runner. When the call never entered the
+    work file, `anchor` is that file instead.
+    """
+    frames: list[tuple[str, int]] = []
+    tb = exc.__traceback__
+    while tb is not None:
+        frames.append((tb.tb_frame.f_code.co_filename, tb.tb_lineno))
+        tb = tb.tb_next
+    chosen: tuple[str, int] | None = None
+    for filename, lineno in reversed(frames):
+        if filename and not _in_honepad(filename):
+            chosen = (filename, lineno)
+            break
+    if chosen is None:
+        chosen = anchor
+    if chosen is None and frames:
+        chosen = frames[-1]
+    where = f" ({chosen[0]}:{chosen[1]})" if chosen is not None else ""
+    name = type(exc).__name__
+    msg = str(exc).strip()
+    if msg and msg != name:
+        return f"{name}: {msg}{where}"
+    return f"{name}{where}"
+
+
 def run_python_body(
     problem: str,
     level: int,
@@ -374,8 +420,11 @@ def run_python_body(
 ) -> Report:
     cases = _resolve_cases(problem, level, cases)
     differ = _values_differ
-    cls = _load_python_class(python_entry(problem, kind), class_name_for(problem))
+    entry = python_entry(problem, kind)
+    cls = _load_python_class(entry, class_name_for(problem))
+    anchor = (str(entry), _class_line(cls))
     failed: list[Fail] = []
+    debug_lines: list[str] = []
     passed = 0
     for case in cases:
         for i, call in enumerate(case["calls"]):
@@ -393,13 +442,16 @@ def run_python_body(
                 failed.append(
                     Fail(case["id"], i, method, args, expected, f"exc:{type(exc).__name__}")
                 )
+                line = _python_exc_debug(exc, anchor=anchor)
+                if line not in debug_lines:
+                    debug_lines.append(line)
                 break
             if differ(actual, expected):
                 failed.append(Fail(case["id"], i, method, args, expected, actual))
                 break
         else:
             passed += 1
-    return Report(problem, "python3", level, passed, failed)
+    return Report(problem, "python3", level, passed, failed, debug="\n".join(debug_lines))
 
 
 def run_python(

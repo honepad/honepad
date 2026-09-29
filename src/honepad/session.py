@@ -255,6 +255,11 @@ def load_session(
     last_run = _parse_last_run(payload.get("last_run"))
     if last_run is not None:
         loaded["last_run"] = last_run
+    # Top-level fields are this problem's desk. Parked problems live under
+    # `desks` and must round-trip, or the next save deletes them.
+    desks = _parse_desks(payload.get("desks"))
+    desks[problem] = _desk_snapshot(loaded)
+    loaded["desks"] = desks
     return loaded
 
 
@@ -324,11 +329,112 @@ def _single_segment(name: str) -> bool:
     return Path(name).name == name
 
 
+def _desk_snapshot(session: dict[str, Any]) -> dict[str, Any]:
+    snap: dict[str, Any] = {
+        "lang": str(session["lang"]),
+        "started_at": int(session["started_at"]),
+        "minutes": int(session["minutes"]),
+        "unlocked": int(session["unlocked"]),
+    }
+    if session.get("cleared"):
+        snap["cleared"] = True
+    last_run = _parse_last_run(session.get("last_run"))
+    if last_run is not None:
+        snap["last_run"] = last_run
+    return snap
+
+
+def _parse_desks(raw: Any) -> dict[str, dict[str, Any]]:
+    if not isinstance(raw, dict):
+        return {}
+    parsed: dict[str, dict[str, Any]] = {}
+    for key, row in raw.items():
+        if not isinstance(key, str) or not _single_segment(key) or key not in problems():
+            continue
+        if not isinstance(row, dict):
+            continue
+        try:
+            started_at = int(row["started_at"])
+            minutes = int(row["minutes"])
+            unlocked = int(row["unlocked"])
+        except (KeyError, TypeError, ValueError, OverflowError):
+            continue
+        if minutes < 1:
+            continue
+        top = max_level(key)
+        if unlocked < 1 or unlocked > top:
+            continue
+        lang = row.get("lang")
+        if not isinstance(lang, str) or not _single_segment(lang):
+            continue
+        item: dict[str, Any] = {
+            "lang": lang,
+            "started_at": started_at,
+            "minutes": minutes,
+            "unlocked": unlocked,
+        }
+        if row.get("cleared") is True:
+            item["cleared"] = True
+        last_run = _parse_last_run(row.get("last_run"))
+        if last_run is not None:
+            item["last_run"] = last_run
+        parsed[key] = item
+    return parsed
+
+
+def _session_from_desk(problem: str, saved: dict[str, Any]) -> dict[str, Any]:
+    session: dict[str, Any] = {
+        "problem": problem,
+        "lang": str(saved["lang"]),
+        "started_at": int(saved["started_at"]),
+        "minutes": int(saved["minutes"]),
+        "unlocked": int(saved["unlocked"]),
+        "cleared": bool(saved.get("cleared")),
+    }
+    last_run = _parse_last_run(saved.get("last_run"))
+    if last_run is not None:
+        session["last_run"] = last_run
+    return session
+
+
+def _salvage_desks(path: Path | None = None) -> dict[str, dict[str, Any]]:
+    target = path or session_path()
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if not isinstance(payload, dict):
+        return {}
+    return _parse_desks(payload.get("desks"))
+
+
+def _other_desks(problem: str) -> dict[str, dict[str, Any]]:
+    """Desks to keep when `problem` is replaced. A bad active file still yields."""
+    try:
+        current = load_session()
+    except (ValueError, OSError, RetiredLanguage):
+        desks = _salvage_desks()
+        desks.pop(problem, None)
+        return desks
+    if current is None:
+        return {}
+    desks = dict(current.get("desks") or {})
+    active = str(current["problem"])
+    if active != problem:
+        desks[active] = _desk_snapshot(current)
+    desks.pop(problem, None)
+    return desks
+
+
 def save_session(session: dict[str, Any], path: Path | None = None) -> Path:
     target = path or session_path()
     target.parent.mkdir(parents=True, exist_ok=True)
-    payload = {
-        "problem": session["problem"],
+    problem = str(session["problem"])
+    desks = dict(session.get("desks") or {})
+    desks[problem] = _desk_snapshot(session)
+    session["desks"] = desks
+    payload: dict[str, Any] = {
+        "problem": problem,
         "lang": session["lang"],
         "started_at": int(session["started_at"]),
         "minutes": int(session["minutes"]),
@@ -339,6 +445,10 @@ def save_session(session: dict[str, Any], path: Path | None = None) -> Path:
     last_run = _parse_last_run(session.get("last_run"))
     if last_run is not None:
         payload["last_run"] = last_run
+    # One problem stays in the original shape. Extra problems need `desks`
+    # or the next switch starts them over at level 1.
+    if any(key != problem for key in desks):
+        payload["desks"] = {key: desks[key] for key in sorted(desks)}
     _replace_text(target, json.dumps(payload, indent=2) + "\n")
     return target
 
@@ -360,39 +470,85 @@ def new_session(problem: str, lang: str, minutes: int = 90) -> dict[str, Any]:
     }
 
 
+def _apply_saved_clock(session: dict[str, Any]) -> bool:
+    """Restart an expired saved clock without changing its minutes. Returns True
+    when the clock was replaced."""
+    if remaining_s(int(session["started_at"]), int(session["minutes"])) != 0:
+        return False
+    session["started_at"] = int(time.time())
+    return True
+
+
+def _retired_note(retired: RetiredLanguage, lang: str) -> None:
+    if _single_segment(retired.lang):
+        try:
+            leftover: Path | str = work_src(retired.problem, retired.lang)
+        except (KeyError, ValueError):
+            leftover = session_path().parent / "work" / retired.problem / retired.lang
+    else:
+        leftover = retired.lang
+    sys.stdout.write(
+        f"NOTE: your {retired.lang} session is retired "
+        f"({retired.lang} was removed, was LEVEL {retired.unlocked}); "
+        f"leftover work stays in {leftover}; "
+        f"starting {lang} at LEVEL 1.\n"
+    )
+
+
 def ensure_session(
     problem: str,
     lang: str,
     minutes: int | None = None,
     reset: bool = False,
 ) -> dict[str, Any]:
+    duration = 90 if minutes is None else minutes
+    if reset:
+        session = new_session(problem, lang, duration)
+        session["desks"] = _other_desks(problem)
+        save_session(session)
+        session["desk_fresh"] = True
+        return session
     retired: RetiredLanguage | None = None
     try:
-        current = None if reset else load_session(replace_lang=lang)
+        current = load_session(replace_lang=lang)
     except RetiredLanguage as exc:
         retired = exc
         current = None
-    duration = 90 if minutes is None else minutes
-    if current is None or current.get("problem") != problem:
-        session = new_session(problem, lang, duration)
+    if current is None or str(current.get("problem")) != problem:
+        if current is None:
+            desks = _salvage_desks()
+        else:
+            desks = dict(current.get("desks") or {})
+            desks[str(current["problem"])] = _desk_snapshot(current)
+        saved = desks.get(problem)
+        # The active lang is gone. That problem starts over. Other problems stay.
+        if retired is not None and problem == retired.problem:
+            saved = None
+            desks.pop(problem, None)
+        restarted = False
+        if saved is None:
+            session = new_session(problem, lang, duration)
+            fresh = True
+        else:
+            # Carried minutes belong to the desk we just left (the console
+            # always forwards them). A restored desk keeps its own clock.
+            session = _session_from_desk(problem, saved)
+            if str(session["lang"]) != lang:
+                session["cleared"] = False
+                session.pop("last_run", None)
+            session["lang"] = lang
+            fresh = False
+            restarted = _apply_saved_clock(session)
+        session["desks"] = desks
         save_session(session)
-        if retired is not None:
-            if _single_segment(retired.lang):
-                try:
-                    leftover = work_src(retired.problem, retired.lang)
-                except (KeyError, ValueError):
-                    leftover = session_path().parent / "work" / retired.problem / retired.lang
-            else:
-                leftover = retired.lang
-            sys.stdout.write(
-                f"NOTE: your {retired.lang} session is retired "
-                f"({retired.lang} was removed, was LEVEL {retired.unlocked}); "
-                f"leftover work stays in {leftover}; "
-                f"starting {lang} at LEVEL 1.\n"
-            )
+        session["desk_fresh"] = fresh
+        session["clock_restarted"] = restarted
+        if retired is not None and fresh and problem == retired.problem:
+            _retired_note(retired, lang)
         return session
     current.pop("clock_restarted", None)
     current.pop("clock_now_minutes", None)
+    current.pop("desk_fresh", None)
     if current["lang"] != lang:
         current["cleared"] = False
         current.pop("last_run", None)
@@ -411,6 +567,7 @@ def ensure_session(
             current["started_at"] = int(time.time())
     save_session(current)
     current["clock_restarted"] = restarted
+    current["desk_fresh"] = False
     if now_minutes is not None:
         current["clock_now_minutes"] = now_minutes
     return current
@@ -455,8 +612,31 @@ def lock_to_level(session: dict[str, Any], level: int) -> dict[str, Any]:
     return session
 
 
+def peek_unlocked(problem: str, lang: str) -> int:
+    """Level `start` would open for this problem. Does not write.
+
+    A language switch keeps the unlocked level, so `lang` is only here for
+    callers that already resolved one. A missing or unreadable session is
+    level 1, the same as a brand-new desk.
+    """
+    del lang
+    try:
+        current = load_session()
+    except (ValueError, OSError, RetiredLanguage):
+        return 1
+    if current is None:
+        return 1
+    if str(current.get("problem")) == problem:
+        return int(current["unlocked"])
+    saved = (current.get("desks") or {}).get(problem)
+    if isinstance(saved, dict) and "unlocked" in saved:
+        return int(saved["unlocked"])
+    return 1
+
+
 def restart_all(problem: str, lang: str, minutes: int = 90) -> dict[str, Any]:
     session = new_session(problem, lang, minutes)
+    session["desks"] = _other_desks(problem)
     save_session(session)
     return session
 
