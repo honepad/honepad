@@ -20,6 +20,7 @@ from honepad.console import cmd_console, cmd_vscode, loop_console
 from honepad.packspec import missing_tools, on_missing_tools, run_spec
 from honepad.runner import _RUNNERS, run, spec_src
 from honepad.session import (
+    RetiredLanguage,
     drop_level,
     ensure_session,
     ensure_work_copy,
@@ -29,6 +30,7 @@ from honepad.session import (
     mark_cleared,
     max_level,
     note_clock_restarted,
+    peek_unlocked,
     record_last_run,
     remaining_s,
     require_minutes,
@@ -117,6 +119,14 @@ def cmd_default(_args: argparse.Namespace) -> int:
     return cmd_console(argparse.Namespace(problem=None, lang=None, minutes=None))
 
 
+def _session_is_readable() -> bool:
+    """True when a session file can gate --level. Missing or bad files fall through."""
+    try:
+        return load_session() is not None
+    except (ValueError, OSError, RetiredLanguage):
+        return False
+
+
 def _print_start_usage() -> None:
     print(status_fail("FAIL: no session"))
     print(start_next())
@@ -146,8 +156,23 @@ def _confirm_rewrite(work: Path, *, yes: bool) -> bool:
     return line.strip().lower() in {"y", "yes"}
 
 
+# Cross-platform runners first. The rest stay in catalog order.
+_PREFERRED_RUNNERS = (
+    "python3",
+    "java",
+    "csharp",
+    "go",
+    "javascript",
+    "typescript",
+    "cpp",
+)
+
+
 def _runner_ids() -> list[str]:
-    return [row["id"] for row in languages() if row["id"] in _RUNNERS]
+    ids = [row["id"] for row in languages() if row["id"] in _RUNNERS]
+    preferred = [item for item in _PREFERRED_RUNNERS if item in ids]
+    rest = [item for item in ids if item not in preferred]
+    return preferred + rest
 
 
 def _print_choices(title: str, items: list[str], labels: list[str] | None = None) -> None:
@@ -279,6 +304,16 @@ def resolve_start_target(problem: str | None, lang: str | None) -> tuple[str | N
 def cmd_start(args: argparse.Namespace) -> int:
     try:
         args.problem, args.lang = resolve_start_target(args.problem, args.lang)
+        if (
+            not args.problem
+            and not args.lang
+            and not args.reset
+            and not getattr(args, "back", False)
+        ):
+            existing = load_session()
+            if existing is not None:
+                args.problem = str(existing["problem"])
+                args.lang = str(existing["lang"])
         if not args.problem or not args.lang:
             if not (_can_prompt() and _fill_start_args(args)):
                 if args.lang and not args.problem:
@@ -286,14 +321,14 @@ def cmd_start(args: argparse.Namespace) -> int:
                     print(f"NEXT: {invocation()} start bank_system {args.lang}")
                 else:
                     print(status_fail("FAIL: start needs a problem and a language"))
-                    print(start_next())
+                    print(start_next(args.lang))
                 print("problems: " + ", ".join(problems()))
                 return 1
             args.problem, args.lang = resolve_start_target(args.problem, args.lang)
         row = language(args.lang)
         if row["id"] not in _RUNNERS:
             print(status_fail(f"FAIL: no runner for {row['id']}"))
-            print(start_next())
+            print(start_next(row["id"]))
             return 1
         if args.reset and getattr(args, "back", False):
             print(status_fail("FAIL: use --reset or --back, not both"))
@@ -303,11 +338,23 @@ def cmd_start(args: argparse.Namespace) -> int:
         if args.level is not None:
             _check_level(args.problem, args.level)
         require_java_path(row["id"])
+        if (
+            args.level is not None
+            and not args.reset
+            and not getattr(args, "back", False)
+            and _session_is_readable()
+        ):
+            opened = peek_unlocked(args.problem, row["id"])
+            if args.level > opened:
+                print(status_fail(f"LOCKED: LEVEL {args.level} (open through LEVEL {opened})"))
+                print(work_line(work_src(args.problem, row["id"])))
+                print("NEXT: omit --level, or submit after traces pass")
+                return 1
         if getattr(args, "back", False):
             session = load_session()
             if session is None:
                 print(status_fail("FAIL: no session to go back"))
-                print(start_next())
+                print(start_next(row["id"]))
                 return 1
             if session["problem"] != args.problem or str(session["lang"]) != row["id"]:
                 print(status_fail("FAIL: --back needs the current problem and language"))
@@ -368,7 +415,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         minutes = int(session["minutes"])
         started_at = int(session["started_at"])
     except HONEPAD_ERRORS as exc:
-        print_fail(exc)
+        print_fail(exc, lang=getattr(args, "lang", None))
         return 1
     if level > unlocked:
         print(status_fail(f"LOCKED: LEVEL {level} (open through LEVEL {unlocked})"))
@@ -403,6 +450,10 @@ def cmd_start(args: argparse.Namespace) -> int:
         )
     )
     print(status_ok(f"OK: LEVEL {unlocked}  [{format_clock(left, span_s=minutes * 60)}]"))
+    if args.level is not None and level != unlocked:
+        print(
+            status_note(f"NOTE: showing LEVEL {level}. The desk is open through LEVEL {unlocked}.")
+        )
     print(paint_spec(spec.read_text(encoding="utf-8")))
     if not getattr(args, "no_console", False) and _can_prompt():
         return loop_console(session, stdin=sys.stdin, stdout=sys.stdout)
@@ -427,12 +478,10 @@ def cmd_run(args: argparse.Namespace) -> int:
             and str(session.get("lang")) == lang
         )
         if getattr(args, "unlock", False) and not same:
-            print(status_fail("FAIL: no session"))
-            print(f"NEXT: {invocation()} start {args.problem} {lang}")
+            _fail_other_session(session, args.problem, lang)
             return 1
         if session is not None and args.kind is None and not same:
-            print(status_fail("FAIL: no session"))
-            print(f"NEXT: {invocation()} start {args.problem} {lang}")
+            _fail_other_session(session, args.problem, lang)
             return 1
         unlocked_now = int(session["unlocked"]) if same and session is not None else None
         practice = same and (args.level is None or args.level == unlocked_now)
@@ -479,7 +528,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         if _is_work_file_problem(exc) and not is_work_reset_fail(str(exc)):
             print(work_reset_next())
         if lang is not None and (kind == "work" or _is_work_file_problem(exc)):
-            _print_work_notes(args.problem, lang)
+            _print_work_notes(args.problem, lang, echo_work=kind != "work")
         return 1
     total = report.passed + len(report.failed)
     if kind is not None and lang is not None:
@@ -511,7 +560,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         if len(report.failed) > 1:
             print(status_note(f"NOTE: {len(report.failed) - 1} more failing cases not shown."))
         if kind == "work":
-            _print_work_notes(args.problem, lang)
+            _print_work_notes(args.problem, lang, echo_work=False)
         if (
             practice
             and session is not None
@@ -524,7 +573,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     if report.passed == 0:
         print(status_fail("FAIL: no cases"))
         if kind == "work":
-            _print_work_notes(args.problem, lang)
+            _print_work_notes(args.problem, lang, echo_work=False)
         return 1
     hidden_ok = True
     if _wants_hidden(
@@ -570,7 +619,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                         )
                     )
                     if kind == "work":
-                        _print_work_notes(args.problem, lang)
+                        _print_work_notes(args.problem, lang, echo_work=False)
                     hidden_ok = False
         except HONEPAD_ERRORS + (NotImplementedError,) as exc:
             print_fail(exc)
@@ -578,7 +627,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 left = remaining_s(int(session["started_at"]), int(session["minutes"]))
                 record_last_run(session, level=level, passed=0, failed=1, hidden=True)
             if kind == "work":
-                _print_work_notes(args.problem, lang)
+                _print_work_notes(args.problem, lang, echo_work=False)
             hidden_ok = False
     if not hidden_ok:
         if (
@@ -616,7 +665,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 first=first,
             )
             if kind == "work":
-                _print_work_notes(args.problem, lang)
+                _print_work_notes(args.problem, lang, echo_work=False)
             return 0
     if (
         practice
@@ -627,7 +676,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     ):
         _print_time_up(session)
         if kind == "work":
-            _print_work_notes(args.problem, lang)
+            _print_work_notes(args.problem, lang, echo_work=False)
         return 0
     if practice and session is not None and kind in ("solution", "work"):
         if may_unlock:
@@ -638,7 +687,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 print(status_fail(f"FAIL: {exc}"))
                 print(work_reset_next())
                 if lang is not None and (kind == "work" or _is_work_file_problem(exc)):
-                    _print_work_notes(args.problem, lang)
+                    _print_work_notes(args.problem, lang, echo_work=kind != "work")
                 return 1
             workspace_exc: BaseException | None = None
             try:
@@ -660,7 +709,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             if workspace_exc is not None:
                 print_workspace_note(workspace_exc)
             if kind == "work":
-                _print_work_notes(args.problem, lang)
+                _print_work_notes(args.problem, lang, echo_work=False)
             return 0
         print(status_ok("OK"))
         print(
@@ -670,11 +719,11 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
         print(f"NEXT: {invocation()} submit {session['problem']}")
         if kind == "work":
-            _print_work_notes(args.problem, lang)
+            _print_work_notes(args.problem, lang, echo_work=False)
         return 0
     print(status_ok("OK"))
     if kind == "work":
-        _print_work_notes(args.problem, lang)
+        _print_work_notes(args.problem, lang, echo_work=False)
     return 0
 
 
@@ -710,8 +759,25 @@ def _print_time_up(session: dict[str, Any]) -> None:
     print(f"NEXT: {invocation()} start")
 
 
-def _print_work_notes(problem: str, lang: str) -> None:
-    print(work_line(work_src(problem, lang)))
+def _fail_other_session(session: dict[str, Any] | None, problem: str, lang: str) -> None:
+    if session is None:
+        print(status_fail("FAIL: no session"))
+    else:
+        print(
+            status_fail(
+                f"FAIL: session is {session['problem']} {session['lang']}, not {problem} {lang}"
+            )
+        )
+    print(f"NEXT: {invocation()} start {problem} {lang}")
+
+
+def _print_work_notes(problem: str, lang: str, *, echo_work: bool = True) -> None:
+    """Extra work-file note. `echo_work` is false when KIND already printed WORK."""
+    if echo_work:
+        try:
+            print(work_line(work_src(problem, lang)))
+        except HONEPAD_ERRORS:
+            pass
     extra = extra_work_note(problem, lang)
     if extra is not None:
         print(status_note(extra))
@@ -947,7 +1013,8 @@ def build_parser() -> argparse.ArgumentParser:
         help="live practice menu",
         description=(
             "Live menu with a countdown clock. On a TTY, keys 1-6, ? and q "
-            "run immediately (no Enter). 1 run tests without unlocking, "
+            "run immediately (no Enter). Windows reads a line, so press Enter "
+            "there. 1 run tests without unlocking, "
             "2 submit (local) unlocks the next level, "
             "3 reset (yes=this level, back=previous, all=L1; every answer "
             "rewrites the work file from the stub), "

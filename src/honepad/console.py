@@ -10,7 +10,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import Any, TextIO
 
-from honepad.catalog import language, languages, problems
+from honepad.catalog import language, problems
 from honepad.runner import _RUNNERS
 from honepad.session import (
     drop_level,
@@ -108,7 +108,7 @@ def cmd_console(args: argparse.Namespace) -> int:
     except HONEPAD_ERRORS as exc:
         print_fail(exc)
         if "both problem and lang" in str(exc):
-            print(f"NEXT: {invocation()} console bank_system java")
+            print(f"NEXT: {invocation()} console bank_system python3")
         return 1
     try:
         refresh_workspace(
@@ -149,7 +149,7 @@ def cmd_vscode(args: argparse.Namespace) -> int:
     except HONEPAD_ERRORS as exc:
         print_fail(exc)
         if "both problem and lang" in str(exc):
-            print(f"NEXT: {invocation()} vscode bank_system java")
+            print(f"NEXT: {invocation()} vscode bank_system python3")
         return 1
 
 
@@ -177,6 +177,25 @@ def _banner_key(session: dict[str, Any]) -> tuple[str, str, int, bool]:
         int(session["unlocked"]),
         bool(session.get("cleared")),
     )
+
+
+_MENU_CHOICES = {
+    "1",
+    "run",
+    "test",
+    "2",
+    "submit",
+    "4",
+    "spec",
+    "5",
+    "vscode",
+    "code",
+    "6",
+    "switch",
+    "?",
+    "h",
+    "help",
+}
 
 
 def loop_console(
@@ -228,7 +247,7 @@ def loop_console(
             if line is None:
                 return last
             choice = line.strip().lower()
-            if choice in {"q", "quit"}:
+            if choice in {"q", "quit", "\x04"}:
                 stdout.write("OK: quit\n")
                 stdout.flush()
                 return 0
@@ -271,7 +290,13 @@ def loop_console(
                             continue
             stdout.write("\n")
             was_cleared = bool(session.get("cleared"))
-            last = dispatch(choice, session, stdout, stdin)
+            try:
+                last = dispatch(choice, session, stdout, stdin)
+            except KeyboardInterrupt:
+                stdout.write("\nNOTE: interrupted. Still in the console.\n")
+                stdout.flush()
+                last = 1
+                continue
             session = _reload_session(session, stdout)
             shown = _banner_key(session)
             shown_menu[0] = True
@@ -282,6 +307,10 @@ def loop_console(
                 _drain_pending(stdin)
                 continue
             stdout.write("\n")
+            if choice not in _MENU_CHOICES:
+                # Unknown keys already printed the key list. A second banner
+                # just pushes that list off the screen.
+                continue
             stdout.write(render_banner(session) + "\n")
     except KeyboardInterrupt:
         stdout.write("\nOK: quit\n")
@@ -315,7 +344,7 @@ def _prompt_choice(
 def _switch_session(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> int:
     """Move the session to another problem or language. Work files are per
     problem and language, so nothing on disk is touched."""
-    from honepad.cli import toolchain_warning
+    from honepad.cli import _runner_ids, toolchain_warning
 
     opts = problems()
     current_problem = str(session["problem"])
@@ -332,7 +361,7 @@ def _switch_session(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> i
         stdout.flush()
         return 0
     current = str(session["lang"])
-    langs = [row["id"] for row in languages() if row["id"] in _RUNNERS]
+    langs = _runner_ids()
     lang = _prompt_choice(stdin, stdout, f"language (Enter keeps {current})", langs, keep=current)
     if lang is None:
         stdout.write("OK: switch cancelled\n")
@@ -350,7 +379,14 @@ def _switch_session(session: dict[str, Any], stdin: TextIO, stdout: TextIO) -> i
     session.clear()
     session.update(nxt)
     if problem != current_problem:
-        stdout.write(status_note(f"NOTE: new desk at LEVEL 1. Clock is {minutes} minutes.") + "\n")
+        if nxt.pop("desk_fresh", False):
+            note = f"NOTE: new desk at LEVEL 1. Clock is {int(nxt['minutes'])} minutes."
+        else:
+            note = (
+                f"NOTE: resumed {problem} at LEVEL {int(nxt['unlocked'])}. "
+                f"Clock is {int(nxt['minutes'])} minutes."
+            )
+        stdout.write(status_note(note) + "\n")
     note_clock_restarted(session, stdout=stdout)
     unlocked = int(session["unlocked"])
     ensure_work_copy(problem, lang, reset=False, level=unlocked)
@@ -580,7 +616,7 @@ def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:
     if problem is None:
         session = load_session()
         if session is None:
-            raise ValueError(f"no session. Start with: {invocation()} start bank_system java")
+            raise ValueError(f"no session. Start with: {invocation()} start bank_system python3")
         raw = getattr(args, "minutes", None)
         minutes = int(session["minutes"]) if raw is None else int(raw)
         require_java_path(str(session["lang"]))
@@ -738,6 +774,8 @@ def _read_choice(
                 ch = _next_char(stdin)
                 if ch == "":
                     return None
+                if ch == "\x04":
+                    return "\x04"
                 if ch in {"\n", "\r"}:
                     # Enter on an empty prompt is not a command. Redraw in
                     # place instead of emitting a newline, or holding Enter

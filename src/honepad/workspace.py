@@ -328,6 +328,8 @@ def _write_readme(
         lines.extend(
             [
                 "Python tests are pytest in `test_public.py`.",
+                "The Run pytest task needs pytest (`pip install pytest`). "
+                "`pip install honepad` does not include it.",
                 "Open the Testing sidebar after the Python extension loads.",
                 "",
             ]

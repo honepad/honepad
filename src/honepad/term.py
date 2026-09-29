@@ -250,8 +250,21 @@ def invocation(argv0: str | None = None) -> str:
     return "honepad"
 
 
-def start_next() -> str:
-    return f"NEXT: {invocation()} start bank_system java"
+def _next_runner(lang: str | None) -> str:
+    """Default next language, or the runner the user already typed."""
+    if not lang:
+        return "python3"
+    from honepad.catalog import resolve_language_token
+    from honepad.runner import _RUNNERS
+
+    resolved = resolve_language_token(str(lang))
+    if resolved is not None and resolved in _RUNNERS:
+        return resolved
+    return "python3"
+
+
+def start_next(lang: str | None = None) -> str:
+    return f"NEXT: {invocation()} start bank_system {_next_runner(lang)}"
 
 
 _FIREWORK_W = 41
@@ -367,7 +380,17 @@ def _print_invalid_problem_hint(text: str) -> None:
 HONEPAD_ERRORS = (KeyError, ValueError, FileNotFoundError, OSError, RuntimeError)
 
 
-def print_fail(exc: BaseException) -> None:
+def _tool_hint_text(text: str) -> str:
+    """Drop a `lang:` prefix so the install hint names the binary."""
+    if ": " not in text:
+        return text
+    head, tail = text.split(": ", 1)
+    if head and " " not in head and "/" not in head and "\\" not in head:
+        return tail
+    return text
+
+
+def print_fail(exc: BaseException, lang: str | None = None) -> None:
     print(status_fail(f"FAIL: {exc}"))
     text = str(exc)
     if _is_session_file_fail(text):
@@ -375,21 +398,22 @@ def print_fail(exc: BaseException) -> None:
             _print_invalid_problem_hint(text)
         print(session_fail_next())
         return
-    if text in {"javac not on PATH", "java not on PATH"}:
+    tool = _tool_hint_text(text)
+    if tool in {"javac not on PATH", "java not on PATH"}:
         print("NEXT: install a JDK so javac and java are on PATH")
         return
-    if text.endswith(" not on PATH"):
-        print(f"NEXT: install {text[: -len(' not on PATH')]} and put it on PATH")
+    if tool.endswith(" not on PATH"):
+        print(f"NEXT: install {tool[: -len(' not on PATH')]} and put it on PATH")
         return
-    if text.endswith(" not found"):
-        print(f"NEXT: install {text[: -len(' not found')]} and put it on PATH")
+    if tool.endswith(" not found"):
+        print(f"NEXT: install {tool[: -len(' not found')]} and put it on PATH")
         return
     if text.startswith("no runner for "):
-        print(start_next())
+        print(start_next(lang))
         return
     if text.startswith("invalid problem"):
         _print_invalid_problem_hint(text)
-        print(start_next())
+        print(start_next(lang))
         return
     if " has levels 1.." in text:
         top = text.rsplit("1..", 1)[-1]
@@ -642,5 +666,8 @@ def render_help(*, last_level: bool = False) -> str:
     )
     lines.append(
         f"  {dim('Set NO_COLOR=1 for plain output. Paths are OSC 8 links your terminal can open.')}"
+    )
+    lines.append(
+        f"  {dim('On Windows, type a key and press Enter. Elsewhere, keys run immediately.')}"
     )
     return "\n".join(lines)

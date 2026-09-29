@@ -7,7 +7,7 @@ import pytest
 
 from honepad import packspec
 from honepad.catalog import languages, problems
-from honepad.cli import build_parser, main, resolve_start_target
+from honepad.cli import _runner_ids, build_parser, main, resolve_start_target
 from honepad.runner import _RUNNERS, run_prepare_cmd
 from honepad.session import load_session
 from honepad.term import invocation, print_fail
@@ -171,6 +171,13 @@ def test_print_fail_hints_install_when_tool_is_not_found(capsys) -> None:
     assert "install coffee" in out
 
 
+def test_print_fail_strips_lang_prefix_from_missing_tool(capsys) -> None:
+    print_fail(RuntimeError("csharp: dotnet not on PATH"))
+    out = capsys.readouterr().out
+    assert "install dotnet and put it on PATH" in out
+    assert "install csharp" not in out
+
+
 def test_warn_is_the_default_missing_tools_policy() -> None:
     blocking = [lang_id for lang_id in _RUNNERS if packspec.on_missing_tools(lang_id) == "block"]
     assert blocking == ["java"]
@@ -249,7 +256,7 @@ def test_start_unimplemented_catalog_lang_exits(monkeypatch, tmp_path, capsys) -
     assert "adapter=" not in out
     assert "factory job" not in out
     assert "NEXT:" in out
-    assert "start bank_system java" in out
+    assert "start bank_system python3" in out
     assert "OK: LEVEL" not in out
     assert "Bank system level" not in out
     assert "STUB:" not in out
@@ -285,7 +292,16 @@ def test_start_without_args_on_tty_picks_lang_then_problem(monkeypatch, tmp_path
 
 def test_start_picker_accepts_numbers(monkeypatch, tmp_path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
-    runner_ids = [row["id"] for row in languages() if row["id"] in _RUNNERS]
+    runner_ids = _runner_ids()
+    assert runner_ids[:7] == [
+        "python3",
+        "java",
+        "csharp",
+        "go",
+        "javascript",
+        "typescript",
+        "cpp",
+    ]
     lang_n = runner_ids.index("java") + 1
     problem_n = problems().index("file_storage") + 1
     _tty_stdin(monkeypatch, f"{lang_n}\n{problem_n}\n")
@@ -414,7 +430,7 @@ def test_start_unknown_problem_suggests_bank_system(monkeypatch, tmp_path, capsy
     assert "bank_systm" in out
     assert "Did you mean bank_system" in out
     assert "NEXT:" in out
-    assert "start" in out
+    assert "start bank_system java" in out
     assert "start --reset" not in out
     assert "Traceback" not in out
     assert load_session() is None
@@ -582,7 +598,7 @@ def test_start_without_args_prints_fail_next_problems(monkeypatch, tmp_path, cap
     assert code == 1
     assert "FAIL: start needs a problem and a language" in out
     assert "NEXT:" in out
-    assert "start bank_system java" in out
+    assert "start bank_system python3" in out
     assert "problems:" in out
     assert "bank_system" in out.split("problems:", 1)[1]
     assert load_session() is None
@@ -596,7 +612,7 @@ def test_start_problem_only_prints_fail_next_problems(monkeypatch, tmp_path, cap
     assert code == 1
     assert "FAIL: start needs a problem and a language" in out
     assert "NEXT:" in out
-    assert "start bank_system java" in out
+    assert "start bank_system python3" in out
     assert "problems:" in out
     assert "bank_system" in out.split("problems:", 1)[1]
     assert load_session() is None

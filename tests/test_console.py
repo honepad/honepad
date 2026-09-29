@@ -211,6 +211,65 @@ def test_loop_console_time_up_submit_skips_unlock_prompt(monkeypatch, tmp_path: 
     assert "OK: quit" in out
 
 
+def test_loop_console_ctrl_c_during_dispatch_stays(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    session = {
+        "problem": "bank_system",
+        "lang": "python3",
+        "started_at": 1_700_000_000,
+        "minutes": 90,
+        "unlocked": 1,
+    }
+    calls = {"n": 0}
+
+    def boom(*_args, **_kwargs):
+        calls["n"] += 1
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("honepad.console.dispatch", boom)
+    stdout = io.StringIO()
+    code = loop_console(dict(session), stdin=io.StringIO("1\nq\n"), stdout=stdout, live=False)
+    out = stdout.getvalue()
+    assert code == 0
+    assert calls["n"] == 1
+    assert "NOTE: interrupted. Still in the console." in out
+    assert "OK: quit" in out
+
+
+def test_loop_console_ctrl_d_quits(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    session = {
+        "problem": "bank_system",
+        "lang": "python3",
+        "started_at": 1_700_000_000,
+        "minutes": 90,
+        "unlocked": 1,
+    }
+    stdout = io.StringIO()
+    code = loop_console(dict(session), stdin=io.StringIO("\x04\n"), stdout=stdout, live=False)
+    assert code == 0
+    assert "OK: quit" in stdout.getvalue()
+
+
+def test_unknown_key_does_not_reprint_the_banner(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    session = {
+        "problem": "bank_system",
+        "lang": "python3",
+        "started_at": int(time.time()),
+        "minutes": 90,
+        "unlocked": 1,
+    }
+    stdout = io.StringIO()
+    code = loop_console(dict(session), stdin=io.StringIO("x\nq\n"), stdout=stdout, live=False)
+    out = stdout.getvalue()
+    assert code == 0
+    assert "unknown option" in out
+    assert out.count("honepad  bank_system  python3") == 1
+    assert "OK: quit" in out
+
+
 def test_loop_console_time_up_again_after_clock_restarts(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     session = {
@@ -568,6 +627,7 @@ def test_console_help_key_prints_every_key(monkeypatch, tmp_path: Path, capsys) 
     assert "unlock the next level" in out
     assert "restarts at level 1" in out
     assert "NO_COLOR" in out
+    assert "Windows" in out
     assert "passed=" not in out
     assert "OK: quit" in out
 
@@ -809,7 +869,7 @@ def test_console_needs_both_args(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "FAIL:" in out
     assert "both problem and lang" in out
     assert "NEXT:" in out
-    assert "console bank_system java" in out
+    assert "console bank_system python3" in out
 
 
 def test_vscode_needs_both_args(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -819,7 +879,7 @@ def test_vscode_needs_both_args(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "FAIL:" in out
     assert "both problem and lang" in out
     assert "NEXT:" in out
-    assert "vscode bank_system java" in out
+    assert "vscode bank_system python3" in out
 
 
 def test_console_unparseable_work_prints_reset_next(monkeypatch, tmp_path: Path, capsys) -> None:
@@ -853,7 +913,7 @@ def test_console_unimplemented_lang_fails(monkeypatch, tmp_path: Path, capsys) -
     assert "adapter=" not in out
     assert "factory job" not in out
     assert "NEXT:" in out
-    assert "start bank_system java" in out
+    assert "start bank_system python3" in out
 
 
 def test_console_bank_system_python_resolves_to_python3(
@@ -2831,6 +2891,48 @@ def test_console_switch_problem_keeps_custom_minutes(monkeypatch, tmp_path: Path
     assert after["started_at"] == int(clock["now"])
     assert after["started_at"] != started
     assert "NOTE: new desk at LEVEL 1. Clock is 30 minutes." in out
+
+
+def test_console_switch_back_restores_the_saved_desk(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    monkeypatch.setenv("NO_COLOR", "1")
+    clock = {"now": 1_700_000_000}
+
+    def _now() -> float:
+        return float(clock["now"])
+
+    monkeypatch.setattr("honepad.session.time.time", _now)
+    session = _session_at(tmp_path, "bank_system", "python3", unlocked=3)
+    session["minutes"] = 45
+    save_session(session)
+    started = int(session["started_at"])
+    clock["now"] = started + 60
+    stdout = io.StringIO()
+    assert dispatch("6", session, stdout, io.StringIO("file_storage\n\n")) == 0
+    away = stdout.getvalue()
+    assert "NOTE: new desk at LEVEL 1. Clock is 45 minutes." in away
+    assert session["problem"] == "file_storage"
+    assert session["unlocked"] == 1
+    assert session["minutes"] == 45
+    assert session["started_at"] == int(clock["now"])
+    # The other desk's clock must not overwrite the one we parked.
+    session["minutes"] = 10
+    save_session(session)
+    clock["now"] = started + 120
+    stdout = io.StringIO()
+    assert dispatch("6", session, stdout, io.StringIO("bank_system\n\n")) == 0
+    back = stdout.getvalue()
+    assert "NOTE: resumed bank_system at LEVEL 3. Clock is 45 minutes." in back
+    assert "new desk" not in back
+    assert session["problem"] == "bank_system"
+    assert session["unlocked"] == 3
+    assert session["minutes"] == 45
+    assert session["started_at"] == started
+    saved = load_session()
+    assert saved is not None
+    assert saved["unlocked"] == 3
+    assert saved["minutes"] == 45
+    assert saved["started_at"] == started
 
 
 def test_console_switch_language_keeps_started_at_and_minutes(monkeypatch, tmp_path: Path) -> None:

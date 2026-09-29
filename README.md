@@ -51,7 +51,11 @@ git clone https://github.com/honepad/honepad.git
 cd honepad
 python3 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
+./honepad start bank_system python3
 ```
+
+`./honepad` runs the venv CLI. pip, Homebrew, and Scoop put `honepad`
+on PATH, so the commands below stay bare `honepad`.
 
 ## Start a desk
 
