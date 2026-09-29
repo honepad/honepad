@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.2.3](https://github.com/honepad/honepad/compare/v0.2.2...v0.2.3) (2026-09-29)
+
+
+### Bug Fixes
+
+* do not offer back when a level 1 clock restarts ([#296](https://github.com/honepad/honepad/issues/296)) ([5a576b5](https://github.com/honepad/honepad/commit/5a576b5281e27b97b2b95deb958df6c240b5718a))
+* drop a negative last run when a session loads ([#297](https://github.com/honepad/honepad/issues/297)) ([beb86c9](https://github.com/honepad/honepad/commit/beb86c96657d4a74e28e8982784c8afc1c18e349))
+* keep each problem's desk and clean up practice hints ([#290](https://github.com/honepad/honepad/issues/290)) ([e96f613](https://github.com/honepad/honepad/commit/e96f61337d5872bb737f0c95ede4bf6a02b6a469))
+* name y as a console reset delete ([#292](https://github.com/honepad/honepad/issues/292)) ([3865e40](https://github.com/honepad/honepad/commit/3865e4065be22b868004bd6e0015e3a563562066))
+* tell the truth on reset and the debrief clock ([#295](https://github.com/honepad/honepad/issues/295)) ([3e0fcd5](https://github.com/honepad/honepad/commit/3e0fcd56cd74abb634a5fd0944aeb7c9ca0e4783))
+
+
+### Dependencies
+
+* Bump ruff from 0.16.8 to 0.16.9 in the pip-minor-patch group ([#287](https://github.com/honepad/honepad/issues/287)) ([449c1dd](https://github.com/honepad/honepad/commit/449c1dd5bc1887519875394cd6a70ea96d42726e))
+
 ## [0.2.2](https://github.com/honepad/honepad/compare/v0.2.1...v0.2.2) (2026-09-22)
 
 
