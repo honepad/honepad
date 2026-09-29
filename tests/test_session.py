@@ -2136,10 +2136,30 @@ def test_start_after_expiry_restarts_clock_keeps_work(monkeypatch, tmp_path: Pat
     assert remaining_s(int(after["started_at"]), int(after["minutes"]), now) == 5400
     assert "keep-me" in work.read_text(encoding="utf-8")
     assert "NOTE: previous clock was 0. New clock started. Work file kept." in out
+    assert "drops a level" in out
     assert "[1:30:00]" in out
     on_disk = json.loads(session_file.read_text(encoding="utf-8"))
     assert "clock_restarted" not in after
     assert "clock_restarted" not in on_disk
+
+
+def test_level1_clock_restart_does_not_offer_back(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    assert main(["start", "workers", "python3", "--no-console"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    assert int(session["unlocked"]) == 1
+    session["started_at"] = 1_700_000_000
+    session_file.write_text(json.dumps(session, indent=2) + "\n", encoding="utf-8")
+    now = 1_700_000_000 + 90 * 60 + 30
+    monkeypatch.setattr("honepad.session.time.time", lambda: now)
+    assert main(["start", "workers", "python3", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert "NOTE: previous clock was 0. New clock started. Work file kept." in out
+    assert "drops a level" not in out
+    assert "OK: LEVEL 1" in out
 
 
 def test_start_while_time_remains_keeps_started_at(monkeypatch, tmp_path: Path, capsys) -> None:

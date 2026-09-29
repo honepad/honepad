@@ -429,7 +429,7 @@ def cmd_start(args: argparse.Namespace) -> int:
         print(status_fail(f"FAIL: missing spec {spec}"))
         return 1
     left = remaining_s(started_at, minutes)
-    if unlocked > 1 or session.get("clock_restarted"):
+    if unlocked > 1:
         print(
             status_note(
                 f"NOTE: resume at LEVEL {unlocked}. "
