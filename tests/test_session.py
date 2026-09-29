@@ -2651,6 +2651,38 @@ def test_load_session_rejects_unlocked_past_max(monkeypatch, tmp_path: Path, cap
         load_session()
 
 
+def test_load_session_drops_negative_last_run(monkeypatch, tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+                "last_run": {"level": 1, "passed": -1, "failed": 0},
+                "desks": {
+                    "workers": {
+                        "lang": "python3",
+                        "started_at": 1_700_000_000,
+                        "minutes": 90,
+                        "unlocked": 1,
+                        "last_run": {"level": 0, "passed": 1, "failed": -3},
+                    }
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    loaded = load_session()
+    assert loaded is not None
+    assert "last_run" not in loaded
+    assert "last_run" not in loaded["desks"]["workers"]
+
+
 def test_load_session_rejects_minutes_zero(monkeypatch, tmp_path: Path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
