@@ -141,14 +141,16 @@ def _can_prompt() -> bool:
 
 
 def _confirm_rewrite(work: Path, *, yes: bool) -> bool:
-    print(
-        status_fail(
-            "start --back / --reset rewrites your work file from the stub. "
-            "This deletes what you wrote:"
+    present = work.is_symlink() or work.exists()
+    if present:
+        print(
+            status_fail(
+                "start --back / --reset rewrites your work file from the stub. "
+                "This deletes what you wrote:"
+            )
         )
-    )
-    print(f"  {work}")
-    if yes or not _can_prompt():
+        print(f"  {work}")
+    if yes or not _can_prompt() or not present:
         return True
     print("Rewrite work file? y / n")
     print("Type y to rewrite it. Anything else cancels.")

@@ -804,6 +804,19 @@ def test_start_back_non_tty_does_not_block(monkeypatch, tmp_path: Path, capsys) 
     assert "Rewrite work file?" not in out
 
 
+def test_start_reset_on_missing_work_does_not_claim_a_delete(
+    monkeypatch, tmp_path: Path, capsys
+) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    assert "deletes what you wrote" not in out
+    assert "OK: LEVEL 1" in out
+    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+    assert work.is_file()
+    assert "NotImplementedError" in work.read_text(encoding="utf-8")
+
+
 def test_start_reset_yes_rewrites_work_on_tty(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
