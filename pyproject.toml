@@ -10,7 +10,14 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Sebastien Tardif" }]
-keywords = ["cli", "practice", "interview"]
+keywords = [
+  "cli",
+  "practice",
+  "interview",
+  "codesignal",
+  "industry-coding-framework",
+  "codesignal-interview-practice",
+]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
