@@ -123,6 +123,14 @@ def test_dev_ruff_pin_matches_ci() -> None:
     assert "ruff>=" not in pyproject
 
 
+def test_security_workflow_audits_hashed_python_locks() -> None:
+    text = (ROOT / ".github/workflows/security.yml").read_text()
+    assert "pypa/gh-action-pip-audit@1220774d901786e6f652ae159f7b6bc8fea6d266" in text
+    assert "requirements-dev.txt requirements-lint.txt" in text
+    assert "require-hashes: true" in text
+    assert "internal-be-careful-allow-failure" not in text
+
+
 def test_homebrew_and_scoop_wait_for_release_assets() -> None:
     brew = (ROOT / ".github/workflows/publish-homebrew.yml").read_text()
     scoop = (ROOT / ".github/workflows/publish-scoop.yml").read_text()
