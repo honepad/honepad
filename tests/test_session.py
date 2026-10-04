@@ -2621,7 +2621,7 @@ def test_load_session_inf_started_at_prints_fail(monkeypatch, tmp_path: Path, ca
     assert code == 1
     assert "FAIL" in out
     assert "Traceback" not in out
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="infinity"):
         load_session()
 
 
