@@ -2621,8 +2621,39 @@ def test_load_session_inf_started_at_prints_fail(monkeypatch, tmp_path: Path, ca
     assert code == 1
     assert "FAIL" in out
     assert "Traceback" not in out
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="infinity"):
         load_session()
+
+
+def test_load_session_rejects_bool_clock_fields(monkeypatch, tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": True,
+                "minutes": True,
+                "unlocked": True,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="must be an integer"):
+        load_session()
+
+
+def test_last_run_bool_counts_are_dropped() -> None:
+    from honepad.session import _parse_last_run
+
+    assert _parse_last_run({"level": True, "passed": True, "failed": False}) is None
+    assert _parse_last_run({"level": 1, "passed": 2, "failed": 0}) == {
+        "level": 1,
+        "passed": 2,
+        "failed": 0,
+    }
 
 
 def test_load_session_rejects_unlocked_past_max(monkeypatch, tmp_path: Path, capsys) -> None:
