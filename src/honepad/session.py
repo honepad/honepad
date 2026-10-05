@@ -217,9 +217,9 @@ def load_session(
         if key not in payload:
             raise ValueError(f"{target} missing {key}")
     try:
-        started_at = int(payload["started_at"])
-        minutes = int(payload["minutes"])
-        unlocked = int(payload["unlocked"])
+        started_at = _strict_int(payload["started_at"], "started_at")
+        minutes = _strict_int(payload["minutes"], "minutes")
+        unlocked = _strict_int(payload["unlocked"], "unlocked")
     except (TypeError, ValueError, OverflowError) as exc:
         raise ValueError(f"{target} {exc}") from exc
     if minutes < 1:
@@ -263,14 +263,21 @@ def load_session(
     return loaded
 
 
+def _strict_int(value: Any, label: str) -> int:
+    """Reject JSON booleans. int(True) is 1, which would look like a real count."""
+    if isinstance(value, bool):
+        raise TypeError(f"{label} must be an integer")
+    return int(value)
+
+
 def _parse_last_run(raw: Any) -> dict[str, Any] | None:
     if not isinstance(raw, dict):
         return None
     try:
         parsed: dict[str, Any] = {
-            "level": int(raw["level"]),
-            "passed": int(raw["passed"]),
-            "failed": int(raw["failed"]),
+            "level": _strict_int(raw["level"], "level"),
+            "passed": _strict_int(raw["passed"], "passed"),
+            "failed": _strict_int(raw["failed"], "failed"),
         }
     except (KeyError, TypeError, ValueError, OverflowError):
         return None
@@ -364,9 +371,9 @@ def _parse_desks(raw: Any) -> dict[str, dict[str, Any]]:
         if not isinstance(row, dict):
             continue
         try:
-            started_at = int(row["started_at"])
-            minutes = int(row["minutes"])
-            unlocked = int(row["unlocked"])
+            started_at = _strict_int(row["started_at"], "started_at")
+            minutes = _strict_int(row["minutes"], "minutes")
+            unlocked = _strict_int(row["unlocked"], "unlocked")
         except (KeyError, TypeError, ValueError, OverflowError):
             continue
         if minutes < 1:
