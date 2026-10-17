@@ -325,11 +325,14 @@ def _write_readme(
             ]
         )
     if lang == "python3":
+        pytest_line = (
+            "The Run pytest task needs pytest (`pip install pytest`). "
+            "`pip install honepad` does not include it."
+        )
         lines.extend(
             [
                 "Python tests are pytest in `test_public.py`.",
-                "The Run pytest task needs pytest (`pip install pytest`). "
-                "`pip install honepad` does not include it.",
+                pytest_line,
                 "Open the Testing sidebar after the Python extension loads.",
                 "",
             ]

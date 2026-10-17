@@ -779,7 +779,7 @@ def _print_work_notes(problem: str, lang: str, *, echo_work: bool = True) -> Non
         try:
             print(work_line(work_src(problem, lang)))
         except HONEPAD_ERRORS:
-            pass
+            pass  # optional work-path note must not fail a command when the work file is absent
     extra = extra_work_note(problem, lang)
     if extra is not None:
         print(status_note(extra))

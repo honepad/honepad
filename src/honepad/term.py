@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import math
 import os
 import re
@@ -255,10 +256,10 @@ def _next_runner(lang: str | None) -> str:
     if not lang:
         return "python3"
     from honepad.catalog import resolve_language_token
-    from honepad.runner import _RUNNERS
 
+    runners = importlib.import_module("honepad.runner")
     resolved = resolve_language_token(str(lang))
-    if resolved is not None and resolved in _RUNNERS:
+    if resolved is not None and resolved in runners._RUNNERS:
         return resolved
     return "python3"
 
@@ -425,9 +426,9 @@ def print_fail(exc: BaseException, lang: str | None = None) -> None:
     if not text.startswith("unknown language:"):
         return
     from honepad.catalog import languages, suggest_language
-    from honepad.runner import _RUNNERS
 
-    prefer = [row["id"] for row in languages() if row["id"] in _RUNNERS]
+    runners = importlib.import_module("honepad.runner")
+    prefer = [row["id"] for row in languages() if row["id"] in runners._RUNNERS]
     hint = suggest_language(text.split(":", 1)[1].strip(), prefer=prefer)
     if hint is not None:
         print(f"Did you mean {hint}?")

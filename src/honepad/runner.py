@@ -68,9 +68,8 @@ class Report:
 
 def pack_src(lang_id: str, problem: str, kind: str, solution_name: str, stub_name: str) -> Path:
     if kind == "work":
-        from honepad.session import work_src
-
-        path = work_src(problem, lang_id)
+        session = importlib.import_module("honepad.session")
+        path = session.work_src(problem, lang_id)
         if path.is_symlink():
             raise RuntimeError(f"work file is a symlink: {path}")
         if not path.is_file():
