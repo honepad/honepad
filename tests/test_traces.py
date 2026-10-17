@@ -24,7 +24,7 @@ from honepad.runner import (
     run_python,
     run_script,
 )
-from honepad.traces import load_cases
+from honepad.traces import _load_suite_cases, load_cases
 
 
 def _report_helpers():
@@ -174,6 +174,23 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
     extra.write_text('[{"id": "x", "level": 1, "calls": []}]', encoding="utf-8")
     all_cases = load_cases("bank_system", None)
     assert [case["id"] for case in all_cases] == ["x", "l1", "l2"]
+
+
+def test_suite_case_level_rejects_bool_and_null(tmp_path: Path) -> None:
+    cases_dir = tmp_path / "cases"
+    cases_dir.mkdir()
+    path = cases_dir / "level1.json"
+    path.write_text('[{"id": "bad-bool", "level": false}]', encoding="utf-8")
+    with pytest.raises(ValueError, match=re.escape(str(path))):
+        _load_suite_cases(cases_dir, 1)
+
+    path.write_text('[{"id": "bad-null", "level": null}]', encoding="utf-8")
+    with pytest.raises(ValueError, match=re.escape(str(path))):
+        _load_suite_cases(cases_dir, 1)
+
+    path.write_text('[{"id": "ok", "level": 1}]', encoding="utf-8")
+    loaded = _load_suite_cases(cases_dir, 1)
+    assert loaded == [{"id": "ok", "level": 1}]
 
 
 # Public (problem, level) pairs that shipped with one case on 2026-09-10.

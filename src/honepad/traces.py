@@ -48,7 +48,11 @@ def _load_suite_cases(cases_dir: Path, level: int | None) -> list[dict[str, Any]
         if not isinstance(payload, list):
             raise ValueError(f"{path} must be a JSON list")
         for case in payload:
-            if level is None or int(case["level"]) <= level:
+            # JSON true/false are bool, and bool is a subclass of int.
+            case_level = case["level"]
+            if isinstance(case_level, bool) or not isinstance(case_level, int):
+                raise ValueError(f"{path} case level must be an int")
+            if level is None or case_level <= level:
                 cases.append(case)
     return cases
 
