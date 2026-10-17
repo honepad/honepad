@@ -40,8 +40,14 @@ static String jsonEncode(Object value) {
         }
         if (value instanceof Float || value instanceof Double) {
             double d = ((Number) value).doubleValue()
-            if (d == Math.rint(d) && !Double.isInfinite(d)) {
-                return Long.toString(d.longValue())
+            if (Double.isNaN(d)) {
+                return '"NaN"'
+            }
+            if (Double.isInfinite(d)) {
+                return d > 0.0d ? '"Infinity"' : '"-Infinity"'
+            }
+            if (d == Math.rint(d)) {
+                return Long.toString((long) d)
             }
         }
         return value.toString()
@@ -60,6 +66,105 @@ static String jsonEncode(Object value) {
         return '{' + parts.join(',') + '}'
     }
     return JsonOutput.toJson(value)
+}
+
+static Object tagValue(Object value) {
+    if (value instanceof Float || value instanceof Double) {
+        double d = ((Number) value).doubleValue()
+        if (Double.isNaN(d)) {
+            return 'NaN'
+        }
+        if (Double.isInfinite(d)) {
+            return d > 0.0d ? 'Infinity' : '-Infinity'
+        }
+    }
+    if (value instanceof Collection) {
+        List<Object> out = []
+        for (Object item : (Collection) value) {
+            out.add(tagValue(item))
+        }
+        return out
+    }
+    if (value instanceof Map) {
+        Map<Object, Object> out = [:]
+        ((Map) value).each { k, v ->
+            out[k] = tagValue(v)
+        }
+        return out
+    }
+    if (value != null && value.getClass().isArray()) {
+        int length = java.lang.reflect.Array.getLength(value)
+        List<Object> out = []
+        for (int i = 0; i < length; i++) {
+            out.add(tagValue(java.lang.reflect.Array.get(value, i)))
+        }
+        return out
+    }
+    if (value != null && !(value instanceof CharSequence) && !(value instanceof Number)
+            && !(value instanceof Boolean) && !(value instanceof Class)
+            && !(value instanceof Collection) && !(value instanceof Map)) {
+        try {
+            Map props = value.properties
+            Map<Object, Object> out = [:]
+            props.each { k, v ->
+                if (k != 'class') {
+                    out[k] = tagValue(v)
+                }
+            }
+            return out
+        } catch (Exception ignored) {
+            return String.valueOf(value)
+        }
+    }
+    return value
+}
+
+static boolean containsNonFinite(Object value) {
+    if (value instanceof Float || value instanceof Double) {
+        double d = ((Number) value).doubleValue()
+        return Double.isNaN(d) || Double.isInfinite(d)
+    }
+    if (value instanceof Collection) {
+        for (Object item : (Collection) value) {
+            if (containsNonFinite(item)) {
+                return true
+            }
+        }
+    }
+    if (value instanceof Map) {
+        for (Object item : ((Map) value).values()) {
+            if (containsNonFinite(item)) {
+                return true
+            }
+        }
+    }
+    if (value != null && value.getClass().isArray()) {
+        int length = java.lang.reflect.Array.getLength(value)
+        for (int i = 0; i < length; i++) {
+            if (containsNonFinite(java.lang.reflect.Array.get(value, i))) {
+                return true
+            }
+        }
+        return false
+    }
+    if (value != null && !(value instanceof CharSequence) && !(value instanceof Number)
+            && !(value instanceof Boolean) && !(value instanceof Class)
+            && !(value instanceof Collection) && !(value instanceof Map)) {
+        try {
+            Map props = value.properties
+            for (Map.Entry entry : props.entrySet()) {
+                if (entry.key == 'class') {
+                    continue
+                }
+                if (containsNonFinite(entry.value)) {
+                    return true
+                }
+            }
+        } catch (Exception ignored) {
+            return false
+        }
+    }
+    return false
 }
 
 static Map failRow(String caseId, int index, String method, Object expected, Object actual) {
@@ -108,8 +213,13 @@ for (Object rowObj : cases) {
             ok = false
             break
         }
-        if (jsonEncode(actual) != jsonEncode(expected)) {
-            failed.add(failRow(caseId, i, methodSnake, expected, actual))
+        boolean mismatch = containsNonFinite(actual)
+        if (!mismatch) {
+            mismatch = jsonEncode(actual) != jsonEncode(expected)
+        }
+        if (mismatch) {
+            Object shown = containsNonFinite(actual) ? tagValue(actual) : actual
+            failed.add(failRow(caseId, i, methodSnake, expected, shown))
             ok = false
             break
         }

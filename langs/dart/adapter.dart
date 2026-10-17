@@ -30,6 +30,45 @@ dynamic coerceArg(dynamic value) {
   return value;
 }
 
+bool containsNonFinite(Object? value) {
+  if (value is double) {
+    return !value.isFinite;
+  }
+  if (value is List) {
+    for (final item in value) {
+      if (containsNonFinite(item)) {
+        return true;
+      }
+    }
+  }
+  if (value is Map) {
+    for (final item in value.values) {
+      if (containsNonFinite(item)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+Object? tagNonFinite(Object? value) {
+  if (value is double) {
+    if (value.isNaN) {
+      return 'NaN';
+    }
+    if (value.isInfinite) {
+      return value.isNegative ? '-Infinity' : 'Infinity';
+    }
+  }
+  if (value is List) {
+    return value.map(tagNonFinite).toList();
+  }
+  if (value is Map) {
+    return value.map((key, item) => MapEntry(key, tagNonFinite(item)));
+  }
+  return value;
+}
+
 Map<String, dynamic> failRow(
   String caseId,
   int index,
@@ -92,8 +131,15 @@ void main(List<String> args) {
         ok = false;
         break;
       }
-      if (jsonEncode(actual) != jsonEncode(expected)) {
-        failed.add(failRow(caseId, i, methodSnake, expected, actual));
+      final bad = containsNonFinite(actual);
+      if (bad || jsonEncode(actual) != jsonEncode(expected)) {
+        failed.add(failRow(
+          caseId,
+          i,
+          methodSnake,
+          expected,
+          bad ? tagNonFinite(actual) : actual,
+        ));
         ok = false;
         break;
       }

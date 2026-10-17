@@ -16,6 +16,52 @@ json_encode <- function(value) {
   ))
 }
 
+contains_nonfinite <- function(value) {
+  if (is.null(value)) {
+    return(FALSE)
+  }
+  if (is.numeric(value) && !is.list(value)) {
+    return(any(is.nan(value)) || any(is.infinite(value)))
+  }
+  if (is.list(value)) {
+    if (length(value) == 0) {
+      return(FALSE)
+    }
+    return(any(vapply(value, contains_nonfinite, logical(1))))
+  }
+  FALSE
+}
+
+tag_nonfinite <- function(value) {
+  if (is.null(value)) {
+    return(NULL)
+  }
+  if (is.numeric(value) && !is.list(value)) {
+    if (!any(is.nan(value)) && !any(is.infinite(value))) {
+      return(value)
+    }
+    out <- vector("list", length(value))
+    for (i in seq_along(value)) {
+      item <- value[[i]]
+      if (is.nan(item)) {
+        out[[i]] <- "NaN"
+      } else if (is.infinite(item)) {
+        out[[i]] <- if (item > 0) "Infinity" else "-Infinity"
+      } else {
+        out[[i]] <- item
+      }
+    }
+    if (length(out) == 1) {
+      return(out[[1]])
+    }
+    return(out)
+  }
+  if (is.list(value)) {
+    return(lapply(value, tag_nonfinite))
+  }
+  value
+}
+
 lookup_method <- function(obj, method) {
   if (is.environment(obj) && exists(method, envir = obj, inherits = FALSE)) {
     return(get(method, envir = obj, inherits = FALSE))
@@ -95,13 +141,14 @@ main <- function() {
         break
       }
       actual <- ran$value
-      if (json_encode(actual) != json_encode(expected)) {
+      bad <- contains_nonfinite(actual)
+      if (bad || json_encode(actual) != json_encode(expected)) {
         failed[[length(failed) + 1]] <- list(
           case = case$id,
           index = i - 1,
           method = method,
           expected = expected,
-          actual = actual
+          actual = if (bad) tag_nonfinite(actual) else actual
         )
         ok <- FALSE
         break

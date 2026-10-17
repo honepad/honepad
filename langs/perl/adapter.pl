@@ -1,12 +1,42 @@
 #!/usr/bin/env perl
 use strict;
 use warnings;
+use B ();
 use File::Spec;
 use JSON::PP qw(encode_json decode_json);
+
+sub _nonfinite_label {
+    my ($value) = @_;
+    return undef if !defined $value;
+    if ( ref $value eq 'ARRAY' ) {
+        foreach my $item (@$value) {
+            return 'nested' if defined _nonfinite_label($item);
+        }
+        return undef;
+    }
+    if ( ref $value eq 'HASH' ) {
+        foreach my $item ( values %$value ) {
+            return 'nested' if defined _nonfinite_label($item);
+        }
+        return undef;
+    }
+    return undef if ref $value;
+    # A numeric Inf/NaN has NOK and no POK. The string "NaN" stays a string.
+    my $flags = B::svref_2object( \$value )->FLAGS;
+    return undef unless ( $flags & B::SVf_NOK ) && !( $flags & B::SVf_POK );
+    my $text = "$value";
+    return undef if $text !~ /\A(?:nan|[-+]?inf(?:inity)?)\z/i;
+    return 'NaN' if $text =~ /nan/i;
+    return $text =~ /\A-/ ? '-Infinity' : 'Infinity';
+}
 
 sub json_safe {
     my ($value) = @_;
     return undef if !defined $value;
+    if ( !ref $value ) {
+        my $label = _nonfinite_label($value);
+        return $label if defined $label;
+    }
     return $value if JSON::PP::is_bool($value);
     my $ref = ref $value;
     if ( $ref eq 'ARRAY' ) {
@@ -64,7 +94,8 @@ sub main {
                 $ok = 0;
                 last;
             };
-            if ( encode_json( json_safe($actual) ) ne encode_json($expected) ) {
+            my $bad = defined _nonfinite_label($actual);
+            if ( $bad || encode_json( json_safe($actual) ) ne encode_json($expected) ) {
                 push @failed,
                   {
                     case     => $case->{id},
