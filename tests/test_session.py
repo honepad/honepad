@@ -926,6 +926,38 @@ def test_legacy_java_leftover_dropped_when_dest_exists(monkeypatch, tmp_path: Pa
     assert not leftover.exists()
 
 
+def test_legacy_java_symlink_dest_keeps_work_file(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    dest_dir = tmp_path / "work" / "bank_system" / "java"
+    dest_dir.mkdir(parents=True)
+    legacy = dest_dir / "work.java"
+    dest = dest_dir / "Simulation.java"
+    marker = "symlink-marker-keep\n"
+    legacy.write_text(marker, encoding="utf-8")
+    dest.symlink_to("work.java")
+    found = work_src("bank_system", "java")
+    assert found == dest
+    assert dest.is_symlink()
+    assert legacy.is_file()
+    assert legacy.read_text(encoding="utf-8") == marker
+
+
+def test_legacy_java_dangling_symlink_keeps_work_file(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    dest_dir = tmp_path / "work" / "bank_system" / "java"
+    dest_dir.mkdir(parents=True)
+    legacy = dest_dir / "work.java"
+    dest = dest_dir / "Simulation.java"
+    marker = "dangling-marker-keep\n"
+    legacy.write_text(marker, encoding="utf-8")
+    dest.symlink_to("missing.java")
+    assert not dest.exists()
+    work_src("bank_system", "java")
+    assert dest.is_symlink()
+    assert legacy.is_file()
+    assert legacy.read_text(encoding="utf-8") == marker
+
+
 def test_legacy_java_rename_oserror_copies_then_unlinks(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     dest_dir = tmp_path / "work" / "bank_system" / "java"

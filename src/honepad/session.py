@@ -108,9 +108,14 @@ def work_src(problem: str, lang_id: str) -> Path:
 
 def _migrate_legacy_java_work(parent: Path, dest: Path) -> None:
     legacy = parent / "work.java"
-    if dest.exists() or dest.is_symlink():
+    # exists() follows links; a class-file symlink is not a migrated file.
+    if dest.is_symlink():
+        return
+    if dest.is_file():
         if legacy.is_file() or legacy.is_symlink():
             legacy.unlink()
+        return
+    if dest.exists():
         return
     if not legacy.is_file():
         return
