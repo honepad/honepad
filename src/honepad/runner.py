@@ -102,6 +102,13 @@ def _adapter_detail(src: Path | None, lang_id: str, detail: str) -> str:
     return f"{lang_id}: {detail}"
 
 
+def _json_int(value: Any, lang_id: str) -> int:
+    # bool is a subclass of int, and int(True) is 1. Only a real integer counts.
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise RuntimeError(f"{lang_id} adapter produced invalid JSON")
+    return value
+
+
 def _extract_report_payload(stdout: str, lang_id: str) -> tuple[dict[str, Any], str]:
     text = stdout.rstrip("\n")
     idx = text.rfind("{")
@@ -148,19 +155,17 @@ def report_from_proc(
             raise RuntimeError(f"{lang_id} adapter produced invalid JSON")
         if any(key not in row for key in ("case", "index", "method", "expected", "actual")):
             raise RuntimeError(f"{lang_id} adapter produced invalid JSON")
+        idx = _json_int(row["index"], lang_id)
         args = row.get("args", row.get("a"))
         if not isinstance(args, list):
             case = cases.get(str(row["case"]))
-            idx = int(row["index"])
             calls = case["calls"] if case is not None else []
             if 0 <= idx < len(calls):
                 args = list(calls[idx]["a"])
             else:
                 args = []
-        failed.append(
-            Fail(row["case"], row["index"], row["method"], args, row["expected"], row["actual"])
-        )
-    passed = int(payload.get("passed", 0))
+        failed.append(Fail(row["case"], idx, row["method"], args, row["expected"], row["actual"]))
+    passed = _json_int(payload.get("passed", 0), lang_id)
     if passed + len(failed) != len(cases):
         raise RuntimeError(
             f"{lang_id} adapter report count mismatch: {passed + len(failed)} != {len(cases)}"

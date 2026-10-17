@@ -1526,6 +1526,65 @@ def test_report_from_proc_rejects_null_failed() -> None:
         report_from_proc(proc, "bank_system", "java", 1)
 
 
+def test_report_from_proc_rejects_null_passed() -> None:
+    proc = subprocess.CompletedProcess(
+        ["adapter"], 0, stdout='{"passed": null, "failed": []}\n', stderr=""
+    )
+    with pytest.raises(RuntimeError, match="invalid JSON") as excinfo:
+        report_from_proc(proc, "bank_system", "java", 1)
+    assert type(excinfo.value) is not TypeError
+
+
+def test_report_from_proc_rejects_true_passed_on_one_case() -> None:
+    proc = subprocess.CompletedProcess(
+        ["adapter"], 0, stdout='{"passed": true, "failed": []}\n', stderr=""
+    )
+    cases = [{"id": "only", "calls": [{"a": []}]}]
+    with pytest.raises(RuntimeError, match="invalid JSON") as excinfo:
+        report_from_proc(proc, "bank_system", "java", 1, cases=cases)
+    assert type(excinfo.value) is not TypeError
+
+
+def test_report_from_proc_rejects_string_passed() -> None:
+    proc = subprocess.CompletedProcess(
+        ["adapter"], 0, stdout='{"passed": "nope", "failed": []}\n', stderr=""
+    )
+    with pytest.raises(RuntimeError, match="invalid JSON") as excinfo:
+        report_from_proc(proc, "bank_system", "java", 1)
+    assert type(excinfo.value) is not TypeError
+
+
+def test_report_from_proc_rejects_null_index() -> None:
+    proc = subprocess.CompletedProcess(
+        ["adapter"],
+        0,
+        stdout=(
+            '{"passed": 0, "failed": [{"case": "x", "index": null, '
+            '"method": "m", "expected": 1, "actual": 0}]}\n'
+        ),
+        stderr="",
+    )
+    with pytest.raises(RuntimeError, match="invalid JSON") as excinfo:
+        report_from_proc(proc, "bank_system", "java", 1)
+    assert type(excinfo.value) is not TypeError
+
+
+def test_report_from_proc_rejects_true_index_with_args() -> None:
+    proc = subprocess.CompletedProcess(
+        ["adapter"],
+        0,
+        stdout=(
+            '{"passed": 0, "failed": [{"case": "only", "index": true, '
+            '"method": "m", "args": [1], "expected": 1, "actual": 0}]}\n'
+        ),
+        stderr="",
+    )
+    cases = [{"id": "only", "calls": [{"a": [1]}]}]
+    with pytest.raises(RuntimeError, match="invalid JSON") as excinfo:
+        report_from_proc(proc, "bank_system", "java", 1, cases=cases)
+    assert type(excinfo.value) is not TypeError
+
+
 def test_report_from_proc_rejects_passed_count_mismatch() -> None:
     proc = subprocess.CompletedProcess(
         ["adapter"], 0, stdout='{"passed": 99, "failed": []}\n', stderr=""
