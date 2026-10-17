@@ -159,6 +159,8 @@ a class field of `NaN` must not compare equal to `null`. Those strings are
 not equal to JSON `null`, `0`, or the same characters returned as a real
 string. `null` still matches JSON `null`.
 
+Carolina reported these returns in #306.
+
 ## Done means green
 
 Traces in `problems/*/cases/` are the contract (constitution rule 5). A pack is
