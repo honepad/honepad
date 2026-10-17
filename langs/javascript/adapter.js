@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { displayActual, sameResult } = require("./report-json");
 
 function loadClass(file, className) {
   const mod = require(path.resolve(file));
@@ -98,14 +99,13 @@ function main() {
         break;
       }
       const exp = call.e;
-      const same = JSON.stringify(actual) === JSON.stringify(exp);
-      if (!same) {
+      if (!sameResult(actual, exp)) {
         failed.push({
           case: c.id,
           index: i,
           method: call.m,
           expected: exp,
-          actual: actual,
+          actual: displayActual(actual),
         });
         ok = false;
         break;

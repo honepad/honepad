@@ -26,6 +26,23 @@ from honepad.runner import (
 )
 from honepad.traces import load_cases
 
+
+def _report_helpers():
+    path = Path(__file__).with_name("report_helpers.py")
+    spec = importlib.util.spec_from_file_location("report_helpers", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_H = _report_helpers()
+_case = _H.case
+_run = _H.run
+_failed = _H.failed
+_assert_failed = _H.assert_failed
+_assert_passed = _H.assert_passed
+
 # Same sentinel as tests/test_cli.py. Must stay off _RUNNERS.
 UNIMPLEMENTED_CATALOG_LANG = "vb"
 
@@ -2020,3 +2037,205 @@ def test_csharp_prepare_compile_error_mentions_compiler(tmp_path: Path, monkeypa
     assert "30s" not in msg
     assert "error CS" in msg
     assert "stub.cs" in msg
+
+
+def test_lua_nonfinite_is_a_mismatch(tmp_path: Path) -> None:
+    source = """
+InMemoryDatabase = {}
+InMemoryDatabase.__index = InMemoryDatabase
+function InMemoryDatabase.new()
+  return setmetatable({}, InMemoryDatabase)
+end
+function InMemoryDatabase:set()
+end
+function InMemoryDatabase:ret_null()
+  return nil
+end
+function InMemoryDatabase:ret_nan()
+  return 0/0
+end
+function InMemoryDatabase:ret_inf()
+  return math.huge
+end
+function InMemoryDatabase:ret_ninf()
+  return -math.huge
+end
+function InMemoryDatabase:ret_dag()
+  local shared = {}
+  return { { math.huge }, { shared, shared } }
+end
+"""
+    cases = [
+        _case("empty", "set", ""),
+        _case("null", "ret_null", None),
+        _case("nan", "ret_nan", None),
+        _case("inf", "ret_inf", None),
+        _case("ninf", "ret_ninf", None),
+        _case("dag", "ret_dag", None),
+    ]
+    report = _run("lua", tmp_path, "lua", source, cases)
+    assert report.passed == 1
+    _assert_failed(report, "empty", None, "")
+    _assert_passed(report, "null")
+    _assert_failed(report, "nan", "NaN", None)
+    _assert_failed(report, "inf", "Infinity", None)
+    _assert_failed(report, "ninf", "-Infinity", None)
+    _assert_failed(report, "dag", [["Infinity"], [[], []]], None)
+
+
+def test_r_nonfinite_does_not_match_null(tmp_path: Path) -> None:
+    source = """
+InMemoryDatabase <- function() {
+  env <- new.env(parent = emptyenv())
+  env$retNull <- function() NULL
+  env$retNa <- function() NA_real_
+  env$retNan <- function() NaN
+  env$retInf <- function() Inf
+  env$retNinf <- function() -Inf
+  env$retOne <- function() 1
+  env
+}
+"""
+    cases = [
+        _case("null", "retNull", None),
+        _case("na", "retNa", None),
+        _case("nan", "retNan", None),
+        _case("nan-zero", "retNan", 0),
+        _case("inf", "retInf", None),
+        _case("ninf", "retNinf", None),
+        _case("one", "retOne", 1),
+    ]
+    report = _run("r", tmp_path, "R", source, cases)
+    assert report.passed == 3
+    _assert_passed(report, "null")
+    _assert_passed(report, "na")
+    _assert_failed(report, "nan", "NaN", None)
+    _assert_failed(report, "nan-zero", "NaN", 0)
+    _assert_failed(report, "inf", "Infinity", None)
+    _assert_failed(report, "ninf", "-Infinity", None)
+    _assert_passed(report, "one")
+
+
+def test_groovy_nan_is_not_zero(tmp_path: Path) -> None:
+    source = """
+class Box {
+  double val = Double.NaN
+}
+class Holder {
+  double[] vals = [Double.NaN] as double[]
+}
+class InMemoryDatabase {
+  Object retNull() { return null }
+  Box retBox() { return new Box() }
+  double[] retArr() { return [Double.NaN] as double[] }
+  Double[] retBoxed() { return [Double.NaN] as Double[] }
+  Holder retHolder() { return new Holder() }
+  double retNan() { return Double.NaN }
+  double retInf() { return Double.POSITIVE_INFINITY }
+  double retNinf() { return Double.NEGATIVE_INFINITY }
+  List retList() { return [Double.NaN] }
+  int retOne() { return 1 }
+}
+"""
+    cases = [
+        _case("null", "retNull", None),
+        _case("nan", "retNan", None),
+        _case("nan-zero", "retNan", 0),
+        _case("inf", "retInf", None),
+        _case("ninf", "retNinf", None),
+        _case("list", "retList", [0]),
+        _case("one", "retOne", 1),
+        _case("box", "retBox", {"val": None}),
+        _case("arr", "retArr", [None]),
+        _case("boxed", "retBoxed", [None]),
+        _case("holder", "retHolder", {"vals": [None]}),
+    ]
+    report = _run("groovy", tmp_path, "groovy", source, cases)
+    assert report.passed == 2
+    _assert_passed(report, "null")
+    _assert_failed(report, "nan", "NaN", None)
+    _assert_failed(report, "nan-zero", "NaN", 0)
+    _assert_failed(report, "inf", "Infinity", None)
+    _assert_failed(report, "ninf", "-Infinity", None)
+    _assert_failed(report, "list", ["NaN"], [0])
+    _assert_passed(report, "one")
+    _assert_failed(report, "box", {"val": "NaN"}, {"val": None})
+    _assert_failed(report, "arr", ["NaN"], [None])
+    _assert_failed(report, "boxed", ["NaN"], [None])
+    _assert_failed(report, "holder", {"vals": ["NaN"]}, {"vals": [None]})
+
+
+def test_dart_nonfinite_is_a_mismatch(tmp_path: Path) -> None:
+    source = """
+class InMemoryDatabase {
+  double retNan() => double.nan;
+  double retInf() => double.infinity;
+  double retNinf() => double.negativeInfinity;
+  int retOne() => 1;
+}
+"""
+    cases = [
+        _case("nan", "retNan", None),
+        _case("inf", "retInf", None),
+        _case("ninf", "retNinf", None),
+        _case("one", "retOne", 1),
+    ]
+    report = _run("dart", tmp_path, "dart", source, cases)
+    assert report.passed == 1
+    _assert_failed(report, "nan", "NaN", None)
+    _assert_failed(report, "inf", "Infinity", None)
+    _assert_failed(report, "ninf", "-Infinity", None)
+    _assert_passed(report, "one")
+
+
+def test_julia_infinity_is_a_mismatch(tmp_path: Path) -> None:
+    source = """
+mutable struct InMemoryDatabase end
+retNan(::InMemoryDatabase) = NaN
+retInf(::InMemoryDatabase) = Inf
+retNinf(::InMemoryDatabase) = -Inf
+retOne(::InMemoryDatabase) = 1
+"""
+    cases = [
+        _case("nan", "retNan", None),
+        _case("inf", "retInf", None),
+        _case("ninf", "retNinf", None),
+        _case("one", "retOne", 1),
+    ]
+    report = _run("julia", tmp_path, "jl", source, cases)
+    assert report.passed == 1
+    _assert_failed(report, "nan", "NaN", None)
+    _assert_failed(report, "inf", "Infinity", None)
+    _assert_failed(report, "ninf", "-Infinity", None)
+    _assert_passed(report, "one")
+
+
+def test_octave_nonfinite_is_not_null(tmp_path: Path) -> None:
+    source = """
+function obj = InMemoryDatabase()
+  obj.retNan = @() NaN;
+  obj.retInf = @() Inf;
+  obj.retNinf = @() -Inf;
+  obj.retOne = @() 1;
+  obj.retStruct = @() struct("a", NaN);
+  obj.retCell = @() {struct("a", Inf)};
+endfunction
+"""
+    cases = [
+        _case("nan", "retNan", None),
+        _case("inf", "retInf", None),
+        _case("ninf", "retNinf", None),
+        _case("one", "retOne", 1),
+        _case("struct", "retStruct", {"a": None}),
+        _case("cell", "retCell", [{"a": None}]),
+    ]
+    report = _run("octave", tmp_path, "m", source, cases)
+    assert report.passed == 1
+    # Octave loads JSON null as an empty matrix, so the row's expected
+    # value is [] rather than None. The actual field is the diagnostic.
+    assert _failed(report)["nan"] == "NaN"
+    assert _failed(report)["inf"] == "Infinity"
+    assert _failed(report)["ninf"] == "-Infinity"
+    assert _failed(report)["struct"] == {"a": "NaN"}
+    assert _failed(report)["cell"] == [{"a": "Infinity"}]
+    _assert_passed(report, "one")

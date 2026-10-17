@@ -16,6 +16,57 @@ local function store(value)
   return value
 end
 
+local function is_nonfinite(value, seen)
+  local tv = type(value)
+  if tv == "number" then
+    return value ~= value or value == math.huge or value == -math.huge
+  end
+  if tv ~= "table" or value == json.null then
+    return false
+  end
+  seen = seen or {}
+  if seen[value] then
+    return false
+  end
+  seen[value] = true
+  for _, item in pairs(value) do
+    if is_nonfinite(item, seen) then
+      return true
+    end
+  end
+  return false
+end
+
+local function tag_value(value, seen)
+  local tv = type(value)
+  if tv == "number" then
+    if value ~= value then
+      return "NaN"
+    end
+    if value == math.huge then
+      return "Infinity"
+    end
+    if value == -math.huge then
+      return "-Infinity"
+    end
+    return value
+  end
+  if tv ~= "table" or value == json.null then
+    return value
+  end
+  seen = seen or {}
+  if seen[value] then
+    return "circular"
+  end
+  seen[value] = true
+  local out = {}
+  for key, item in pairs(value) do
+    out[key] = tag_value(item, seen)
+  end
+  seen[value] = nil
+  return out
+end
+
 local function main()
   local file = arg[1]
   local class_name = arg[2]
@@ -70,13 +121,15 @@ local function main()
         break
       end
       actual = result
-      if json.encode(actual) ~= json.encode(expected) then
+      local bad = is_nonfinite(actual)
+      if bad or json.encode(actual) ~= json.encode(expected) then
+        local shown = bad and tag_value(actual) or actual
         failed[#failed + 1] = {
           case = case.id,
           index = i - 1,
           method = method,
           expected = store(expected),
-          actual = store(actual),
+          actual = store(shown),
         }
         ok = false
         break
