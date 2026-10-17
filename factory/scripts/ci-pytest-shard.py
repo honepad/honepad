@@ -84,14 +84,6 @@ _OVERRIDES: dict[str, str] = {
     "test_prove_python3_and_go_all_problems": "compiled",
     "test_file_storage_python_and_js": "script",
     "test_workers_python_and_js": "script",
-    # test_report_values.py is not test_traces.py, so token routing
-    # would leave these on unit, which does not install the toolchain.
-    "test_lua_nonfinite_is_a_mismatch": "script",
-    "test_groovy_nan_is_not_zero": "script",
-    "test_dart_nonfinite_is_a_mismatch": "script",
-    "test_julia_infinity_is_a_mismatch": "script",
-    "test_r_nonfinite_does_not_match_null": "stats",
-    "test_octave_nonfinite_is_not_null": "stats",
 }
 
 # Shards that install each skipif binary. Set membership, not 1:1.
