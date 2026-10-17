@@ -300,6 +300,16 @@ def test_ci_pytest_shard_tokens_do_not_collide() -> None:
     assert _SHARD.assign_shard(f"{traces}::test_c_all_problems") == "compiled"
     assert _SHARD.assign_shard(f"{traces}::test_csharp_all_problems") == "compiled"
     assert _SHARD.assign_shard(f"{traces}::test_clojure_all_problems") == "script"
+    reports = "tests/test_report_values.py"
+    assert _SHARD.assign_shard(f"{reports}::test_lua_nonfinite_is_a_mismatch") == "script"
+    assert _SHARD.assign_shard(f"{reports}::test_groovy_nan_is_not_zero") == "script"
+    assert _SHARD.assign_shard(f"{reports}::test_dart_nonfinite_is_a_mismatch") == "script"
+    assert _SHARD.assign_shard(f"{reports}::test_julia_infinity_is_a_mismatch") == "script"
+    assert _SHARD.assign_shard(f"{reports}::test_r_nonfinite_does_not_match_null") == "stats"
+    assert _SHARD.assign_shard(f"{reports}::test_octave_nonfinite_is_not_null") == "stats"
+    assert (
+        _SHARD.assign_shard(f"{reports}::test_javascript_undefined_and_non_json_values") == "unit"
+    )
     assert _SHARD.assign_shard(f"{session}::test_java_method_includes_leading_javadoc") == "unit"
     assert (
         _SHARD.assign_shard(f"{session}::test_submit_rejects_lua_exact_count_fake_json_exit")
