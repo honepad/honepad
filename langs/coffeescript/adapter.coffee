@@ -1,5 +1,6 @@
 fs = require "fs"
 path = require "path"
+reportJson = require path.join(__dirname, "..", "javascript", "report-json.js")
 
 loadClass = (file, className) ->
   mod = require path.resolve(file)
@@ -71,14 +72,13 @@ main = ->
         ok = false
         break
       exp = call.e
-      same = JSON.stringify(actual) is JSON.stringify(exp)
-      unless same
+      unless reportJson.sameResult(actual, exp)
         failed.push
           case: c.id
           index: i
           method: call.m
           expected: exp
-          actual: actual
+          actual: reportJson.displayActual(actual)
         ok = false
         break
       i += 1

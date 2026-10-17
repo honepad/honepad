@@ -4,6 +4,36 @@
 require 'json'
 require 'stringio'
 
+def honepad_nonfinite?(value)
+  case value
+  when Float
+    !!(value.nan? || value.infinite?)
+  when Array
+    value.any? { |item| honepad_nonfinite?(item) }
+  when Hash
+    value.any? { |_key, item| honepad_nonfinite?(item) }
+  else
+    false
+  end
+end
+
+def honepad_tag(value)
+  case value
+  when Float
+    return 'NaN' if value.nan?
+    return 'Infinity' if value.infinite? == 1
+    return '-Infinity' if value.infinite? == -1
+
+    value
+  when Array
+    value.map { |item| honepad_tag(item) }
+  when Hash
+    value.transform_values { |item| honepad_tag(item) }
+  else
+    value
+  end
+end
+
 def load_class(file, class_name)
   path = File.expand_path(file)
   dir = File.dirname(path)
@@ -42,13 +72,14 @@ def main
         ok = false
         break
       end
-      if JSON.generate(actual) != JSON.generate(expected)
+      bad = honepad_nonfinite?(actual)
+      if bad || JSON.generate(actual) != JSON.generate(expected)
         failed << {
           'case' => c['id'],
           'index' => i,
           'method' => method,
           'expected' => expected,
-          'actual' => actual
+          'actual' => bad ? honepad_tag(actual) : actual
         }
         ok = false
         break

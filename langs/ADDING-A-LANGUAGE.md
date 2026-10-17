@@ -133,6 +133,34 @@ compiler is, and `run` fails clearly enough on its own. A pack that would rather
 not start at all sets `"on_missing_tools": "block"`. Only Java does, because a
 missing JDK used to surface as a confusing `javac` error.
 
+## Report line
+
+The adapter's last stdout line is one JSON object. Compiled packs write that
+object to `{{report}}` instead.
+
+```json
+{"passed": 0, "failed": [{"case": "c", "index": 0, "method": "set", "expected": "", "actual": "undefined"}]}
+```
+
+`passed` plus the length of `failed` is the number of cases. Each failed row
+has `case`, `index`, `method`, `expected`, and `actual`.
+
+JSON has no `undefined`, `NaN`, or `Infinity`. `JSON.stringify` drops an
+`undefined` field, so the row does not parse and honepad says the adapter
+produced invalid JSON. It also turns `NaN` and `Infinity` into `null`, which
+marks a wrong return as passed. Other encoders throw, write a bare `Inf`
+token, or turn those numbers into `null` or `0`.
+
+Before comparing, and again when writing `actual`, replace those values with
+the strings `undefined`, `NaN`, `Infinity`, and `-Infinity`. A returned
+function or bigint uses `function` or `bigint:<digits>`. An invalid `Date`
+uses `Invalid Date`. Walk arrays and object fields, not only scalars:
+a class field of `NaN` must not compare equal to `null`. Those strings are
+not equal to JSON `null`, `0`, or the same characters returned as a real
+string. `null` still matches JSON `null`.
+
+Carolina reported these returns in #306.
+
 ## Done means green
 
 Traces in `problems/*/cases/` are the contract (constitution rule 5). A pack is

@@ -258,6 +258,32 @@ end
 
 end
 
+function has_nonfinite(val)
+    if val isa AbstractFloat
+        return !isfinite(val)
+    elseif val isa AbstractVector || val isa Tuple
+        return any(has_nonfinite, val)
+    elseif val isa AbstractDict
+        return any(has_nonfinite, values(val))
+    end
+    return false
+end
+
+function tag_report(val)
+    if val isa AbstractFloat && !isfinite(val)
+        return isnan(val) ? "NaN" : (val > 0 ? "Infinity" : "-Infinity")
+    elseif val isa AbstractVector || val isa Tuple
+        return Any[tag_report(item) for item in val]
+    elseif val isa AbstractDict
+        out = Dict{String,Any}()
+        for (key, item) in val
+            out[string(key)] = tag_report(item)
+        end
+        return out
+    end
+    return val
+end
+
 function fail_row(case_id, index, method, expected, actual)
     return Dict{String,Any}(
         "case" => case_id,
@@ -332,8 +358,13 @@ function main()
                 ok = false
                 break
             end
-            if MiniJson.encode(actual) != MiniJson.encode(expected)
-                push!(failed, fail_row(case_id, i - 1, method, expected, actual))
+            mismatch = has_nonfinite(actual)
+            if !mismatch
+                mismatch = MiniJson.encode(actual) != MiniJson.encode(expected)
+            end
+            if mismatch
+                shown = has_nonfinite(actual) ? tag_report(actual) : actual
+                push!(failed, fail_row(case_id, i - 1, method, expected, shown))
                 ok = false
                 break
             end
