@@ -135,8 +135,9 @@ missing JDK used to surface as a confusing `javac` error.
 
 ## Report line
 
-The adapter's last stdout line is one JSON object. Compiled packs write that
-object to `{{report}}` instead.
+The adapter's last stdout line is one JSON object. Only Go and C++ write that
+object to `{{report}}`. Other compiled packs print the JSON object as their
+last stdout line.
 
 ```json
 {"passed": 0, "failed": [{"case": "c", "index": 0, "method": "set", "expected": "", "actual": "undefined"}]}
