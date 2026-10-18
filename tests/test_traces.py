@@ -15,6 +15,7 @@ from honepad.runner import (
     _RUNNERS,
     COMPILE_TIMEOUT_S,
     RUN_TIMEOUT_S,
+    _json_safe,
     _values_differ,
     compile_fail,
     report_from_proc,
@@ -22,6 +23,7 @@ from honepad.runner import (
     run_compiled,
     run_prepare_cmd,
     run_python,
+    run_python_body,
     run_script,
 )
 from honepad.traces import _load_suite_cases, load_cases
@@ -1561,6 +1563,97 @@ def test_values_differ_does_not_treat_bool_as_int() -> None:
     assert _values_differ(False, True)
     assert _values_differ(None, 0)
     assert not _values_differ("0", "0")
+
+
+def test_json_safe_rewrites_nonfinite_floats() -> None:
+    word = "NaN"
+    nested = [{"v": float("nan"), "ok": True, "n": 0}, word, float("inf")]
+    safe = _json_safe(nested)
+    assert _json_safe(float("nan")) == "NaN"
+    assert _json_safe(float("inf")) == "Infinity"
+    assert _json_safe(float("-inf")) == "-Infinity"
+    assert _json_safe([float("nan")]) == ["NaN"]
+    assert _json_safe({"a": float("nan"), "b": float("-inf")}) == {
+        "a": "NaN",
+        "b": "-Infinity",
+    }
+    assert safe == [{"v": "NaN", "ok": True, "n": 0}, "NaN", "Infinity"]
+    assert safe[0]["ok"] is True
+    assert type(safe[0]["n"]) is int
+    assert _json_safe(word) == word
+    assert isinstance(_json_safe(word), str)
+    assert _json_safe("Infinity") == "Infinity"
+    assert _json_safe("-Infinity") == "-Infinity"
+    assert _json_safe(True) is True
+    assert _json_safe(False) is False
+    assert _json_safe(1) == 1 and type(_json_safe(1)) is int
+    assert _json_safe(0) == 0 and type(_json_safe(0)) is int
+    assert _json_safe(None) is None
+    assert _json_safe(1.5) == 1.5 and isinstance(_json_safe(1.5), float)
+    assert _values_differ(_json_safe(float("nan")), None)
+    assert _values_differ(_json_safe(float("inf")), None)
+    assert _values_differ(_json_safe(float("-inf")), 0)
+    assert not _values_differ(_json_safe(word), word)
+    box = {"n": float("nan")}
+    assert _json_safe(box) == {"n": "NaN"}
+    assert isinstance(box["n"], float)
+    parsed = json.loads(json.dumps(_json_safe({"a": float("nan"), "b": [float("inf")]})))
+    assert parsed == {"a": "NaN", "b": ["Infinity"]}
+    assert isinstance(parsed["a"], str)
+
+
+def test_nonfinite_return_is_a_failed_row(tmp_path: Path, monkeypatch) -> None:
+    src = tmp_path / "work.py"
+    src.write_text(
+        "class Simulation:\n"
+        "    def ret_nan(self):\n"
+        "        return float('nan')\n"
+        "    def ret_inf(self):\n"
+        "        return float('inf')\n"
+        "    def ret_ninf(self):\n"
+        "        return float('-inf')\n"
+        "    def ret_list(self):\n"
+        "        return [float('nan')]\n"
+        "    def ret_box(self):\n"
+        "        return {'val': float('nan')}\n"
+        "    def ret_word(self):\n"
+        "        return 'NaN'\n"
+        "    def ret_one(self):\n"
+        "        return 1\n"
+        "    def ret_flag(self):\n"
+        "        return True\n"
+        "    def ret_null(self):\n"
+        "        return None\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("honepad.runner.python_entry", lambda *_args, **_kwargs: src)
+    cases = [
+        _case("nan", "ret_nan", None),
+        _case("inf", "ret_inf", None),
+        _case("ninf", "ret_ninf", None),
+        _case("list", "ret_list", [None]),
+        _case("box", "ret_box", {"val": None}),
+        _case("word", "ret_word", "NaN"),
+        _case("one", "ret_one", 1),
+        _case("one-true", "ret_one", True),
+        _case("flag", "ret_flag", True),
+        _case("null", "ret_null", None),
+    ]
+    report = run_python_body("bank_system", 1, "solution", cases=cases)
+    assert report.passed == 4
+    _assert_failed(report, "nan", "NaN", None)
+    _assert_failed(report, "inf", "Infinity", None)
+    _assert_failed(report, "ninf", "-Infinity", None)
+    _assert_failed(report, "list", ["NaN"], [None])
+    _assert_failed(report, "box", {"val": "NaN"}, {"val": None})
+    _assert_failed(report, "one-true", 1, True)
+    _assert_passed(report, "word")
+    _assert_passed(report, "one")
+    _assert_passed(report, "flag")
+    _assert_passed(report, "null")
+    nan_row = next(row for row in report.failed if row.case == "nan")
+    assert isinstance(nan_row.actual, str)
+    assert json.loads(json.dumps({"actual": nan_row.actual}))["actual"] == "NaN"
 
 
 def test_report_from_proc_rejects_non_object_failed_rows() -> None:

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import math
 import os
 import secrets
 import shutil
@@ -370,6 +371,25 @@ def python_entry(problem: str, kind: str) -> Path:
     return pack_src("python3", problem, kind, "solution.py", "stub.py")
 
 
+def _json_safe(value: Any) -> Any:
+    """Non-finite floats become "NaN", "Infinity", or "-Infinity".
+
+    Nested lists and dicts are walked. Other values, including the string
+    "NaN", bool, and int, are unchanged.
+    """
+    if isinstance(value, float):
+        if math.isnan(value):
+            return "NaN"
+        if math.isinf(value):
+            return "Infinity" if value > 0 else "-Infinity"
+        return value
+    if isinstance(value, list):
+        return [_json_safe(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    return value
+
+
 def _in_honepad(filename: str) -> bool:
     try:
         path = Path(filename).resolve()
@@ -455,6 +475,8 @@ def run_python_body(
                 if line not in debug_lines:
                     debug_lines.append(line)
                 break
+            # Report contract: NaN and Infinity are strings, not bare tokens.
+            actual = _json_safe(actual)
             if differ(actual, expected):
                 failed.append(Fail(case["id"], i, method, args, expected, actual))
                 break
