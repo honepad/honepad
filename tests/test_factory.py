@@ -272,6 +272,12 @@ def test_ci_test_job_keeps_short_cli_smoke() -> None:
     assert "factory/scripts/ci-pytest-shard.py --run" in text
     assert "--cov-fail-under=80" in text
     assert "pytest-cov" in (ROOT / "requirements-dev.in").read_text()
+    makefile = (ROOT / "Makefile").read_text()
+    assert ".venv/bin/python3" in makefile
+    assert "PYTEST_COV := --cov=honepad --cov-fail-under=80 --cov-report=term" in makefile
+    assert makefile.count("$(PYTHON) -m pytest $(PYTEST_COV)") == 2
+    agents = (ROOT / "AGENTS.md").read_text()
+    assert "python3 -m pytest --cov=honepad --cov-fail-under=80 --cov-report=term" in agents
     assert "shard: [unit, script, compiled, jvm, stats]" in text
     assert "name: Stealth" in text
     assert "name: Lint" in text
