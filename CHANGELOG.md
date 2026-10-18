@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.2.4](https://github.com/honepad/honepad/compare/v0.2.3...v0.2.4) (2026-10-18)
+
+
+### Bug Fixes
+
+* make the practice README match the workspace files ([#315](https://github.com/honepad/honepad/issues/315)) ([bafd34f](https://github.com/honepad/honepad/commit/bafd34f0f4df7b5a1e41593a834b9ed6e5dff537))
+* reject dishonest trace and report results ([#313](https://github.com/honepad/honepad/issues/313)) ([ffe2542](https://github.com/honepad/honepad/commit/ffe2542a82e40cae7849978751d9b1c4cedbc332))
+* report a hidden step failure without a fake tally ([#314](https://github.com/honepad/honepad/issues/314)) ([a850c3a](https://github.com/honepad/honepad/commit/a850c3a21ad6f8984404e2ba417e4deb6d4c9d9d))
+* report undefined and non-finite returns as mismatches ([#309](https://github.com/honepad/honepad/issues/309)) ([08d2910](https://github.com/honepad/honepad/commit/08d29101a56ec849708afe7954fe2d17a1f993ff))
+
+
+### Dependencies
+
+* Bump ruff from 0.16.10 to 0.17.0 in the pip-minor-patch group ([#303](https://github.com/honepad/honepad/issues/303)) ([587c445](https://github.com/honepad/honepad/commit/587c445437a2faff5962abeb2b9cab8d24611de4))
+
+
+### Documentation
+
+* credit the undefined return report ([#311](https://github.com/honepad/honepad/issues/311)) ([bb05738](https://github.com/honepad/honepad/commit/bb057385ae3e8cb0333d9818dba94b6046582dc0))
+
 ## [0.2.3](https://github.com/honepad/honepad/compare/v0.2.2...v0.2.3) (2026-09-29)
 
 
