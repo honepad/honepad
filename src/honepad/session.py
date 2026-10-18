@@ -290,6 +290,9 @@ def _parse_last_run(raw: Any) -> dict[str, Any] | None:
         return None
     if raw.get("hidden") is True:
         parsed["hidden"] = True
+    error = raw.get("error")
+    if isinstance(error, str) and error:
+        parsed["error"] = error
     return parsed
 
 
@@ -300,6 +303,7 @@ def record_last_run(
     passed: int,
     failed: int,
     hidden: bool = False,
+    error: str | None = None,
 ) -> None:
     last_run: dict[str, Any] = {
         "level": int(level),
@@ -308,6 +312,9 @@ def record_last_run(
     }
     if hidden:
         last_run["hidden"] = True
+    # Counts stay for older readers. A non-empty error means no hidden case ran.
+    if isinstance(error, str) and error:
+        last_run["error"] = error
     session["last_run"] = last_run
     save_session(session)
 
@@ -333,7 +340,10 @@ def format_debrief(session: dict[str, Any], now: int | None = None) -> str:
         f"used {_minute_span(used)} left {_minute_span(left)}",
     ]
     last = session.get("last_run")
-    if isinstance(last, dict) and {"level", "passed", "failed"} <= last.keys():
+    error = last.get("error") if isinstance(last, dict) else None
+    if isinstance(error, str) and error:
+        lines.append(f"last hidden step failed: {error}")
+    elif isinstance(last, dict) and {"level", "passed", "failed"} <= last.keys():
         kind = "last hidden through" if last.get("hidden") else "last through"
         lines.append(
             f"{kind} LEVEL {last['level']} passed={last['passed']} failed={last['failed']}"

@@ -115,15 +115,17 @@ def test_submit_hidden_load_error_on_time_up_still_prints_debrief(
     assert "hidden.json: bad" in out
     assert "TIME UP" in out
     assert "DEBRIEF: bank_system python3 LEVEL 1/4" in out
-    assert "last hidden through LEVEL 1 passed=0 failed=" in out
+    assert "last hidden step failed: hidden.json: bad" in out
+    assert "last hidden through LEVEL" not in out
     assert "NEXT:" in out
     assert "start" in out
     saved = load_session()
     assert saved is not None
     assert saved["unlocked"] == 1
-    assert saved["last_run"]["failed"] >= 1
-    assert saved["last_run"]["passed"] == 0
+    assert saved["last_run"]["passed"] > 0
+    assert saved["last_run"]["failed"] == 0
     assert saved["last_run"]["hidden"] is True
+    assert saved["last_run"]["error"] == "hidden.json: bad"
 
 
 def test_debrief_command_does_not_restart_clock(monkeypatch, tmp_path: Path, capsys) -> None:

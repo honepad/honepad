@@ -627,7 +627,14 @@ def cmd_run(args: argparse.Namespace) -> int:
             print_fail(exc)
             if session is not None and same:
                 left = remaining_s(int(session["started_at"]), int(session["minutes"]))
-                record_last_run(session, level=level, passed=0, failed=1, hidden=True)
+                record_last_run(
+                    session,
+                    level=report.level,
+                    passed=report.passed,
+                    failed=len(report.failed),
+                    hidden=True,
+                    error=str(exc),
+                )
             if kind == "work":
                 _print_work_notes(args.problem, lang, echo_work=False)
             hidden_ok = False

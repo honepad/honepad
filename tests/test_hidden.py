@@ -222,9 +222,10 @@ def test_submit_hidden_load_error_is_fail_not_traceback(
     session = load_session()
     assert session is not None
     assert session["unlocked"] == 1
-    assert session["last_run"]["failed"] >= 1
-    assert session["last_run"]["passed"] == 0
+    assert session["last_run"]["passed"] > 0
+    assert session["last_run"]["failed"] == 0
     assert session["last_run"]["hidden"] is True
+    assert session["last_run"]["error"] == "hidden.json: bad"
 
 
 def test_submit_work_hidden_exception_prints_work_notes(

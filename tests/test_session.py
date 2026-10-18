@@ -3530,10 +3530,14 @@ def test_submit_time_up_when_hidden_run_expires_then_raises(
     assert "UNLOCKED" not in out
     assert "TIME UP" in out
     assert "DEBRIEF:" in out
-    assert "last hidden through LEVEL" in out
+    assert "last hidden step failed: hidden adapter timed out" in out
+    assert "last hidden through LEVEL" not in out
     saved = load_session()
     assert saved["unlocked"] == 1
     assert saved["last_run"]["hidden"] is True
+    assert saved["last_run"]["error"] == "hidden adapter timed out"
+    assert saved["last_run"]["passed"] > 0
+    assert saved["last_run"]["failed"] == 0
 
 
 def test_submit_without_class_does_not_unlock(monkeypatch, tmp_path: Path, capsys) -> None:
