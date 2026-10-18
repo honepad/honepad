@@ -2499,7 +2499,11 @@ def test_workspace_has_submit_task_not_default(monkeypatch, tmp_path: Path) -> N
     assert "work" in submit_args
     assert submit_args[submit_args.index("--kind") + 1] == "work"
     readme = (public / "README.md").read_text(encoding="utf-8")
-    assert "Submit / Replay" in readme
+    assert "Submit (unlock next level)" in readme
+    assert "Submit / Replay" not in readme
+    assert "replays the last level" not in readme
+    assert "spec/level1.md" in readme
+    assert "spec/level2.md" not in readme
     assert "later level is still locked" in readme
     assert "-m honepad run bank_system --lang python3 --kind work" in readme
     assert "-m honepad submit bank_system --lang python3 --kind work" in readme
