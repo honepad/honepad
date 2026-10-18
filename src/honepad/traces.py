@@ -52,6 +52,9 @@ def _load_suite_cases(cases_dir: Path, level: int | None) -> list[dict[str, Any]
             case_level = case["level"]
             if isinstance(case_level, bool) or not isinstance(case_level, int):
                 raise ValueError(f"{path} case level must be an int")
+            calls = case.get("calls")
+            if not isinstance(calls, list) or not calls:
+                raise ValueError(f"{path} case {case['id']} has no calls")
             if level is None or case_level <= level:
                 cases.append(case)
     return cases

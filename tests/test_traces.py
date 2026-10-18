@@ -159,10 +159,12 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
     cases_dir = tmp_path / "cases"
     cases_dir.mkdir()
     (cases_dir / "level1.json").write_text(
-        '[{"id": "l1", "level": 1, "calls": []}]', encoding="utf-8"
+        '[{"id": "l1", "level": 1, "calls": [{"m": "deposit", "a": [], "e": 0}]}]',
+        encoding="utf-8",
     )
     (cases_dir / "level2.json").write_text(
-        '[{"id": "l2", "level": 2, "calls": []}]', encoding="utf-8"
+        '[{"id": "l2", "level": 2, "calls": [{"m": "deposit", "a": [], "e": 0}]}]',
+        encoding="utf-8",
     )
     (cases_dir / "extra.json").write_text("{", encoding="utf-8")
     monkeypatch.setattr("honepad.traces.problem_dir", lambda _problem: tmp_path)
@@ -171,7 +173,10 @@ def test_load_cases_opens_only_level_files_when_level_set(monkeypatch, tmp_path:
     loaded = load_cases("bank_system", 2)
     assert [case["id"] for case in loaded] == ["l1", "l2"]
     extra = cases_dir / "extra.json"
-    extra.write_text('[{"id": "x", "level": 1, "calls": []}]', encoding="utf-8")
+    extra.write_text(
+        '[{"id": "x", "level": 1, "calls": [{"m": "deposit", "a": [], "e": 0}]}]',
+        encoding="utf-8",
+    )
     all_cases = load_cases("bank_system", None)
     assert [case["id"] for case in all_cases] == ["x", "l1", "l2"]
 
@@ -188,9 +193,48 @@ def test_suite_case_level_rejects_bool_and_null(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match=re.escape(str(path))):
         _load_suite_cases(cases_dir, 1)
 
-    path.write_text('[{"id": "ok", "level": 1}]', encoding="utf-8")
+    ok = {"id": "ok", "level": 1, "calls": [{"m": "deposit", "a": [], "e": 0}]}
+    path.write_text(json.dumps([ok]), encoding="utf-8")
     loaded = _load_suite_cases(cases_dir, 1)
-    assert loaded == [{"id": "ok", "level": 1}]
+    assert loaded == [ok]
+
+
+def test_no_calls_and_empty_calls_raise(tmp_path: Path) -> None:
+    cases_dir = tmp_path / "cases"
+    cases_dir.mkdir()
+    path = cases_dir / "level1.json"
+    call = {"m": "deposit", "a": [], "e": 0}
+
+    path.write_text(
+        json.dumps([{"id": "empty", "level": 1, "calls": []}]),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError) as empty_exc:
+        _load_suite_cases(cases_dir, 1)
+    assert str(empty_exc.value) == f"{path} case empty has no calls"
+
+    path.write_text(json.dumps([{"id": "missing", "level": 1}]), encoding="utf-8")
+    with pytest.raises(ValueError) as missing_exc:
+        _load_suite_cases(cases_dir, None)
+    assert str(missing_exc.value) == f"{path} case missing has no calls"
+
+    path.write_text(
+        json.dumps([{"id": "shaped", "level": 1, "calls": {"m": "deposit"}}]),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError) as shaped_exc:
+        _load_suite_cases(cases_dir, 1)
+    assert str(shaped_exc.value) == f"{path} case shaped has no calls"
+
+    path.write_text(json.dumps([{"id": "ok", "level": 1, "calls": [call]}]), encoding="utf-8")
+    assert _load_suite_cases(cases_dir, 1) == [{"id": "ok", "level": 1, "calls": [call]}]
+
+
+def test_empty_calls_are_not_ok() -> None:
+    report = run_python("bank_system", 1, cases=[{"id": "only", "calls": []}])
+    assert report.passed == 0
+    assert [row.case for row in report.failed] == ["only"]
+    assert not report.ok
 
 
 # Public (problem, level) pairs that shipped with one case on 2026-09-10.

@@ -431,7 +431,12 @@ def run_python_body(
     debug_lines: list[str] = []
     passed = 0
     for case in cases:
-        for i, call in enumerate(case["calls"]):
+        # Zero calls must not take the for/else success path.
+        calls = case.get("calls")
+        if not isinstance(calls, list) or not calls:
+            failed.append(Fail(case["id"], 0, "calls", [], None, "no calls"))
+            continue
+        for i, call in enumerate(calls):
             method = call["m"]
             args = list(call["a"])
             expected = call["e"]
