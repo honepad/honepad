@@ -34,5 +34,7 @@ def _render_case(class_name: str, case: dict[str, Any]) -> str:
         if expected is True or expected is False or expected is None:
             lines.append(f"    assert {expr} is {expected!r}")
         else:
-            lines.append(f"    assert {expr} == {expected!r}")
+            # True == 1. One binding: the call may have side effects.
+            lines.append(f"    actual = {expr}")
+            lines.append(f"    assert actual == {expected!r} and not isinstance(actual, bool)")
     return "\n".join(lines)

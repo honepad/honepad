@@ -176,3 +176,54 @@ def test_generated_pytest_fails_when_create_account_returns_one(tmp_path: Path) 
         check=False,
     )
     assert result.returncode != 0, result.stdout + result.stderr
+
+
+def test_generated_pytest_rejects_bool_when_expected_is_number(tmp_path: Path) -> None:
+    from honepad.pythontest import render_pytest
+
+    identity = render_pytest(
+        "bank_system",
+        [
+            {
+                "id": "l1-create",
+                "level": 1,
+                "calls": [{"m": "create_account", "a": [1, "acc1"], "e": True}],
+            }
+        ],
+    )
+    assert "is True" in identity
+    assert "== True" not in identity
+
+    case = {
+        "id": "l1-count",
+        "level": 1,
+        "calls": [{"m": "create_account", "a": [1, "acc1"], "e": 1}],
+    }
+    text = render_pytest("bank_system", [case])
+    assert text.count("sim.create_account(1, 'acc1')") == 1
+    assert "assert actual == 1 and not isinstance(actual, bool)" in text
+    assert "== True" not in text
+
+    def run_generated(folder: str, returned: str) -> subprocess.CompletedProcess[str]:
+        root = tmp_path / folder
+        root.mkdir()
+        (root / "work.py").write_text(
+            "class Simulation:\n"
+            "    def create_account(self, timestamp: object, account_id: object) -> object:\n"
+            f"        return {returned}\n",
+            encoding="utf-8",
+        )
+        test_path = root / "test_public.py"
+        test_path.write_text(text, encoding="utf-8")
+        return subprocess.run(
+            [sys.executable, "-m", "pytest", "-q", "--tb=short", str(test_path)],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    returned_bool = run_generated("returns_bool", "True")
+    assert returned_bool.returncode != 0, returned_bool.stdout + returned_bool.stderr
+    returned_int = run_generated("returns_int", "1")
+    assert returned_int.returncode == 0, returned_int.stdout + returned_int.stderr
