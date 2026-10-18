@@ -292,10 +292,10 @@ def _write_readme(
         )
         confirm_line = "Submit last level. No y / n (nothing unlocks)."
     else:
-        vscode_task = "Submit / Replay"
+        vscode_task = "Submit (unlock next level)"
         submit_line = (
             f"`{sys.executable} -m honepad submit {problem} --lang {lang} "
-            f"--kind work` unlocks the next level, or replays the last level."
+            f"--kind work` unlocks the next level after the traces pass."
         )
         confirm_line = "Submit asks y / n before unlock when a later level is still locked."
     lines = [
@@ -304,7 +304,7 @@ def _write_readme(
         "These are the same public traces honepad run uses. Hidden traces run only on submit.",
         "",
         f"Current spec: spec.md and spec/current.md (L{unlocked}).",
-        "Per-level copies: spec/level1.md, spec/level2.md, ...",
+        "Per-level copies: " + ", ".join(f"spec/level{n}.md" for n in range(1, unlocked + 1)) + ".",
         "",
         f"Work file: {work}",
         f"URI: {file_uri(work)}",
