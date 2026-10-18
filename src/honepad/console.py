@@ -802,7 +802,7 @@ def _read_choice(
                 stdout.flush()
                 _drain_pending(stdin)
                 return ch
-            _reload_session(session)
+            _reload_session(session, stdout)
             left = _left()
             if left > 0:
                 time_up[0] = False

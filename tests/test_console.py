@@ -390,6 +390,49 @@ def test_reload_session_unreadable_is_fail_not_traceback(monkeypatch, tmp_path: 
     assert "NEXT:" in out
 
 
+def test_reload_session_unreadable_on_live_choice_is_fail_not_traceback(
+    monkeypatch, tmp_path: Path
+) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    session = load_session()
+    assert session is not None
+    calls = {"n": 0}
+
+    def fake_select(rlist, _wlist, _xlist, timeout=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return [], [], []
+        return list(rlist), [], []
+
+    monkeypatch.setattr("honepad.console.select.select", fake_select)
+    stdin = _pipe_stdin(b"1")
+    stdout = io.StringIO()
+    session_file.chmod(0o000)
+    try:
+        got = _read_choice(session, stdin, stdout, live=True)
+    finally:
+        session_file.chmod(0o644)
+        stdin.close()
+    out = stdout.getvalue()
+    assert got == "1"
+    assert "FAIL:" in out
+    assert "Traceback" not in out
+
+
 def test_color_disabled_without_tty(monkeypatch) -> None:
     monkeypatch.delenv("FORCE_COLOR", raising=False)
     monkeypatch.delenv("NO_COLOR", raising=False)
