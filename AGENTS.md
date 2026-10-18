@@ -3,13 +3,15 @@
 > **Human contributors:** This file is for AI coding assistants.
 > You can safely ignore it. See README.md and CONTRIBUTING.md instead.
 
-Python 3.10+. Local gate before every commit is `make check`:
+Python 3.10+. Local gate before every commit is `make check`.
+That target uses `.venv/bin/python3` when the venv exists, so the
+coverage floor runs even if ambient `python3` has no pytest-cov.
 
 ```bash
 ruff check src tests
 ruff format --check src tests
 bash factory/scripts/ensure-scala.sh
-python3 -m pytest
+python3 -m pytest --cov=honepad --cov-fail-under=80 --cov-report=term
 bash factory/scripts/assert-stealth.sh honepad/honepad
 bash factory/scripts/write-ledger.sh --self-test
 python3 factory/scripts/check-human-gate.py
