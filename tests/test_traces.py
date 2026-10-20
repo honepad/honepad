@@ -1565,6 +1565,14 @@ def test_values_differ_does_not_treat_bool_as_int() -> None:
     assert not _values_differ("0", "0")
 
 
+def test_values_differ_nested_bool_is_not_int() -> None:
+    assert _values_differ([True, False], [1, 0])
+    assert _values_differ([[False]], [[0]])
+    assert _values_differ({"n": True}, {"n": 1})
+    assert not _values_differ([1, 0], [1, 0])
+    assert _values_differ((1,), [1])
+
+
 def test_json_safe_rewrites_nonfinite_floats() -> None:
     word = "NaN"
     nested = [{"v": float("nan"), "ok": True, "n": 0}, word, float("inf")]
@@ -1654,6 +1662,62 @@ def test_nonfinite_return_is_a_failed_row(tmp_path: Path, monkeypatch) -> None:
     nan_row = next(row for row in report.failed if row.case == "nan")
     assert isinstance(nan_row.actual, str)
     assert json.loads(json.dumps({"actual": nan_row.actual}))["actual"] == "NaN"
+
+
+def test_nonjson_return_is_a_failed_row(tmp_path: Path, monkeypatch) -> None:
+    src = tmp_path / "work.py"
+    src.write_text(
+        "class Simulation:\n"
+        "    def ret_flags(self):\n"
+        "        return [True, False]\n"
+        "    def ret_nested(self):\n"
+        "        return [[False]]\n"
+        "    def ret_box(self):\n"
+        "        return {'n': True}\n"
+        "    def ret_set(self):\n"
+        "        return {1, 2}\n"
+        "    def ret_tuple(self):\n"
+        "        return ('acc1(500)',)\n"
+        "    def ret_ints(self):\n"
+        "        return [1, 0]\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr("honepad.runner.python_entry", lambda *_args, **_kwargs: src)
+    cases = [
+        _case("flags", "ret_flags", [1, 0]),
+        _case("nested", "ret_nested", [[0]]),
+        _case("box", "ret_box", {"n": 1}),
+        _case("aset", "ret_set", ["acc1(500)"]),
+        _case("tup", "ret_tuple", ["acc1(500)"]),
+        _case("ints", "ret_ints", [1, 0]),
+    ]
+    report = run_python_body("bank_system", 1, "solution", cases=cases)
+    assert report.passed == 1
+    flags = next(row for row in report.failed if row.case == "flags")
+    assert flags.expected == [1, 0]
+    assert flags.actual == [True, False]
+    assert flags.actual[0] is True and flags.actual[1] is False
+    assert type(flags.expected[0]) is int and type(flags.expected[1]) is int
+    nested = next(row for row in report.failed if row.case == "nested")
+    assert nested.expected == [[0]]
+    assert nested.actual == [[False]]
+    assert nested.actual[0][0] is False
+    assert type(nested.expected[0][0]) is int
+    box = next(row for row in report.failed if row.case == "box")
+    assert box.expected == {"n": 1}
+    assert box.actual == {"n": True}
+    assert box.actual["n"] is True
+    assert type(box.expected["n"]) is int
+    set_row = next(row for row in report.failed if row.case == "aset")
+    assert isinstance(set_row.actual, str)
+    assert set_row.expected == ["acc1(500)"]
+    assert set_row.actual != set_row.expected
+    assert json.loads(json.dumps(set_row.actual)) == set_row.actual
+    shown = repr(("acc1(500)",))
+    _assert_failed(report, "tup", shown, ["acc1(500)"])
+    tup = next(row for row in report.failed if row.case == "tup")
+    assert json.loads(json.dumps(tup.actual)) != ["acc1(500)"]
+    _assert_passed(report, "ints")
 
 
 def test_report_from_proc_rejects_non_object_failed_rows() -> None:

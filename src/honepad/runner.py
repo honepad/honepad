@@ -90,6 +90,16 @@ def spec_src(lang_id: str, problem: str, kind: str, spec: dict[str, Any]) -> Pat
 
 
 def _values_differ(actual: Any, expected: Any) -> bool:
+    if isinstance(actual, list) and isinstance(expected, list):
+        if len(actual) != len(expected):
+            return True
+        return any(
+            _values_differ(left, right) for left, right in zip(actual, expected, strict=True)
+        )
+    if isinstance(actual, dict) and isinstance(expected, dict):
+        if actual.keys() != expected.keys():
+            return True
+        return any(_values_differ(actual[key], expected[key]) for key in actual)
     if expected is True or expected is False or expected is None:
         return actual is not expected
     if actual is True or actual is False or actual is None:
@@ -374,8 +384,10 @@ def python_entry(problem: str, kind: str) -> Path:
 def _json_safe(value: Any) -> Any:
     """Non-finite floats become "NaN", "Infinity", or "-Infinity".
 
-    Nested lists and dicts are walked. Other values, including the string
-    "NaN", bool, and int, are unchanged.
+    Lists and dicts with str keys are walked. The string "NaN", bool,
+    int, finite float, and None stay themselves. Anything JSON cannot
+    encode, including tuples and sets, becomes repr. A dict whose key
+    is not a str becomes repr of that dict.
     """
     if isinstance(value, float):
         if math.isnan(value):
@@ -383,11 +395,17 @@ def _json_safe(value: Any) -> Any:
         if math.isinf(value):
             return "Infinity" if value > 0 else "-Infinity"
         return value
+    if value is None or isinstance(value, (bool, str)):
+        return value
+    if isinstance(value, int):
+        return value
     if isinstance(value, list):
         return [_json_safe(item) for item in value]
     if isinstance(value, dict):
+        if not all(isinstance(key, str) for key in value):
+            return repr(value)
         return {key: _json_safe(item) for key, item in value.items()}
-    return value
+    return repr(value)
 
 
 def _in_honepad(filename: str) -> bool:
