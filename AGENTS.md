@@ -8,8 +8,9 @@ That target uses `.venv/bin/python3` when the venv exists, so the
 coverage floor runs even if ambient `python3` has no pytest-cov.
 
 ```bash
-ruff check src tests
-ruff format --check src tests
+# .venv/bin/ruff when the venv exists; a Homebrew ruff is not the pin.
+.venv/bin/ruff check src tests
+.venv/bin/ruff format --check src tests
 bash factory/scripts/ensure-scala.sh
 python3 -m pytest --cov=honepad --cov-fail-under=80 --cov-report=term
 bash factory/scripts/assert-stealth.sh honepad/honepad

@@ -1,6 +1,8 @@
 # pytest-cov is in the project venv. Ambient python3 often lacks it,
 # and then the coverage floor never runs.
 PYTHON := $(shell if [ -x .venv/bin/python3 ]; then echo .venv/bin/python3; else echo python3; fi)
+# Homebrew ruff is not the CI pin. Prefer the venv binary when it exists.
+RUFF := $(shell if [ -x .venv/bin/ruff ]; then echo .venv/bin/ruff; else echo ruff; fi)
 PYTEST_COV := --cov=honepad --cov-fail-under=80 --cov-report=term
 
 .PHONY: help install lint test stealth check
@@ -12,8 +14,8 @@ install: ## install package in editable mode
 	python3 -m pip install -e ".[dev]"
 
 lint: ## ruff
-	ruff check src tests
-	ruff format --check src tests
+	$(RUFF) check src tests
+	$(RUFF) format --check src tests
 
 test: ## pytest
 	bash factory/scripts/ensure-scala.sh
@@ -23,8 +25,8 @@ stealth: ## launch metadata
 	bash factory/scripts/assert-stealth.sh honepad/honepad
 
 check: ## local gate
-	ruff check src tests
-	ruff format --check src tests
+	$(RUFF) check src tests
+	$(RUFF) format --check src tests
 	bash factory/scripts/ensure-scala.sh
 	$(PYTHON) -m pytest $(PYTEST_COV)
 	bash factory/scripts/assert-stealth.sh honepad/honepad
