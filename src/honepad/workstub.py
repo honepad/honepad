@@ -138,18 +138,53 @@ def naming_for(lang_id: str) -> str:
     return str(language(lang_id)["naming"])
 
 
-def _js_declares_line(line: str, name: str, nxt: str | None = None) -> bool:
-    stripped = line.strip()
-    body = stripped
-    if body.startswith("async "):
-        body = body[len("async ") :].lstrip()
-    if not body.startswith(f"{name}("):
-        return False
-    if "{" in body:
-        return True
-    if stripped.endswith(";"):
-        return False
-    return bool(nxt) and nxt.strip().startswith("{")
+_JS_LEADING = (
+    "public",
+    "private",
+    "protected",
+    "static",
+    "readonly",
+    "async",
+    "override",
+    "abstract",
+    "declare",
+    "get",
+    "set",
+)
+
+
+def _js_method_body(line: str) -> str:
+    """Drop access modifiers so `public async name(` is still `name(`."""
+    body = line.strip()
+    changed = True
+    while changed:
+        changed = False
+        for word in _JS_LEADING:
+            prefix = word + " "
+            if body.startswith(prefix):
+                body = body[len(prefix) :].lstrip()
+                changed = True
+                break
+    return body
+
+
+def _js_declares(lines: list[str], name: str) -> bool:
+    """True when `name` is a method, including a signature split over lines."""
+    for index, line in enumerate(lines):
+        body = _js_method_body(line)
+        if not body.startswith(f"{name}("):
+            continue
+        if "{" in body:
+            return True
+        if body.endswith(";"):
+            continue
+        for follow in lines[index + 1 : index + 16]:
+            stripped = follow.strip()
+            if "{" in stripped:
+                return True
+            if stripped.endswith(";"):
+                break
+    return False
 
 
 def _java_declares_name(text: str, pos: int, name: str) -> bool:
@@ -221,16 +256,14 @@ def _declares(text: str, ext: str, name: str, class_name: str | None = None) -> 
                 idx += 1
         return False
     if ext in {"js", "ts"}:
-        for i, line in enumerate(lines):
-            nxt = lines[i + 1] if i + 1 < len(lines) else None
-            if _js_declares_line(line, name, nxt):
-                return True
-        return False
+        return _js_declares(lines, name)
     if ext == "py":
         decl = re.compile(rf"^(?:async\s+)?def {re.escape(name)}\(")
         return any(decl.match(line) for line in lines)
     if ext == "rb":
-        return any(f"def {name}(" in line or f"def {name} " in line for line in lines)
+        # `def list_topics` has no paren and no trailing space after strip.
+        decl = re.compile(rf"^def (?:self\.)?{re.escape(name)}(?!\w)")
+        return any(decl.match(line) for line in lines)
     return any(token in line for line in lines for token in _name_forms(name))
 
 

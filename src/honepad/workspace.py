@@ -42,10 +42,35 @@ def public_test_file(problem: str, lang: str) -> Path | None:
     return None
 
 
+def _plain_work_copies(problem: str, lang: str) -> list[Path]:
+    """Editor copies used when symlink_to fails. A real symlink stays live."""
+    public = workspace_dir(problem, lang) / "public"
+    ident = language(lang)["id"]
+    if ident == "python3":
+        return [public / "work.py"]
+    if ident == "java":
+        class_name = class_name_for(problem)
+        return [public / "src" / "main" / "java" / f"{class_name}.java"]
+    return []
+
+
+def _refresh_plain_work_copies(problem: str, lang: str) -> None:
+    work = work_src(problem, lang)
+    if not work.is_file():
+        return
+    text = work.read_text(encoding="utf-8")
+    for dest in _plain_work_copies(problem, lang):
+        if not dest.is_file() or dest.is_symlink():
+            continue
+        if dest.read_text(encoding="utf-8") != text:
+            dest.write_text(text, encoding="utf-8")
+
+
 def refresh_workspace(problem: str, lang: str, unlocked: int, cleared: bool = False) -> Path | None:
     root = workspace_dir(problem, lang)
     if not root.is_dir():
         return None
+    _refresh_plain_work_copies(problem, lang)
     cases = load_cases(problem, unlocked)
     dest = root / "public" / "cases.json"
     if dest.is_file():

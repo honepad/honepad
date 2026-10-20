@@ -2175,6 +2175,28 @@ def test_start_after_expiry_restarts_clock_keeps_work(monkeypatch, tmp_path: Pat
     assert "clock_restarted" not in on_disk
 
 
+def test_expired_start_keeps_custom_minutes(monkeypatch, tmp_path: Path, capsys) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    assert main(["start", "bank_system", "python3", "--minutes", "30", "--no-console"]) == 0
+    capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    assert session["minutes"] == 30
+    session["started_at"] = 1_700_000_000
+    session_file.write_text(json.dumps(session, indent=2) + "\n", encoding="utf-8")
+    now = 1_700_000_000 + 30 * 60 + 5
+    monkeypatch.setattr("honepad.session.time.time", lambda: now)
+    assert main(["start", "bank_system", "python3", "--no-console"]) == 0
+    out = capsys.readouterr().out
+    after = load_session()
+    assert after is not None
+    assert after["minutes"] == 30
+    assert after["started_at"] == now
+    assert "[30:00]" in out
+    assert "[1:30:00]" not in out
+
+
 def test_level1_clock_restart_does_not_offer_back(monkeypatch, tmp_path: Path, capsys) -> None:
     session_file = tmp_path / "session.json"
     monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
@@ -5350,6 +5372,49 @@ def test_js_unlock_merge_keeps_allman_methods() -> None:
     assert "not implemented" in top[0]
 
 
+def test_js_multiline_signature_is_not_duplicated() -> None:
+    work = """class Simulation {
+  constructor() {}
+  createAccount(t, id) { return true; }
+  deposit(
+    timestamp,
+    account_id,
+    amount
+  ) {
+    return 0;
+  }
+  transfer(t, a, b, amount) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/javascript/problems/bank_system/stub.js").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("javascript"))
+    merged = merge_unlocked_methods(work, full, "js", allowed, "Simulation")
+    bodies = [line.strip() for line in merged.splitlines() if line.strip().startswith("deposit(")]
+    assert bodies == ["deposit("]
+    between = merged.split("deposit(", 1)[1].split("transfer(", 1)[0]
+    assert "not implemented" not in between
+
+
+def test_ts_public_method_is_not_duplicated() -> None:
+    work = """class Simulation {
+  constructor() {}
+  createAccount(t: number, id: string) { return true; }
+  public deposit(t: number, id: string, amount: number) { return 0; }
+  transfer(t: number, a: string, b: string, amount: number) { return 0; }
+}
+"""
+    full = (repo_root() / "langs/typescript/problems/bank_system/stub.ts").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 2, naming_for("typescript"))
+    merged = merge_unlocked_methods(work, full, "ts", allowed, "Simulation")
+    assert merged.count("deposit(") == 1
+    between = merged.split("public deposit(", 1)[1].split("transfer(", 1)[0]
+    assert "not implemented" not in between
+
+
 def test_js_unlock_merge_keeps_oneline_methods() -> None:
     work = """class Simulation {
   constructor() {}
@@ -5857,6 +5922,23 @@ def test_ruby_unlock_merge_does_not_treat_shift_as_heredoc() -> None:
     merged = merge_unlocked_methods(work, full, "rb", allowed, "Simulation")
     assert "1<<n" in merged
     assert "def top_spenders" in merged
+
+
+def test_ruby_zero_arg_def_is_not_duplicated() -> None:
+    work = "class Simulation\n  def list_topics\n    ''\n  end\nend\n"
+    full = (repo_root() / "langs/ruby/problems/pubsub/stub.rb").read_text(encoding="utf-8")
+    merged = merge_unlocked_methods(work, full, "rb", {"list_topics"}, "Simulation")
+    assert merged.count("def list_topics") == 1
+    again = merge_unlocked_methods(merged, full, "rb", {"list_topics"}, "Simulation")
+    assert again.count("def list_topics") == 1
+
+
+def test_ruby_longer_def_name_does_not_count() -> None:
+    work = "class Simulation\n  def list_topics_extra\n  end\nend\n"
+    full = (repo_root() / "langs/ruby/problems/pubsub/stub.rb").read_text(encoding="utf-8")
+    merged = merge_unlocked_methods(work, full, "rb", {"list_topics"}, "Simulation")
+    assert "def list_topics\n" in merged or "def list_topics;" in merged
+    assert "not implemented" in merged
 
 
 def test_ruby_unlock_merge_does_not_treat_append_as_heredoc() -> None:

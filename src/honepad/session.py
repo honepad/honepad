@@ -590,7 +590,10 @@ def ensure_session(
     now_minutes: int | None = None
     if left == 0:
         current["started_at"] = int(time.time())
-        current["minutes"] = require_minutes(duration)
+        # No --minutes keeps the desk length. A bare start must not
+        # turn a 30-minute desk into the 90-minute default.
+        if minutes is not None:
+            current["minutes"] = require_minutes(minutes)
         restarted = True
     elif minutes is not None and int(current["minutes"]) != minutes:
         current["minutes"] = require_minutes(minutes)

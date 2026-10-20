@@ -42,6 +42,32 @@ def test_python_module_honepad_langs() -> None:
     assert "languages" in result.stdout
 
 
+def test_langs_pipe_to_head_has_no_traceback() -> None:
+    for _ in range(5):
+        langs = subprocess.Popen(
+            [sys.executable, "-m", "honepad", "langs"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        assert langs.stdout is not None
+        head = subprocess.Popen(
+            ["head", "-n", "1"],
+            stdin=langs.stdout,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        langs.stdout.close()
+        out, _head_err = head.communicate()
+        err = langs.stderr.read() if langs.stderr is not None else ""
+        langs.wait()
+        assert out.strip()
+        assert "Traceback" not in err, err
+        assert "BrokenPipeError" not in err
+        assert "closed file" not in err
+
+
 def _langs_header_and_rows(out: str) -> tuple[str, list[str]]:
     lines = [line for line in out.splitlines() if line.strip()]
     assert lines

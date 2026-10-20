@@ -592,6 +592,10 @@ def _tool(name: str) -> str | None:
 
 def _ensure_scala() -> None:
     script = repo_root() / "factory" / "scripts" / "ensure-scala.sh"
+    # The wheel does not ship factory scripts. Say the tool is missing
+    # instead of running bash against a path that is not installed.
+    if not script.is_file():
+        raise RuntimeError("scalac not on PATH")
     proc = run_prepare_cmd(["bash", str(script)], lang_id="scala")
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "").strip() or f"exited {proc.returncode}"

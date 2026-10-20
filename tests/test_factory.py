@@ -499,6 +499,21 @@ def test_ensure_scala_script_is_executable() -> None:
     assert os.access(path, os.X_OK)
 
 
+def test_missing_scala_script_names_the_tool(monkeypatch, tmp_path: Path) -> None:
+    from honepad import runner
+
+    monkeypatch.setattr(runner.shutil, "which", lambda _name, **_k: None)
+    monkeypatch.setattr(runner, "_coursier_bins", lambda: [tmp_path / "empty"])
+    monkeypatch.setattr(runner, "repo_root", lambda: tmp_path)
+
+    def boom(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("missing install script must not be executed")
+
+    monkeypatch.setattr(runner.subprocess, "run", boom)
+    with pytest.raises(RuntimeError, match="scalac not on PATH"):
+        runner._scala_tool("scalac")
+
+
 def test_ensure_scala_timeout_raises(monkeypatch, tmp_path: Path) -> None:
     from honepad import runner
 

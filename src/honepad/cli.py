@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 from collections.abc import Callable
@@ -1052,9 +1053,46 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _drop_stdout() -> None:
+    """Point stdout at devnull after the reader went away.
+
+    Closing the text wrapper raises ValueError on the next flush and
+    that becomes a traceback. Replacing the fd keeps shutdown quiet.
+    """
+    try:
+        fd = sys.stdout.fileno()
+    except (AttributeError, OSError, ValueError):
+        return
+    try:
+        devnull = os.open(os.devnull, os.O_WRONLY)
+    except OSError:
+        return
+    try:
+        os.dup2(devnull, fd)
+    except OSError:
+        pass
+    finally:
+        os.close(devnull)
+
+
 def main(argv: list[str] | None = None) -> int:
-    args: Any = build_parser().parse_args(argv)
-    return int(args.func(args))
+    try:
+        args: Any = build_parser().parse_args(argv)
+        code = int(args.func(args))
+        # Flush here so a closed pipe raises inside this try. A flush
+        # during interpreter shutdown prints a traceback instead.
+        sys.stdout.flush()
+        return code
+    except BrokenPipeError:
+        _drop_stdout()
+        return 0
+    except ValueError as exc:
+        # A closed pipe can surface as "I/O operation on closed file"
+        # instead of BrokenPipeError, depending on which flush runs.
+        if "closed file" not in str(exc):
+            raise
+        _drop_stdout()
+        return 0
 
 
 if __name__ == "__main__":

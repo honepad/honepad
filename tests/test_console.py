@@ -57,7 +57,13 @@ from honepad.term import (
     term_width,
 )
 from honepad.traces import load_cases
-from honepad.workspace import _link_or_copy, open_vscode, workspace_dir, write_workspace
+from honepad.workspace import (
+    _link_or_copy,
+    open_vscode,
+    refresh_workspace,
+    workspace_dir,
+    write_workspace,
+)
 
 
 def test_format_clock_pads_minutes() -> None:
@@ -2212,6 +2218,24 @@ def test_start_without_workspace_does_not_create_one(monkeypatch, tmp_path: Path
     assert not root.exists()
     assert main(["start", "bank_system", "python3", "--no-console"]) == 0
     assert not root.exists()
+
+
+def test_refresh_updates_copied_work_file(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+
+    def no_symlink(self: Path, _target: object) -> None:
+        raise OSError("symlinks are not available")
+
+    monkeypatch.setattr(Path, "symlink_to", no_symlink)
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    dest = write_workspace("bank_system", "python3", 1)
+    public_work = dest.parent / "public" / "work.py"
+    assert public_work.is_file()
+    assert not public_work.is_symlink()
+    work = work_src("bank_system", "python3")
+    work.write_text(work.read_text(encoding="utf-8") + "\n# edited-after-copy\n", encoding="utf-8")
+    assert refresh_workspace("bank_system", "python3", 1) is not None
+    assert "# edited-after-copy" in public_work.read_text(encoding="utf-8")
 
 
 def test_start_refreshes_stale_workspace_cases(monkeypatch, tmp_path: Path) -> None:
