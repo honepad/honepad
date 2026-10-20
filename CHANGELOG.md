@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.5](https://github.com/honepad/honepad/compare/v0.2.4...v0.2.5) (2026-10-20)
+
+
+### Bug Fixes
+
+* keep real methods and the desk the user already chose ([#322](https://github.com/honepad/honepad/issues/322)) ([d4aca31](https://github.com/honepad/honepad/commit/d4aca3113d527cb923e2b56ff1413665e00fa162))
+* reject nested bools and non-JSON Python returns ([#321](https://github.com/honepad/honepad/issues/321)) ([bca10c3](https://github.com/honepad/honepad/commit/bca10c3960a754666ffe9c59a529ad2a7cae444a))
+
+
+### Dependencies
+
+* Bump ruff from 0.17.0 to 0.17.1 in the pip-minor-patch group ([#317](https://github.com/honepad/honepad/issues/317)) ([c6fa854](https://github.com/honepad/honepad/commit/c6fa854767d90ee465e911f5efba851ea6502181))
+
 ## [0.2.4](https://github.com/honepad/honepad/compare/v0.2.3...v0.2.4) (2026-10-18)
 
 
