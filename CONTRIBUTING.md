@@ -51,6 +51,7 @@ bot commits and merge commits.
 ## Coding standards
 
 - Python 3.10+. Format and lint with ruff (`ruff check`, `ruff format`).
+- Run `make check` before a pull request. That target is the local gate.
 - New behavior needs a test in the same change. Traces in
   `problems/*/cases/` are the contract for a language pack.
 - Do not add a language by editing Python. Add `langs/<id>/meta.json`,

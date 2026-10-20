@@ -122,6 +122,39 @@ def test_render_junit_rejects_hostile_method() -> None:
         render_junit("bank_system", [case])
 
 
+def test_contributing_names_make_check() -> None:
+    text = (Path(__file__).resolve().parents[1] / "CONTRIBUTING.md").read_text(encoding="utf-8")
+    assert "make check" in text
+
+
+def test_same_helper_matches_runner_compare() -> None:
+    from honepad.pythontest import _SAME_HELPER
+    from honepad.runner import _values_differ
+
+    namespace: dict[str, object] = {}
+    exec(_SAME_HELPER, namespace)
+    same = namespace["_same"]
+    assert callable(same)
+    pairs = [
+        ([True, False], [1, 0]),
+        ([1, 0], [1, 0]),
+        ([[False]], [[0]]),
+        ({"n": True}, {"n": 1}),
+        ({"n": 1}, {"n": 1}),
+        (["acc1(500)"], ["acc1(500)"]),
+        ([], []),
+        ({}, {}),
+        ([None], [0]),
+        ([True], [True]),
+        (True, 1),
+        (1, True),
+        ((1,), [1]),
+        ({"a": 1, "b": 2}, {"b": 2, "a": 1}),
+    ]
+    for actual, expected in pairs:
+        assert _values_differ(actual, expected) == (not same(actual, expected))
+
+
 def test_render_pytest_rejects_hostile_method() -> None:
     from honepad.pythontest import render_pytest
 
