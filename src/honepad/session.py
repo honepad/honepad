@@ -255,7 +255,7 @@ def load_session(
         "started_at": started_at,
         "minutes": minutes,
         "unlocked": unlocked,
-        "cleared": bool(payload.get("cleared")),
+        "cleared": payload.get("cleared") is True,
     }
     last_run = _parse_last_run(payload.get("last_run"))
     if last_run is not None:
@@ -368,7 +368,7 @@ def _desk_snapshot(session: dict[str, Any]) -> dict[str, Any]:
         "minutes": int(session["minutes"]),
         "unlocked": int(session["unlocked"]),
     }
-    if session.get("cleared"):
+    if session.get("cleared") is True:
         snap["cleared"] = True
     last_run = _parse_last_run(session.get("last_run"))
     if last_run is not None:
@@ -421,7 +421,7 @@ def _session_from_desk(problem: str, saved: dict[str, Any]) -> dict[str, Any]:
         "started_at": int(saved["started_at"]),
         "minutes": int(saved["minutes"]),
         "unlocked": int(saved["unlocked"]),
-        "cleared": bool(saved.get("cleared")),
+        "cleared": saved.get("cleared") is True,
     }
     last_run = _parse_last_run(saved.get("last_run"))
     if last_run is not None:
@@ -472,7 +472,7 @@ def save_session(session: dict[str, Any], path: Path | None = None) -> Path:
         "minutes": int(session["minutes"]),
         "unlocked": int(session["unlocked"]),
     }
-    if session.get("cleared"):
+    if session.get("cleared") is True:
         payload["cleared"] = True
     last_run = _parse_last_run(session.get("last_run"))
     if last_run is not None:
@@ -695,7 +695,7 @@ def drop_level(session: dict[str, Any], minutes: int | None = None) -> tuple[dic
         problem,
         lang_id,
         int(session["unlocked"]),
-        cleared=bool(session.get("cleared")),
+        cleared=session.get("cleared") is True,
     )
     loaded = load_session()
     if loaded is None:

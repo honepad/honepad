@@ -2677,6 +2677,36 @@ def test_load_session_rejects_bool_clock_fields(monkeypatch, tmp_path: Path) -> 
         load_session()
 
 
+def test_load_session_ignores_non_bool_cleared(monkeypatch, tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    base = {
+        "problem": "bank_system",
+        "lang": "python3",
+        "started_at": 1_700_000_000,
+        "minutes": 90,
+        "unlocked": 4,
+    }
+    for cleared in ("false", 2):
+        session_file.write_text(
+            json.dumps({**base, "cleared": cleared}) + "\n",
+            encoding="utf-8",
+        )
+        loaded = load_session()
+        assert loaded is not None
+        assert loaded["cleared"] is False
+        save_session(load_session())
+        written = json.loads(session_file.read_text(encoding="utf-8"))
+        assert "cleared" not in written
+    session_file.write_text(
+        json.dumps({**base, "cleared": True}) + "\n",
+        encoding="utf-8",
+    )
+    loaded = load_session()
+    assert loaded is not None
+    assert loaded["cleared"] is True
+
+
 def test_last_run_bool_counts_are_dropped() -> None:
     from honepad.session import _parse_last_run
 
