@@ -13,8 +13,10 @@
       {"m": "get_text", "a": [], "e": "Xhello"},
       {"m": "undo", "a": [], "e": "true"},
       {"m": "get_text", "a": [], "e": "hello"},
+      {"m": "cursor", "a": [], "e": "0"},
       {"m": "redo", "a": [], "e": "true"},
       {"m": "get_text", "a": [], "e": "Xhello"},
+      {"m": "cursor", "a": [], "e": "1"},
       {"m": "insert", "a": [6, "!"], "e": "7"},
       {"m": "redo", "a": [], "e": "false"},
       {"m": "get_text", "a": [], "e": "Xhello!"}
@@ -35,6 +37,35 @@
       {"m": "insert", "a": [0, "x"], "e": "1"},
       {"m": "redo", "a": [], "e": "false"},
       {"m": "get_text", "a": [], "e": "x"}
+    ]
+  },
+  {
+    "id": "te-l3-undo-restores-cursor",
+    "level": 3,
+    "calls": [
+      {"m": "insert", "a": [0, "hi"], "e": "2"},
+      {"m": "move", "a": [2], "e": "true"},
+      {"m": "type_text", "a": ["!"], "e": "3"},
+      {"m": "cursor", "a": [], "e": "3"},
+      {"m": "undo", "a": [], "e": "true"},
+      {"m": "cursor", "a": [], "e": "2"},
+      {"m": "get_text", "a": [], "e": "hi"},
+      {"m": "redo", "a": [], "e": "true"},
+      {"m": "cursor", "a": [], "e": "3"},
+      {"m": "get_text", "a": [], "e": "hi!"}
+    ]
+  },
+  {
+    "id": "te-l3-undo-restores-pre-erase",
+    "level": 3,
+    "calls": [
+      {"m": "insert", "a": [0, "abcd"], "e": "4"},
+      {"m": "move", "a": [4], "e": "true"},
+      {"m": "erase", "a": [1, 2], "e": "bc"},
+      {"m": "cursor", "a": [], "e": "2"},
+      {"m": "undo", "a": [], "e": "true"},
+      {"m": "cursor", "a": [], "e": "4"},
+      {"m": "get_text", "a": [], "e": "abcd"}
     ]
   }
 ]

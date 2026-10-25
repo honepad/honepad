@@ -5,10 +5,13 @@
     "calls": [
       {"m": "insert", "a": [0, "hello world"], "e": "11"},
       {"m": "select", "a": [6, 11], "e": "true"},
+      {"m": "cursor", "a": [], "e": "0"},
       {"m": "cut", "a": [], "e": "world"},
+      {"m": "cursor", "a": [], "e": "6"},
       {"m": "get_text", "a": [], "e": "hello "},
       {"m": "length", "a": [], "e": "6"},
       {"m": "paste", "a": [], "e": "11"},
+      {"m": "cursor", "a": [], "e": "11"},
       {"m": "get_text", "a": [], "e": "hello world"},
       {"m": "select", "a": [0, 5], "e": "true"},
       {"m": "copy_sel", "a": [], "e": "hello"},
@@ -24,6 +27,8 @@
       {"m": "insert", "a": [0, "hello"], "e": "5"},
       {"m": "select", "a": [0, 5], "e": "true"},
       {"m": "copy_sel", "a": [], "e": "hello"},
+      {"m": "copy_sel", "a": [], "e": "hello"},
+      {"m": "cursor", "a": [], "e": "0"},
       {"m": "get_text", "a": [], "e": "hello"},
       {"m": "length", "a": [], "e": "5"}
     ]
@@ -37,6 +42,107 @@
       {"m": "cut", "a": [], "e": "he"},
       {"m": "get_text", "a": [], "e": "llo"},
       {"m": "length", "a": [], "e": "3"}
+    ]
+  },
+  {
+    "id": "te-l4-cut-moves-cursor",
+    "level": 4,
+    "calls": [
+      {"m": "insert", "a": [0, "abcdefgh"], "e": "8"},
+      {"m": "move", "a": [8], "e": "true"},
+      {"m": "select", "a": [1, 4], "e": "true"},
+      {"m": "cursor", "a": [], "e": "8"},
+      {"m": "cut", "a": [], "e": "bcd"},
+      {"m": "cursor", "a": [], "e": "1"},
+      {"m": "get_text", "a": [], "e": "aefgh"},
+      {"m": "copy_sel", "a": [], "e": "invalid_request"},
+      {"m": "paste", "a": [], "e": "8"},
+      {"m": "cursor", "a": [], "e": "4"},
+      {"m": "get_text", "a": [], "e": "abcdefgh"}
+    ]
+  },
+  {
+    "id": "te-l4-undo-skips-clip",
+    "level": 4,
+    "calls": [
+      {"m": "insert", "a": [0, "xy"], "e": "2"},
+      {"m": "select", "a": [0, 1], "e": "true"},
+      {"m": "cut", "a": [], "e": "x"},
+      {"m": "paste", "a": [], "e": "2"},
+      {"m": "get_text", "a": [], "e": "xy"},
+      {"m": "undo", "a": [], "e": "true"},
+      {"m": "get_text", "a": [], "e": ""},
+      {"m": "paste", "a": [], "e": "1"},
+      {"m": "get_text", "a": [], "e": "x"}
+    ]
+  },
+  {
+    "id": "te-l4-cut-keeps-redo",
+    "level": 4,
+    "calls": [
+      {"m": "insert", "a": [0, "ab"], "e": "2"},
+      {"m": "type_text", "a": ["X"], "e": "3"},
+      {"m": "undo", "a": [], "e": "true"},
+      {"m": "select", "a": [0, 1], "e": "true"},
+      {"m": "cut", "a": [], "e": "a"},
+      {"m": "redo", "a": [], "e": "true"},
+      {"m": "get_text", "a": [], "e": "Xab"}
+    ]
+  },
+  {
+    "id": "te-l4-paste-keeps-redo",
+    "level": 4,
+    "calls": [
+      {"m": "insert", "a": [0, "ab"], "e": "2"},
+      {"m": "select", "a": [0, 1], "e": "true"},
+      {"m": "copy_sel", "a": [], "e": "a"},
+      {"m": "undo", "a": [], "e": "true"},
+      {"m": "paste", "a": [], "e": "1"},
+      {"m": "redo", "a": [], "e": "true"},
+      {"m": "get_text", "a": [], "e": "ab"}
+    ]
+  },
+  {
+    "id": "te-l4-undo-clears-sel",
+    "level": 4,
+    "calls": [
+      {"m": "insert", "a": [0, "abcd"], "e": "4"},
+      {"m": "erase", "a": [0, 2], "e": "ab"},
+      {"m": "select", "a": [0, 1], "e": "true"},
+      {"m": "undo", "a": [], "e": "true"},
+      {"m": "get_text", "a": [], "e": "abcd"},
+      {"m": "copy_sel", "a": [], "e": "invalid_request"}
+    ]
+  },
+  {
+    "id": "te-l4-redo-clears-sel",
+    "level": 4,
+    "calls": [
+      {"m": "insert", "a": [0, "abcd"], "e": "4"},
+      {"m": "erase", "a": [0, 2], "e": "ab"},
+      {"m": "undo", "a": [], "e": "true"},
+      {"m": "select", "a": [0, 2], "e": "true"},
+      {"m": "redo", "a": [], "e": "true"},
+      {"m": "get_text", "a": [], "e": "cd"},
+      {"m": "copy_sel", "a": [], "e": "invalid_request"}
+    ]
+  },
+  {
+    "id": "te-l4-edit-clears-sel",
+    "level": 4,
+    "calls": [
+      {"m": "insert", "a": [0, "abcd"], "e": "4"},
+      {"m": "select", "a": [0, 2], "e": "true"},
+      {"m": "insert", "a": [4, "Z"], "e": "5"},
+      {"m": "cut", "a": [], "e": "invalid_request"},
+      {"m": "select", "a": [1, 3], "e": "true"},
+      {"m": "erase", "a": [0, 1], "e": "a"},
+      {"m": "cut", "a": [], "e": "invalid_request"},
+      {"m": "get_text", "a": [], "e": "bcdZ"},
+      {"m": "select", "a": [0, 1], "e": "true"},
+      {"m": "type_text", "a": ["Q"], "e": "5"},
+      {"m": "cut", "a": [], "e": "invalid_request"},
+      {"m": "get_text", "a": [], "e": "QbcdZ"}
     ]
   }
 ]

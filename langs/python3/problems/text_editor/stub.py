@@ -3,11 +3,11 @@ class Simulation:
         pass
 
     def insert(self, pos, text):
-        """Insert at pos. New length, or invalid_request."""
+        """Insert at pos. Does not move the cursor. New length, or invalid_request."""
         raise NotImplementedError
 
     def erase(self, pos, n):
-        """Deleted substring, or invalid_request."""
+        """Deleted substring, or invalid_request. Cursor stays unless past the new end."""
         raise NotImplementedError
 
     def get_text(self):
@@ -31,7 +31,7 @@ class Simulation:
         raise NotImplementedError
 
     def undo(self):
-        """Revert last insert/erase/type_text. "true" or "false"."""
+        """Revert last insert, erase, or type_text, and the cursor. "true" or "false"."""
         raise NotImplementedError
 
     def redo(self):
@@ -39,17 +39,23 @@ class Simulation:
         raise NotImplementedError
 
     def select(self, start, end):
-        """Mark [start, end). "true" or invalid_request."""
+        """Mark [start, end). Does not move the cursor. "true" or invalid_request."""
         raise NotImplementedError
 
     def cut(self):
-        """Delete selection onto clipboard, or invalid_request."""
+        """Delete the selection onto the clipboard, move the cursor to its start, and clear it.
+
+        Not undoable. Empty or missing selection is invalid_request.
+        """
         raise NotImplementedError
 
     def copy_sel(self):
-        """Copy selection onto clipboard, or invalid_request."""
+        """Copy the selection. Does not move the cursor or clear it. Or invalid_request."""
         raise NotImplementedError
 
     def paste(self):
-        """Insert clipboard at cursor. New length, or invalid_request."""
+        """Insert the clipboard at the cursor and advance. Not undoable.
+
+        New length, or invalid_request.
+        """
         raise NotImplementedError
