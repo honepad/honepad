@@ -4,6 +4,7 @@ import json
 import os
 import shutil
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -3207,16 +3208,23 @@ def test_run_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None:
             solution.write_bytes(original)
 
 
-def test_reset_breaks_work_hardlink_to_pack(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
-    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
-    capsys.readouterr()
-    work = tmp_path / "work" / "bank_system" / "python3" / "work.py"
+def _repo_session_dir() -> Path:
+    # pytest tmp is often another device from the checkout, so os.link
+    # from a pack file to that tmp raises EXDEV.
+    return Path(tempfile.mkdtemp(prefix="hp-session-", dir=repo_root()))
+
+
+def test_reset_breaks_work_hardlink_to_pack(monkeypatch, capsys) -> None:
+    session_dir = _repo_session_dir()
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_dir / "session.json"))
     solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
     original = solution.read_text(encoding="utf-8")
-    work.unlink()
-    os.link(solution, work)
     try:
+        assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+        capsys.readouterr()
+        work = session_dir / "work" / "bank_system" / "python3" / "work.py"
+        work.unlink()
+        os.link(solution, work)
         code = main(["start", "bank_system", "python3", "--reset", "--no-console"])
         captured = capsys.readouterr()
         out = captured.out + captured.err
@@ -3228,20 +3236,22 @@ def test_reset_breaks_work_hardlink_to_pack(monkeypatch, tmp_path: Path, capsys)
         assert work.stat().st_ino != solution.stat().st_ino
         assert work.read_text(encoding="utf-8")
     finally:
+        shutil.rmtree(session_dir, ignore_errors=True)
         if solution.read_text(encoding="utf-8") != original:
             solution.write_text(original, encoding="utf-8")
 
 
-def test_write_work_spec_breaks_hardlink_to_pack(monkeypatch, tmp_path: Path, capsys) -> None:
-    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
-    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
-    capsys.readouterr()
-    spec = tmp_path / "work" / "bank_system" / "python3" / "spec.md"
+def test_write_work_spec_breaks_hardlink_to_pack(monkeypatch, capsys) -> None:
+    session_dir = _repo_session_dir()
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_dir / "session.json"))
     stub = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "stub.py"
     original = stub.read_text(encoding="utf-8")
-    spec.unlink()
-    os.link(stub, spec)
     try:
+        assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+        capsys.readouterr()
+        spec = session_dir / "work" / "bank_system" / "python3" / "spec.md"
+        spec.unlink()
+        os.link(stub, spec)
         assert spec.stat().st_ino == stub.stat().st_ino
         code = main(["start", "bank_system", "python3", "--no-console"])
         captured = capsys.readouterr()
@@ -3256,6 +3266,7 @@ def test_write_work_spec_breaks_hardlink_to_pack(monkeypatch, tmp_path: Path, ca
         assert "create_account" in text
         assert text != original
     finally:
+        shutil.rmtree(session_dir, ignore_errors=True)
         if stub.read_text(encoding="utf-8") != original:
             stub.write_text(original, encoding="utf-8")
 

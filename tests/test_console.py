@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 from pathlib import Path
@@ -2272,17 +2273,19 @@ def test_run_refreshes_stale_workspace_cases(monkeypatch, tmp_path: Path) -> Non
     assert "def test_l1_create()" in text
 
 
-def test_write_workspace_breaks_cases_hardlink_to_pack(monkeypatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
-    assert main(["start", "bank_system", "java", "--reset"]) == 0
-    dest = write_workspace("bank_system", "java", 1)
-    public = dest.parent / "public"
+def test_write_workspace_breaks_cases_hardlink_to_pack(monkeypatch) -> None:
+    # pytest tmp is often another device, so os.link to the pack fails with EXDEV.
+    session_dir = Path(tempfile.mkdtemp(prefix="hp-session-", dir=repo_root()))
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_dir / "session.json"))
     pack_adapter = repo_root() / "langs" / "java" / "Adapter.java"
     original = pack_adapter.read_bytes()
-    cases = public / "cases.json"
-    cases.unlink()
-    os.link(pack_adapter, cases)
     try:
+        assert main(["start", "bank_system", "java", "--reset"]) == 0
+        dest = write_workspace("bank_system", "java", 1)
+        public = dest.parent / "public"
+        cases = public / "cases.json"
+        cases.unlink()
+        os.link(pack_adapter, cases)
         assert cases.stat().st_ino == pack_adapter.stat().st_ino
         write_workspace("bank_system", "java", 1)
         assert pack_adapter.read_bytes() == original
@@ -2290,6 +2293,7 @@ def test_write_workspace_breaks_cases_hardlink_to_pack(monkeypatch, tmp_path: Pa
         assert not cases.is_symlink()
         assert cases.stat().st_ino != pack_adapter.stat().st_ino
     finally:
+        shutil.rmtree(session_dir, ignore_errors=True)
         if pack_adapter.read_bytes() != original:
             pack_adapter.write_bytes(original)
 
