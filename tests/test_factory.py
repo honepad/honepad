@@ -281,7 +281,9 @@ def test_ci_test_job_keeps_short_cli_smoke() -> None:
     assert makefile.count("$(PYTHON) -m pytest $(PYTEST_COV)") == 2
     agents = (ROOT / "AGENTS.md").read_text()
     assert ".venv/bin/ruff check src tests" in agents
-    assert "python3 -m pytest --cov=honepad --cov-fail-under=80 --cov-report=term" in agents
+    assert (
+        ".venv/bin/python3 -m pytest --cov=honepad --cov-fail-under=80 --cov-report=term"
+    ) in agents
     assert "shard: [unit, script, compiled, jvm, stats]" in text
     assert "name: Stealth" in text
     assert "name: Lint" in text
