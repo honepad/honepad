@@ -110,7 +110,9 @@ jobs:
       always() &&
       !startsWith(github.head_ref, 'release-please') &&
       (needs.changes.result == 'skipped' || needs.changes.outputs.code == 'true')
-    runs-on: ubuntu-latest
+    # setup-swift v2.4.0 has no Ubuntu 26.04 toolchain. ubuntu-latest
+    # became 26.04 on 2026-10-25, so the compiled shard stays on 24.04.
+    runs-on: ${{ matrix.shard == 'compiled' && 'ubuntu-24.04' || 'ubuntu-latest' }}
     timeout-minutes: 20
     strategy:
       fail-fast: false

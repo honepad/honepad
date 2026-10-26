@@ -38,5 +38,32 @@
       {"m": "get_text", "a": [], "e": "abc"},
       {"m": "cursor", "a": [], "e": "2"}
     ]
+  },
+  {
+    "id": "te-l2-insert-keeps-cursor",
+    "level": 2,
+    "calls": [
+      {"m": "insert", "a": [0, "abcd"], "e": "4"},
+      {"m": "move", "a": [2], "e": "true"},
+      {"m": "insert", "a": [0, "X"], "e": "5"},
+      {"m": "cursor", "a": [], "e": "2"},
+      {"m": "get_text", "a": [], "e": "Xabcd"}
+    ]
+  },
+  {
+    "id": "te-l2-erase-clamps-cursor",
+    "level": 2,
+    "calls": [
+      {"m": "insert", "a": [0, "abcd"], "e": "4"},
+      {"m": "move", "a": [4], "e": "true"},
+      {"m": "erase", "a": [1, 2], "e": "bc"},
+      {"m": "cursor", "a": [], "e": "2"},
+      {"m": "get_text", "a": [], "e": "ad"},
+      {"m": "move", "a": [1], "e": "true"},
+      {"m": "erase", "a": [0, 0], "e": "invalid_request"},
+      {"m": "erase", "a": [1, 1], "e": "d"},
+      {"m": "cursor", "a": [], "e": "1"},
+      {"m": "get_text", "a": [], "e": "a"}
+    ]
   }
 ]

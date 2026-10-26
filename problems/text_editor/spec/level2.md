@@ -8,6 +8,10 @@ The cursor starts at 0.
 `type_text(text)` inserts `text` at the cursor, advances the cursor
 by `len(text)`, and returns the new length.
 
+`insert` does not move the cursor. The index stays put when text is
+inserted before it. `erase` leaves the cursor on its index. If that
+index is past the new end, the cursor moves to the new end.
+
 `cursor()` returns the current position as a string.
 
 ## Example
