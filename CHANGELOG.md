@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.6](https://github.com/honepad/honepad/compare/v0.2.5...v0.2.6) (2026-10-26)
+
+
+### Bug Fixes
+
+* **text-editor:** state the cut cursor and undo rules ([#324](https://github.com/honepad/honepad/issues/324)) ([44551c8](https://github.com/honepad/honepad/commit/44551c8a468719fd5af08629e1c211f7e724cffe))
+
+
+### Documentation
+
+* run the coverage gate with the venv python ([#327](https://github.com/honepad/honepad/issues/327)) ([549afc6](https://github.com/honepad/honepad/commit/549afc6d8fd40770286861498785938c87f6ea76))
+
 ## [0.2.5](https://github.com/honepad/honepad/compare/v0.2.4...v0.2.5) (2026-10-20)
 
 
