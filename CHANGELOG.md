@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.7](https://github.com/honepad/honepad/compare/v0.2.6...v0.2.7) (2026-11-03)
+
+
+### Bug Fixes
+
+* explain the session lock excepts ([#336](https://github.com/honepad/honepad/issues/336)) ([8cf089d](https://github.com/honepad/honepad/commit/8cf089dd5a4f61a0ce62c4e45999e869c76f0e13))
+* keep other practice desks and signature comments ([#335](https://github.com/honepad/honepad/issues/335)) ([52a1617](https://github.com/honepad/honepad/commit/52a1617d05e9e9ec92838ce04b0d0b23bbae0fa6))
+
+
+### Dependencies
+
+* Bump coffeescript from 2.7.0 to 2.7.1 in /ci/npm in the npm-minor-patch group ([#330](https://github.com/honepad/honepad/issues/330)) ([c46cd18](https://github.com/honepad/honepad/commit/c46cd1849bfb0b23dca83612dae885412ef461ce))
+* Bump the pip-minor-patch group across 1 directory with 2 updates ([#331](https://github.com/honepad/honepad/issues/331)) ([8467076](https://github.com/honepad/honepad/commit/846707685f3a0e8f58459111b6d11af122c3e664))
+
 ## [0.2.6](https://github.com/honepad/honepad/compare/v0.2.5...v0.2.6) (2026-10-26)
 
 
