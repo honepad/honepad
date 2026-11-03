@@ -853,6 +853,11 @@ def _js_class_close(text: str, class_name: str) -> int:
     return _brace_close(text, brace)
 
 
+def _form_in_work(work: str, form: str) -> bool:
+    # A longer identifier such as top_spenders_extra is not this method.
+    return re.search(rf"(?<!\w){re.escape(form)}(?!\w)", work) is not None
+
+
 def _name_forms(name: str) -> set[str]:
     forms = {name}
     if "_" in name:
@@ -928,7 +933,7 @@ def _merge_api_comments(work: str, full: str, allowed: set[str]) -> str:
             in_block = True
         consider = _is_comment_line(stripped) or (in_block and "(*" not in stripped)
         name = _api_ident(stripped) if consider else None
-        present = name is not None and any(form in work for form in _name_forms(name))
+        present = name is not None and any(_form_in_work(work, form) for form in _name_forms(name))
         if name is not None and name in allowed_all and not present:
             extras.append(line if line.endswith("\n") else line + "\n")
         if "*)" in stripped:

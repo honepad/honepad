@@ -6309,3 +6309,33 @@ end
     outside = before + after[inner_end + len("\n  end\n") :]
     assert "def top_spenders" in inner
     assert "def top_spenders" in outside
+
+
+def test_c_longer_identifier_still_receives_top_spenders_comment() -> None:
+    full = (repo_root() / "langs/c/problems/bank_system/stub.c").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("c"))
+    work = full.replace(
+        "// top_spenders(timestamp, n)\n",
+        "static void top_spenders_extra(void) {}\n",
+    )
+    merged = merge_unlocked_methods(work, full, "c", allowed, "Simulation")
+    assert "// top_spenders(timestamp, n)" in merged
+    assert merged.count("// top_spenders(timestamp, n)") == 1
+
+
+def test_c_camel_longer_identifier_still_receives_top_spenders_comment() -> None:
+    full = (repo_root() / "langs/c/problems/bank_system/stub.c").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("c"))
+    work = full.replace(
+        "// top_spenders(timestamp, n)\n",
+        "static void topSpendersExtra(void) {}\n",
+    )
+    merged = merge_unlocked_methods(work, full, "c", allowed, "Simulation")
+    assert "// top_spenders(timestamp, n)" in merged
+
+
+def test_c_existing_signature_comment_is_not_duplicated() -> None:
+    full = (repo_root() / "langs/c/problems/bank_system/stub.c").read_text(encoding="utf-8")
+    allowed = methods_through_level("bank_system", 2, naming_for("c"))
+    merged = merge_unlocked_methods(full, full, "c", allowed, "Simulation")
+    assert merged.count("// top_spenders(timestamp, n)") == 1
