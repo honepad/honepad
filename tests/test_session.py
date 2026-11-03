@@ -21,6 +21,7 @@ from honepad.session import (
     load_session,
     lock_to_level,
     mark_cleared,
+    new_session,
     remaining_s,
     save_session,
     work_src,
@@ -2698,6 +2699,79 @@ def test_load_session_rejects_bool_clock_fields(monkeypatch, tmp_path: Path) -> 
     )
     with pytest.raises(ValueError, match="must be an integer"):
         load_session()
+
+
+def test_load_session_rejects_fractional_unlocked(monkeypatch, tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90,
+                "unlocked": 1.9,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="unlocked must be an integer"):
+        load_session()
+
+
+def test_load_session_accepts_integral_float_unlocked(monkeypatch, tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    session_file.write_text(
+        json.dumps(
+            {
+                "problem": "bank_system",
+                "lang": "python3",
+                "started_at": 1_700_000_000,
+                "minutes": 90.0,
+                "unlocked": 1.0,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    loaded = load_session()
+    assert loaded is not None
+    assert loaded["unlocked"] == 1
+    assert loaded["minutes"] == 90
+    assert isinstance(loaded["unlocked"], int)
+
+
+def test_save_keeps_disk_desk_missing_from_memory(monkeypatch, tmp_path: Path) -> None:
+    session_file = tmp_path / "session.json"
+    monkeypatch.setenv("HONEPAD_SESSION", str(session_file))
+    bank = new_session("bank_system", "python3")
+    bank["unlocked"] = 2
+    save_session(bank)
+    database = new_session("in_memory_database", "python3")
+    database["unlocked"] = 3
+    database["desks"] = {
+        "bank_system": {
+            "unlocked": 2,
+            "lang": "python3",
+            "minutes": 90,
+            "started_at": bank["started_at"],
+        }
+    }
+    save_session(database)
+    stale = new_session("in_memory_database", "python3")
+    stale["unlocked"] = 4
+    stale["desks"] = {}
+    save_session(stale)
+    loaded = load_session()
+    assert loaded is not None
+    assert loaded["problem"] == "in_memory_database"
+    assert loaded["unlocked"] == 4
+    parked = loaded["desks"]["bank_system"]
+    assert parked["unlocked"] == 2
+    assert not session_file.with_name(session_file.name + ".lock").exists()
 
 
 def test_load_session_ignores_non_bool_cleared(monkeypatch, tmp_path: Path) -> None:

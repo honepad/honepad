@@ -269,9 +269,17 @@ def load_session(
 
 
 def _strict_int(value: Any, label: str) -> int:
-    """Reject JSON booleans. int(True) is 1, which would look like a real count."""
+    """Reject JSON booleans and fractional numbers.
+
+    int(True) is 1 and int(1.9) is 1. Either would look like a real level.
+    An integral float such as 1.0 is still that integer.
+    """
     if isinstance(value, bool):
         raise TypeError(f"{label} must be an integer")
+    if isinstance(value, float):
+        if not value.is_integer():
+            raise TypeError(f"{label} must be an integer")
+        return int(value)
     return int(value)
 
 
@@ -458,12 +466,62 @@ def _other_desks(problem: str) -> dict[str, dict[str, Any]]:
     return desks
 
 
+def _session_lock(target: Path):
+    """Exclusive lock so two commands cannot drop each other's desks."""
+    lock_path = target.with_name(target.name + ".lock")
+    deadline = time.monotonic() + 2.0
+    while True:
+        try:
+            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            return fd, lock_path
+        except FileExistsError:
+            if time.monotonic() >= deadline:
+                try:
+                    if time.time() - lock_path.stat().st_mtime > 5:
+                        lock_path.unlink()
+                        continue
+                except OSError:
+                    pass
+                raise TimeoutError(f"session file is locked: {lock_path}") from None
+            time.sleep(0.02)
+
+
+def _desks_for_save(session: dict[str, Any], target: Path) -> dict[str, dict[str, Any]]:
+    """Keep desks from disk that this process does not have in memory."""
+    problem = str(session["problem"])
+    memory = dict(session.get("desks") or {})
+    memory[problem] = _desk_snapshot(session)
+    try:
+        fresh = load_session(target)
+    except (ValueError, OSError, RetiredLanguage):
+        return memory
+    if fresh is None:
+        return memory
+    merged = dict(fresh.get("desks") or {})
+    for key, desk in memory.items():
+        if key not in merged:
+            merged[key] = desk
+    merged[problem] = memory[problem]
+    return merged
+
+
 def save_session(session: dict[str, Any], path: Path | None = None) -> Path:
     target = path or session_path()
     target.parent.mkdir(parents=True, exist_ok=True)
+    lock_fd, lock_path = _session_lock(target)
+    try:
+        return _save_session_locked(session, target)
+    finally:
+        os.close(lock_fd)
+        try:
+            lock_path.unlink()
+        except OSError:
+            pass
+
+
+def _save_session_locked(session: dict[str, Any], target: Path) -> Path:
     problem = str(session["problem"])
-    desks = dict(session.get("desks") or {})
-    desks[problem] = _desk_snapshot(session)
+    desks = _desks_for_save(session, target)
     session["desks"] = desks
     payload: dict[str, Any] = {
         "problem": problem,
