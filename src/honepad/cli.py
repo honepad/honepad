@@ -1070,6 +1070,8 @@ def _drop_stdout() -> None:
     try:
         os.dup2(devnull, fd)
     except OSError:
+        # dup2 fails when the stdout fd is already gone. The finally
+        # block still closes devnull, and shutdown must stay quiet.
         pass
     finally:
         os.close(devnull)
