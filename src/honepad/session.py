@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import sys
 import tempfile
@@ -277,6 +278,9 @@ def _strict_int(value: Any, label: str) -> int:
     if isinstance(value, bool):
         raise TypeError(f"{label} must be an integer")
     if isinstance(value, float):
+        # inf and nan keep OverflowError / ValueError ("infinity", "NaN").
+        if not math.isfinite(value):
+            return int(value)
         if not value.is_integer():
             raise TypeError(f"{label} must be an integer")
         return int(value)
