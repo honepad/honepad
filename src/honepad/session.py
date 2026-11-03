@@ -485,6 +485,8 @@ def _session_lock(target: Path):
                         lock_path.unlink()
                         continue
                 except OSError:
+                    # stat or unlink can lose the race with the other
+                    # process. The timeout below is the failure the caller sees.
                     pass
                 raise TimeoutError(f"session file is locked: {lock_path}") from None
             time.sleep(0.02)
@@ -520,6 +522,7 @@ def save_session(session: dict[str, Any], path: Path | None = None) -> Path:
         try:
             lock_path.unlink()
         except OSError:
+            # The other process may already have removed the lock.
             pass
 
 
