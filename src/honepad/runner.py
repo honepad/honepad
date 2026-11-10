@@ -73,6 +73,11 @@ def pack_src(lang_id: str, problem: str, kind: str, solution_name: str, stub_nam
         path = session.work_src(problem, lang_id)
         if path.is_symlink():
             raise RuntimeError(f"work file is a symlink: {path}")
+        # A desk that was never created is still "work file missing".
+        # Only an existing or symlinked parent can escape the session.
+        parent = path.parent
+        if parent.is_symlink() or parent.exists():
+            session._require_real_session_dir(parent, "work")
         if not path.is_file():
             raise FileNotFoundError(f"work file missing: {path}")
         return path

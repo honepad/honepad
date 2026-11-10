@@ -1846,6 +1846,15 @@ def test_start_back_wrong_problem_prints_next(monkeypatch, tmp_path: Path, capsy
     assert "start bank_system python3 --back" in out
 
 
+def test_start_back_without_session_names_the_problem(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "workers", "python3", "--back", "--no-console"]) == 1
+    out = capsys.readouterr().out
+    assert "no session to go back" in out
+    assert "start workers python3" in out
+    assert "bank_system" not in out
+
+
 def test_start_back_already_level1_prints_next(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
@@ -2237,6 +2246,35 @@ def test_refresh_updates_copied_work_file(monkeypatch, tmp_path: Path) -> None:
     work.write_text(work.read_text(encoding="utf-8") + "\n# edited-after-copy\n", encoding="utf-8")
     assert refresh_workspace("bank_system", "python3", 1) is not None
     assert "# edited-after-copy" in public_work.read_text(encoding="utf-8")
+
+
+def test_refresh_workspace_does_not_follow_work_symlink(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    dest = write_workspace("bank_system", "python3", 1)
+    public_work = dest.parent / "public" / "work.py"
+    plain = public_work.read_bytes()
+    if public_work.is_symlink() or public_work.exists():
+        public_work.unlink()
+    public_work.write_bytes(plain)
+    assert public_work.is_file()
+    assert not public_work.is_symlink()
+    work = work_src("bank_system", "python3")
+    solution = repo_root() / "langs" / "python3" / "problems" / "bank_system" / "solution.py"
+    original = solution.read_bytes()
+    assert plain != original
+    work.unlink()
+    work.symlink_to(solution)
+    try:
+        refresh_workspace("bank_system", "python3", 1)
+        assert public_work.read_bytes() == plain
+        assert public_work.is_file()
+        assert not public_work.is_symlink()
+        assert work.is_symlink()
+        assert solution.read_bytes() == original
+    finally:
+        if solution.read_bytes() != original:
+            solution.write_bytes(original)
 
 
 def test_start_refreshes_stale_workspace_cases(monkeypatch, tmp_path: Path) -> None:
