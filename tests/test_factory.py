@@ -61,7 +61,9 @@ def test_ci_does_not_rebuild_on_push_to_main() -> None:
     assert "push:" not in on_block
     assert "tags:" not in on_block
     assert "name: CI" in text
-    assert "needs: [stealth, lint, test, compat]" in text
+    assert "needs: [changes, stealth, lint, test, compat]" in text
+    require = text.split("- name: Require jobs", 1)[1]
+    assert "needs.changes.result" in require
 
 
 def _ci_job(text: str, name: str) -> str:
