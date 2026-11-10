@@ -382,7 +382,7 @@ jobs:
 
   ci:
     name: CI
-    needs: [stealth, lint, test, compat]
+    needs: [changes, stealth, lint, test, compat]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -394,6 +394,9 @@ jobs:
         run: |
           set -euo pipefail
           test "${{ needs.stealth.result }}" = success
+          # skipped: workflow_dispatch and merge_group do not run Changes.
+          changes="${{ needs.changes.result }}"
+          test "$changes" = success || test "$changes" = skipped
           for r in \
             "${{ needs.lint.result }}" \
             "${{ needs.test.result }}" \
