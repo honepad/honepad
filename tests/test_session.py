@@ -737,7 +737,7 @@ def test_run_kind_work_problem_mismatch(monkeypatch, tmp_path: Path, capsys) -> 
     assert main(["run", "bank_system", "--kind", "work"]) == 1
     out = capsys.readouterr().out
     assert "FAIL:" in out
-    assert "work is not a directory" in out
+    assert "work file missing" in out
     assert "bank_system" in out
     assert "UNLOCKED" not in out
     assert "\nOK\n" not in out
