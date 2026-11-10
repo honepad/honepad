@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.8](https://github.com/honepad/honepad/compare/v0.2.7...v0.2.8) (2026-11-10)
+
+
+### Bug Fixes
+
+* keep the named problem or language on console and vscode ([#343](https://github.com/honepad/honepad/issues/343)) ([6b8dc0a](https://github.com/honepad/honepad/commit/6b8dc0ae249b5c613a398387fd36e751b7d09326))
+* list copy on file_storage stubs that already list add ([#344](https://github.com/honepad/honepad/issues/344)) ([84d5776](https://github.com/honepad/honepad/commit/84d57762b6494ca0b68c571e78682b922c593e76))
+* refuse a symlinked work directory on run ([#341](https://github.com/honepad/honepad/issues/341)) ([465c969](https://github.com/honepad/honepad/commit/465c969db673fd6a4fb2ef76af88d97df318d1be))
+
+
+### Dependencies
+
+* Bump ruff from 0.17.3 to 0.17.4 in the pip-minor-patch group ([#337](https://github.com/honepad/honepad/issues/337)) ([2129895](https://github.com/honepad/honepad/commit/212989526c7bd2aed65fe30de0f13c9694c504ed))
+
 ## [0.2.7](https://github.com/honepad/honepad/compare/v0.2.6...v0.2.7) (2026-11-03)
 
 
