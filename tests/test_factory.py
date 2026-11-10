@@ -63,7 +63,11 @@ def test_ci_does_not_rebuild_on_push_to_main() -> None:
     assert "name: CI" in text
     assert "needs: [changes, stealth, lint, test, compat]" in text
     require = text.split("- name: Require jobs", 1)[1]
-    assert "needs.changes.result" in require
+    lines = [line.strip() for line in require.splitlines() if line.strip()]
+    assign = 'changes="${{ needs.changes.result }}"'
+    assert assign in lines
+    gate = lines[lines.index(assign) + 1]
+    assert gate == 'test "$changes" = success || test "$changes" = skipped'
 
 
 def _ci_job(text: str, name: str) -> str:
