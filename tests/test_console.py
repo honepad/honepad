@@ -1846,6 +1846,15 @@ def test_start_back_wrong_problem_prints_next(monkeypatch, tmp_path: Path, capsy
     assert "start bank_system python3 --back" in out
 
 
+def test_start_back_without_session_names_the_problem(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "workers", "python3", "--back", "--no-console"]) == 1
+    out = capsys.readouterr().out
+    assert "no session to go back" in out
+    assert "start workers python3" in out
+    assert "bank_system" not in out
+
+
 def test_start_back_already_level1_prints_next(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0

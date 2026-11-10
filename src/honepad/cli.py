@@ -357,7 +357,7 @@ def cmd_start(args: argparse.Namespace) -> int:
             session = load_session()
             if session is None:
                 print(status_fail("FAIL: no session to go back"))
-                print(start_next(row["id"]))
+                print(f"NEXT: {invocation()} start {args.problem} {row['id']}")
                 return 1
             if session["problem"] != args.problem or str(session["lang"]) != row["id"]:
                 print(status_fail("FAIL: --back needs the current problem and language"))
