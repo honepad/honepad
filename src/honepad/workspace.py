@@ -56,6 +56,9 @@ def _plain_work_copies(problem: str, lang: str) -> list[Path]:
 
 def _refresh_plain_work_copies(problem: str, lang: str) -> None:
     work = work_src(problem, lang)
+    # is_file() follows a symlink. Refuse before any read of the referent.
+    if work.is_symlink():
+        return
     if not work.is_file():
         return
     text = work.read_text(encoding="utf-8")

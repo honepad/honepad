@@ -73,6 +73,7 @@ def pack_src(lang_id: str, problem: str, kind: str, solution_name: str, stub_nam
         path = session.work_src(problem, lang_id)
         if path.is_symlink():
             raise RuntimeError(f"work file is a symlink: {path}")
+        session._require_real_session_dir(path.parent, "work")
         if not path.is_file():
             raise FileNotFoundError(f"work file missing: {path}")
         return path

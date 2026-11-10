@@ -737,7 +737,7 @@ def test_run_kind_work_problem_mismatch(monkeypatch, tmp_path: Path, capsys) -> 
     assert main(["run", "bank_system", "--kind", "work"]) == 1
     out = capsys.readouterr().out
     assert "FAIL:" in out
-    assert "work file missing" in out
+    assert "work is not a directory" in out
     assert "bank_system" in out
     assert "UNLOCKED" not in out
     assert "\nOK\n" not in out
@@ -3280,6 +3280,46 @@ def test_run_refuses_work_symlink(monkeypatch, tmp_path: Path, capsys) -> None:
     finally:
         if solution.read_bytes() != original:
             solution.write_bytes(original)
+
+
+def test_run_refuses_work_dir_symlink(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["start", "bank_system", "python3", "--reset", "--no-console"]) == 0
+    capsys.readouterr()
+    work_dir = tmp_path / "work" / "bank_system" / "python3"
+    pack = repo_root() / "langs" / "python3" / "problems" / "bank_system"
+    solution = pack / "solution.py"
+    original = solution.read_bytes()
+    pack_names = {path.name for path in pack.iterdir()}
+    shutil.rmtree(work_dir)
+    work_dir.symlink_to(pack)
+    planted = pack / "work.py"
+    planted_spec = pack / "spec.md"
+    try:
+        code = main(["run", "bank_system", "--lang", "python3", "--kind", "work"])
+        captured = capsys.readouterr()
+        out = captured.out + captured.err
+        assert code == 1
+        assert "FAIL" in out
+        assert "symlink" in out
+        assert "Traceback" not in out
+        assert solution.read_bytes() == original
+        assert work_dir.is_symlink()
+        assert work_dir.resolve() == pack.resolve()
+        assert {path.name for path in pack.iterdir()} == pack_names
+        assert not planted.exists()
+        assert not planted_spec.exists()
+    finally:
+        if solution.read_bytes() != original:
+            solution.write_bytes(original)
+        if planted.exists() and not planted.is_symlink():
+            planted.unlink()
+        if planted_spec.exists() and not planted_spec.is_symlink():
+            planted_spec.unlink()
+        for name in ("work.py", "spec.md"):
+            extra = pack / name
+            if extra.exists() and extra.name not in pack_names:
+                extra.unlink()
 
 
 def _repo_session_dir() -> Path:
