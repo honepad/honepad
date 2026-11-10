@@ -96,6 +96,13 @@ def render_banner(session: dict[str, Any], now: int | None = None) -> str:
     return "\n".join(lines)
 
 
+def _next_both(command: str, problem: str | None, lang: str | None) -> str:
+    """Keep the token the user already typed. Fill only the one they omitted."""
+    named_problem = problem or "bank_system"
+    named_lang = lang or "python3"
+    return f"NEXT: {invocation()} {command} {named_problem} {named_lang}"
+
+
 def cmd_console(args: argparse.Namespace) -> int:
     try:
         session = _load_or_start(args)
@@ -108,7 +115,13 @@ def cmd_console(args: argparse.Namespace) -> int:
     except HONEPAD_ERRORS as exc:
         print_fail(exc)
         if "both problem and lang" in str(exc):
-            print(f"NEXT: {invocation()} console bank_system python3")
+            print(
+                _next_both(
+                    "console",
+                    getattr(args, "problem", None),
+                    getattr(args, "lang", None),
+                )
+            )
         return 1
     try:
         refresh_workspace(
@@ -149,7 +162,13 @@ def cmd_vscode(args: argparse.Namespace) -> int:
     except HONEPAD_ERRORS as exc:
         print_fail(exc)
         if "both problem and lang" in str(exc):
-            print(f"NEXT: {invocation()} vscode bank_system python3")
+            print(
+                _next_both(
+                    "vscode",
+                    getattr(args, "problem", None),
+                    getattr(args, "lang", None),
+                )
+            )
         return 1
 
 
@@ -612,7 +631,7 @@ def _load_or_start(args: argparse.Namespace) -> dict[str, Any]:
     args.problem = problem
     args.lang = lang
     if (problem is None) != (lang is None):
-        raise ValueError("console needs both problem and lang, or neither")
+        raise ValueError("needs both problem and lang, or neither")
     if problem is None:
         session = load_session()
         if session is None:

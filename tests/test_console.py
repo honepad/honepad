@@ -946,6 +946,30 @@ def test_vscode_needs_both_args(monkeypatch, tmp_path: Path, capsys) -> None:
     assert "vscode bank_system python3" in out
 
 
+def test_console_needs_both_keeps_the_named_problem(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["console", "workers"]) == 1
+    out = capsys.readouterr().out
+    assert "console workers python3" in out
+    assert "console bank_system python3" not in out
+
+
+def test_console_needs_both_keeps_the_named_language(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["console", "java"]) == 1
+    out = capsys.readouterr().out
+    assert "console bank_system java" in out
+    assert "console bank_system python3" not in out
+
+
+def test_vscode_needs_both_keeps_the_named_problem(monkeypatch, tmp_path: Path, capsys) -> None:
+    monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
+    assert main(["vscode", "workers"]) == 1
+    out = capsys.readouterr().out
+    assert "vscode workers python3" in out
+    assert "vscode bank_system python3" not in out
+
+
 def test_console_unparseable_work_prints_reset_next(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--no-console"]) == 0
