@@ -1291,6 +1291,11 @@ def test_console_quit(monkeypatch, tmp_path: Path, capsys) -> None:
     monkeypatch.setenv("HONEPAD_SESSION", str(tmp_path / "session.json"))
     assert main(["start", "bank_system", "python3", "--reset"]) == 0
     capsys.readouterr()
+    session = load_session()
+    assert session is not None
+    # Start and the console can straddle a one-second boundary. Pin the
+    # clock at the session start so the banner stays at 1:30:00.
+    monkeypatch.setattr("honepad.session.time.time", lambda: int(session["started_at"]))
     monkeypatch.setattr(sys, "stdin", io.StringIO("q\n"))
     assert main(["console"]) == 0
     out = capsys.readouterr().out

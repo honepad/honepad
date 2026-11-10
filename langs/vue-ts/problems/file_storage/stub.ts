@@ -3,6 +3,7 @@ class Simulation {
   addFile(name, size) { throw new Error('not implemented'); }
   getFileSize(name) { throw new Error('not implemented'); }
   deleteFile(name) { throw new Error('not implemented'); }
+  copyFile(source, dest) { throw new Error('not implemented'); }
   getNLargest(prefix, n) { throw new Error('not implemented'); }
   addUser(user_id, capacity) { throw new Error('not implemented'); }
   addFileBy(user_id, name, size) { throw new Error('not implemented'); }

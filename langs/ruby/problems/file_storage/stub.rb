@@ -10,6 +10,9 @@ class Simulation
   def delete_file(name)
     raise 'not implemented'
   end
+  def copy_file(source, dest)
+    raise 'not implemented'
+  end
   def get_n_largest(prefix, n)
     raise 'not implemented'
   end
