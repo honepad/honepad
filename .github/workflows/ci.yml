@@ -67,7 +67,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+      - uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -90,7 +90,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+      - uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -119,7 +119,7 @@ jobs:
       matrix:
         shard: [unit, script, compiled, jvm, stats]
     steps:
-      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+      - uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2
         with:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -133,7 +133,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         if: matrix.shard == 'compiled'
         with:
           go-version: "1.26"
@@ -162,7 +162,7 @@ jobs:
         if: matrix.shard == 'script'
         with:
           sdk: stable
-      - uses: coursier/setup-action@d5a17f9aaeb260f9ba336a5b582fb49f79c64ac4 # v3.1.0
+      - uses: coursier/setup-action@6eefb29fad2c9de9f52a5f2cef1154195c9d4609 # v3.1.1
         if: matrix.shard == 'jvm'
         with:
           apps: scala:2.13.16 scalac:2.13.16
@@ -286,7 +286,7 @@ jobs:
             timeout: 35
             wsl: true
     steps:
-      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+      - uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2
         if: runner.os == 'Linux'
         with:
           egress-policy: audit
@@ -302,7 +302,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         if: ${{ !matrix.wsl }}
         with:
           go-version: "1.26"
@@ -387,7 +387,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: step-security/harden-runner@1d88384fd173af6ecb012dfd0264a306b711241a # v2
+      - uses: step-security/harden-runner@aebdcf6156ab6691adf63218240e476564a1ed4c # v2
         with:
           egress-policy: audit
       - name: Require jobs
