@@ -37,6 +37,7 @@ from honepad.workstub import (
     merge_unlocked_methods,
     methods_through_level,
     naming_for,
+    slice_stub,
 )
 
 
@@ -6129,6 +6130,53 @@ def test_js_unlock_merge_targets_simulation_not_first_class(
     account, _sep, simulation = body.partition("class Simulation")
     assert "topSpenders" in simulation
     assert "topSpenders" not in account
+
+
+def test_python_slice_keeps_staticmethod_on_its_method() -> None:
+    src = (
+        "class C:\n"
+        "    def a(self):\n"
+        "        return 1\n"
+        "\n"
+        "    @staticmethod\n"
+        "    def b():\n"
+        "        return 2\n"
+    )
+    only_b = slice_stub(src, "py", {"b"}, "C")
+    assert "@staticmethod" in only_b
+    assert "def a" not in only_b
+    ns: dict[str, object] = {}
+    exec(only_b, ns)  # noqa: S102 - the sliced stub is the assertion
+    assert ns["C"]().b() == 2
+    both = slice_stub(src, "py", {"a", "b"}, "C")
+    assert both.index("def a") < both.index("@staticmethod") < both.index("def b")
+
+
+def test_export_class_slice_hides_locked_methods() -> None:
+    src = (
+        "export class Box {\n"
+        "  constructor() {}\n"
+        "  get() { return 1; }\n"
+        "  secret() { return 2; }\n"
+        "}\n"
+    )
+    out = slice_stub(src, "ts", {"get"}, "Box")
+    assert "secret" not in out
+    assert out.count("export class Box") == 1
+    assert "get()" in out
+
+
+def test_shipped_typescript_stub_slice_keeps_level_one_methods() -> None:
+    stub = (repo_root() / "langs/typescript/problems/bank_system/stub.ts").read_text(
+        encoding="utf-8"
+    )
+    allowed = methods_through_level("bank_system", 1, naming_for("typescript"))
+    out = slice_stub(stub, "ts", allowed, "Simulation")
+    assert "createAccount" in out
+    assert "deposit" in out
+    assert "transfer" in out
+    assert "topSpenders" not in out
+    assert out.count("module.exports") == 1
 
 
 def test_declares_class_skips_unclosed_block_comment() -> None:
