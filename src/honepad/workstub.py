@@ -630,29 +630,54 @@ def _python_method_order(text: str) -> list[str]:
 
 def _python_method(text: str, name: str) -> str | None:
     lines = text.splitlines(keepends=True)
-    start = None
+    def_at = None
     indent = ""
     for i, line in enumerate(lines):
         stripped = line.lstrip()
         if stripped.startswith(f"def {name}("):
-            start = i
+            def_at = i
             indent = line[: len(line) - len(stripped)]
             break
-    if start is None:
+    if def_at is None:
         return None
+    start = _python_decorator_start(lines, def_at, indent)
     end = len(lines)
-    for j in range(start + 1, len(lines)):
+    for j in range(def_at + 1, len(lines)):
         line = lines[j]
         if not line.strip():
             continue
-        cur = line[: len(line) - len(line.lstrip())]
-        if line.lstrip().startswith("def ") and len(cur) <= len(indent):
+        stripped = line.lstrip()
+        cur = line[: len(line) - len(stripped)]
+        if stripped.startswith("@") and len(cur) <= len(indent):
+            end = j
+            break
+        if stripped.startswith("def ") and len(cur) <= len(indent):
             end = j
             break
         if line.startswith("class ") and not line.startswith(indent):
             end = j
             break
     return "".join(lines[start:end])
+
+
+def _python_decorator_start(lines: list[str], def_at: int, indent: str) -> int:
+    """Include @ lines that sit on this def, not on the next one."""
+    start = def_at
+    k = def_at - 1
+    while k >= 0:
+        stripped = lines[k].lstrip()
+        if not stripped:
+            if k > 0 and lines[k - 1].lstrip().startswith("@"):
+                k -= 1
+                continue
+            break
+        cur = lines[k][: len(lines[k]) - len(stripped)]
+        if stripped.startswith("@") and cur == indent:
+            start = k
+            k -= 1
+            continue
+        break
+    return start
 
 
 def _inject_java_docs(work: str, full: str, allowed: set[str]) -> str:
@@ -786,14 +811,40 @@ def _js_header(text: str, class_name: str) -> str:
 
 
 def _js_footer(text: str) -> str:
-    for needle in ("module.exports", "export "):
-        idx = text.find(needle)
-        if idx >= 0:
-            tail = text[idx:]
-            if not tail.endswith("\n"):
-                tail += "\n"
-            return "}\n" + tail
-    return "}\n"
+    idx = text.find("module.exports")
+    if idx < 0:
+        idx = _trailing_export(text)
+    if idx < 0:
+        return "}\n"
+    tail = text[idx:]
+    if not tail.endswith("\n"):
+        tail += "\n"
+    return "}\n" + tail
+
+
+def _trailing_export(text: str) -> int:
+    """Index of an export statement that does not declare the class.
+
+    ``export class`` is the header. Treating it as the footer appends
+    the whole file, including methods the level has not unlocked.
+    """
+    idx = 0
+    while True:
+        pos = text.find("export ", idx)
+        if pos < 0:
+            return -1
+        rest = text[pos + len("export ") :].lstrip()
+        if rest.startswith(
+            (
+                "class ",
+                "default class ",
+                "abstract class ",
+                "default abstract class ",
+            )
+        ):
+            idx = pos + len("export ")
+            continue
+        return pos
 
 
 def _js_method_order(text: str) -> list[str]:

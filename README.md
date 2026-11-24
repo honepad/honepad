@@ -66,6 +66,12 @@ honepad start bank_system python3
 That opens a live console. `1` runs public tests. `2` submits and
 unlocks the next level. `q` quits.
 
+The public desks are `bank_system`, `in_memory_database`,
+`file_storage`, `workers`, `inventory`, `rate_limiter`,
+`gpu_scheduler`, `load_balancer`, `pubsub`, and `text_editor`.
+`honepad start` with no arguments prints that list when it cannot
+prompt.
+
 `honepad langs` lists catalog languages. The last column is `runner`
 or `no-runner`.
 
