@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.2.9](https://github.com/honepad/honepad/compare/v0.2.8...v0.2.9) (2026-11-25)
+
+
+### Bug Fixes
+
+* keep decorators and export-class tails on the unlocked stub ([#354](https://github.com/honepad/honepad/issues/354)) ([f398cf8](https://github.com/honepad/honepad/commit/f398cf891af4ddfb9618a4bf265e8e082dae00bd))
+
+
+### Dependencies
+
+* Bump ruff from 0.17.4 to 0.17.5 in the pip-minor-patch group ([#346](https://github.com/honepad/honepad/issues/346)) ([3b3f6cc](https://github.com/honepad/honepad/commit/3b3f6cc4b35a39b54c19aca67a86533123ab2228))
+* Bump ruff from 0.17.5 to 0.17.6 in the pip-minor-patch group ([#348](https://github.com/honepad/honepad/issues/348)) ([be5d05a](https://github.com/honepad/honepad/commit/be5d05a22336b928ef117f63122e12e4ef3d7597))
+
+
+### Documentation
+
+* use the passing FOSSA license badge ([#353](https://github.com/honepad/honepad/issues/353)) ([3120a26](https://github.com/honepad/honepad/commit/3120a26e02fc912d4ca8969750682a695de113fc))
+
 ## [0.2.8](https://github.com/honepad/honepad/compare/v0.2.7...v0.2.8) (2026-11-10)
 
 
