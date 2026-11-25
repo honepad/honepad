@@ -42,10 +42,6 @@ updates:
       interval: weekly
     rebase-strategy: auto
     open-pull-requests-limit: 5
-    ignore:
-      # v2.6.0's published GHCR tag has no manifest. A later release can update.
-      - dependency-name: "ossf/scorecard-action"
-        versions: ["2.6.0"]
     labels:
       - dependencies
     commit-message:
